@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:latest # Use the latest official Postgres image from Docker Hub
+    container_name: ${POSTGRES_CONTAINER_NAME}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432" # Maps port $ on the host to port 5432 in the container
+    volumes:
+      - pgdata:${POSTGRES_DATA_DIR} # Persistent storage for database data
+volumes:
+  pgdata:

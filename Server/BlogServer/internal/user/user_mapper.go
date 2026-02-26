@@ -1,0 +1,48 @@
+package user
+
+import (
+	"fmt"
+
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
+	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/db"
+)
+
+func UserDTOToUser(userDTO *userdb.UsersUser) *User {
+	fmt.Println("In utils")
+	return &User{
+		UserID:       userDTO.UserID.String(),
+		Username:     userDTO.Username,
+		Password:     userDTO.Password,
+		Email:        userDTO.Email.String,
+		FirstName:    userDTO.FirstName,
+		LastName:     userDTO.LastName,
+		Role:         userDTO.Role,
+		TokenVersion: int(userDTO.TokenVersion.Int32),
+		Active:       userDTO.Active.String,
+		Audit: model.Audit{
+			CreatedAt: userDTO.CreatedAt.Time,
+			CreatedBy: utils.UUIDPtr(userDTO.CreatedBy),
+			UpdatedAt: userDTO.UpdatedAt.Time,
+			UpdatedBy: utils.UUIDPtr(userDTO.UpdatedBy),
+		},
+	}
+}
+
+// func UserDTOToUserLogin(user *userdb.UsersUser) *User {
+// 	return &User{
+// 		UserID:    userDTO.UserID.String(),
+// 		Username:  userDTO.Username,
+// 		Email:     userDTO.Email.String,
+// 		FirstName: userDTO.FirstName,
+// 		LastName:  userDTO.LastName,
+// 		Role:      userDTO.Role,
+// 		Active:    userDTO.Active.Bool,
+// 		Audit: model.Audit{
+// 			CreatedAt: userDTO.CreatedAt.Time,
+// 			CreatedBy: utils.UUIDPtr(userDTO.CreatedBy),
+// 			UpdatedAt: userDTO.UpdatedAt.Time,
+// 			UpdatedBy: utils.UUIDPtr(userDTO.UpdatedBy),
+// 		},
+// 	}
+// }
