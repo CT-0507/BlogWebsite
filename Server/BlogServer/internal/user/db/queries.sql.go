@@ -143,44 +143,32 @@ func (q *Queries) GetDeletedUserByID(ctx context.Context, userID uuid.UUID) (Get
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT 
-    user_id, 
-    username, 
-    password, 
-    first_name, 
-    last_name, 
-    created_at, 
-    created_by, 
-    updated_at, 
-    updated_by
+    user_id, username, email, password, first_name, last_name, role, active, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 FROM users.users 
 WHERE user_id = $1 AND deleted_at IS NULL
 `
 
-type GetUserByIDRow struct {
-	UserID    uuid.UUID
-	Username  string
-	Password  string
-	FirstName string
-	LastName  string
-	CreatedAt pgtype.Timestamptz
-	CreatedBy *uuid.UUID
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy *uuid.UUID
-}
-
-func (q *Queries) GetUserByID(ctx context.Context, userID uuid.UUID) (GetUserByIDRow, error) {
+func (q *Queries) GetUserByID(ctx context.Context, userID uuid.UUID) (UsersUser, error) {
 	row := q.db.QueryRow(ctx, getUserByID, userID)
-	var i GetUserByIDRow
+	var i UsersUser
 	err := row.Scan(
 		&i.UserID,
 		&i.Username,
+		&i.Email,
 		&i.Password,
 		&i.FirstName,
 		&i.LastName,
+		&i.Role,
+		&i.Active,
+		&i.Points,
+		&i.TokenVersion,
+		&i.LastLogout,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.DeletedAt,
+		&i.DeletedBy,
 	)
 	return i, err
 }

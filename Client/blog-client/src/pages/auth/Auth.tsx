@@ -21,22 +21,33 @@ function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
   return (
-    <div
+    <Box
+      sx={{
+        display: "flex",
+        width: value !== index ? "" : "100%",
+        minHeight: "450px",
+      }}
       role="tabpanel"
       hidden={value !== index}
-      id={`full-width-tabpanel-${index}`}
-      aria-labelledby={`full-width-tab-${index}`}
+      id={`full-width-tabpanel-${index == 0 ? "login" : "signup"}`}
+      aria-labelledby={`full-width-tab-${index == 0 ? "login" : "signup"}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
+      {value === index && (
+        <Box
+          sx={{ display: "flex", flexDirection: "column", p: 1, width: "100%" }}
+        >
+          {children}
+        </Box>
+      )}
+    </Box>
   );
 }
 
 function a11yProps(tab: number) {
   return {
-    id: `full-width-tab-${tab}`,
-    "aria-controls": `full-width-tabpanel-${tab}`,
+    id: `${tab == 0 ? "login-panel" : "signup-panel"}`,
+    "aria-controls": `tabpanel-${tab == 0 ? "login" : "signup"}`,
   };
 }
 
@@ -58,7 +69,7 @@ export default function Login() {
     <Box
       sx={{
         minWidth: "500px",
-        height: "100%",
+        maxWidth: "600px",
         width: "50%",
         m: "auto",
       }}
@@ -106,6 +117,7 @@ export default function Login() {
           sx={{
             width: "100%",
             flex: 1,
+            display: "flex",
           }}
         >
           <TabPanel value={currentTab} index={0}>
@@ -121,11 +133,17 @@ export default function Login() {
           }}
         >
           {currentTab == 0 ? (
-            <Button onClick={(e) => handleTabChange(e, 1)}>
+            <Button
+              aria-labelledby="go-to-login"
+              onClick={(e) => handleTabChange(e, 1)}
+            >
               Don't have an account yet
             </Button>
           ) : (
-            <Button onClick={(e) => handleTabChange(e, 0)}>
+            <Button
+              aria-labelledby="go-to-signup"
+              onClick={(e) => handleTabChange(e, 0)}
+            >
               Already have an account?
             </Button>
           )}

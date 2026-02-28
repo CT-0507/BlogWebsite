@@ -17,7 +17,7 @@ type UserService interface {
 	LoginUser(c context.Context, username string) (*User, error)
 	LogoutUser(c context.Context, userID uuid.UUID) error
 	// GetAll(c context.Context) ([]User, error)
-	// GetByID(c context.Context, id int64) (*User, error)
+	GetUserByID(c context.Context, userID uuid.UUID) (*User, error)
 	// Update(user *User) error
 	// Delete(c context.Context, id int64) (*int64, error)
 }
@@ -123,4 +123,9 @@ func (s *userService) LogoutUser(c context.Context, userID uuid.UUID) error {
 	return s.withTxExec(c, func(q *userdb.Queries) error {
 		return s.repo.UpdateLastLogout(c, q, userID)
 	})
+}
+
+func (s *userService) GetUserByID(c context.Context, userID uuid.UUID) (*User, error) {
+	q := userdb.New(s.pool)
+	return s.repo.GetUserByID(c, q, userID)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
@@ -52,6 +53,9 @@ func main() {
 	userService := user.NewUserService(pool, userRepo)
 	userHandler := user.NewUserHandler(userService)
 
+	// DashBoard
+	dashboardHanlder := dashboard.NewDashboardHandler()
+
 	// Register Router
 	router := gin.Default()
 
@@ -72,7 +76,7 @@ func main() {
 		AllowOriginFunc: func(origin string) bool {
 			return origin == "" // allow curl/Postman
 		},
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -81,8 +85,8 @@ func main() {
 	}))
 	router.Use(gin.Logger())
 
-	routes.SetupUnprotectedRoutes(router, blogHandler, userHandler)
-	routes.SetupProtectedRoutes(router, pool, blogHandler, userHandler)
+	routes.SetupUnprotectedRoutes(router, blogHandler, userHandler, dashboardHanlder)
+	routes.SetupProtectedRoutes(router, pool, blogHandler, userHandler, dashboardHanlder)
 
 	if err := router.Run(":8080"); err != nil {
 		fmt.Println("Failed to start server", err)

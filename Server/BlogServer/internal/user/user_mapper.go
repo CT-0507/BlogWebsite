@@ -1,15 +1,12 @@
 package user
 
 import (
-	"fmt"
-
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/db"
 )
 
 func UserDTOToUser(userDTO *userdb.UsersUser) *User {
-	fmt.Println("In utils")
 	return &User{
 		UserID:       userDTO.UserID.String(),
 		Username:     userDTO.Username,
@@ -17,7 +14,7 @@ func UserDTOToUser(userDTO *userdb.UsersUser) *User {
 		Email:        userDTO.Email.String,
 		FirstName:    userDTO.FirstName,
 		LastName:     userDTO.LastName,
-		Role:         userDTO.Role,
+		Roles:        []string{userDTO.Role},
 		TokenVersion: int(userDTO.TokenVersion.Int32),
 		Active:       userDTO.Active.String,
 		Audit: model.Audit{

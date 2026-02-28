@@ -1,14 +1,6 @@
 -- name: GetUserByID :one
 SELECT 
-    user_id, 
-    username, 
-    password, 
-    first_name, 
-    last_name, 
-    created_at, 
-    created_by, 
-    updated_at, 
-    updated_by
+    *
 FROM users.users 
 WHERE user_id = $1 AND deleted_at IS NULL;
 

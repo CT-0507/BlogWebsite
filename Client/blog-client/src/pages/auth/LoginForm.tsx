@@ -14,8 +14,15 @@ import IconButton from "@mui/material/IconButton";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Visibility from "@mui/icons-material/Visibility";
 import FormHelperText from "@mui/material/FormHelperText";
+import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { loginRequest } from "@/api/auth";
+import { tokenStore } from "@/api/store/tokenStore";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginForm() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     register,
     control,
@@ -29,6 +36,8 @@ export default function LoginForm() {
     },
     mode: "all",
   });
+  const auth = useAuth();
+  console.log(auth);
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -47,10 +56,26 @@ export default function LoginForm() {
     event.preventDefault();
     setShowPassword(false);
   };
+  const { mutate, isPending } = useMutation({
+    mutationFn: loginRequest,
+    retry: false,
+    onSuccess: (data) => {
+      console.log("Logged in:", data);
+      tokenStore.set(data.accessToken);
+      queryClient.setQueryData(["me"], data);
+      navigate(`/dashboard`);
+      // save token / redirect
+    },
+    onError: (error) => {
+      // console.error(error.response?.data?.message || error.message);
+      console.error(error.message);
+    },
+  });
 
   const onSubmit = async (data: LoginFormValues) => {
     console.log("Form Data:", data);
     // Call API here
+    mutate(data);
   };
   return (
     <>
@@ -58,62 +83,78 @@ export default function LoginForm() {
         This is login form
       </Typography>
 
-      <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-        <TextField
-          label="Username"
-          fullWidth
-          margin="normal"
-          {...register("username")}
-          error={!!errors.username}
-          helperText={errors.username?.message || " "}
-        />
-
-        <FormControl fullWidth>
-          <InputLabel>Password</InputLabel>
-          <Controller
-            control={control}
-            name="password"
-            render={({ field }) => (
-              <OutlinedInput
-                id="outlined-adornment-password"
-                type={showPassword ? "text" : "password"}
-                {...field}
-                error={!!errors.password}
-                fullWidth
-                endAdornment={
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label={
-                        showPassword
-                          ? "hide the password"
-                          : "display the password"
-                      }
-                      onClick={handleClickShowPassword}
-                      onMouseDown={handleMouseDownPassword}
-                      onMouseUp={handleMouseUpPassword}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                }
-                label="Password"
-              />
-            )}
+      <Box
+        flex={1}
+        component="form"
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+        }}
+        onSubmit={handleSubmit(onSubmit)}
+      >
+        <Box
+          sx={{
+            p: 0,
+          }}
+          id="form-field"
+        >
+          <TextField
+            label="Username"
+            fullWidth
+            margin="normal"
+            {...register("username")}
+            error={!!errors.username}
+            helperText={errors.username?.message || " "}
           />
-          <FormHelperText error={!!errors.password}>
-            {errors.password?.message || " "}
-          </FormHelperText>
-        </FormControl>
+
+          <FormControl fullWidth>
+            <InputLabel>Password</InputLabel>
+            <Controller
+              control={control}
+              name="password"
+              render={({ field }) => (
+                <OutlinedInput
+                  id="outlined-adornment-password"
+                  type={showPassword ? "text" : "password"}
+                  {...field}
+                  error={!!errors.password}
+                  fullWidth
+                  endAdornment={
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={
+                          showPassword
+                            ? "hide the password"
+                            : "display the password"
+                        }
+                        onClick={handleClickShowPassword}
+                        onMouseDown={handleMouseDownPassword}
+                        onMouseUp={handleMouseUpPassword}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  }
+                  label="Password"
+                />
+              )}
+            />
+            <FormHelperText error={!!errors.password}>
+              {errors.password?.message || " "}
+            </FormHelperText>
+          </FormControl>
+        </Box>
 
         <Button
           type="submit"
           variant="contained"
           fullWidth
           sx={{ mt: 3 }}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isPending}
         >
-          {isSubmitting ? "Logging in..." : "Login"}
+          {isPending ? "Logging in..." : "Login"}
         </Button>
       </Box>
     </>

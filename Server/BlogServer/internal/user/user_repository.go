@@ -12,6 +12,7 @@ type UserRepository interface {
 	CountByUsername(c context.Context, q *userdb.Queries, username string) (int64, error)
 	GetUserByUsername(c context.Context, q *userdb.Queries, username string) (*User, error)
 	UpdateLastLogout(c context.Context, q *userdb.Queries, userID uuid.UUID) error
+	GetUserByID(c context.Context, q *userdb.Queries, userID uuid.UUID) (*User, error)
 	// FindAll(c context.Context, q *userdb.Queries) ([]User, error)
 	// FindByID(c context.Context, q *userdb.Queries, id uuid.UUID) (*User, error)
 	// Update(user *User, q *userdb.Queries) error
@@ -32,7 +33,7 @@ func (r *userRepository) Create(c context.Context, q *userdb.Queries, user *User
 		Password:  user.Password,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
-		Role:      user.Role,
+		Role:      user.Roles[0],
 	})
 	if err != nil {
 		return nil, err
@@ -55,6 +56,14 @@ func (r *userRepository) GetUserByUsername(c context.Context, q *userdb.Queries,
 
 func (r *userRepository) UpdateLastLogout(c context.Context, q *userdb.Queries, userID uuid.UUID) error {
 	return q.UpdateLastLogout(c, userID)
+}
+
+func (r *userRepository) GetUserByID(c context.Context, q *userdb.Queries, userID uuid.UUID) (*User, error) {
+	user, err := q.GetUserByID(c, userID)
+	if err != nil {
+		return nil, err
+	}
+	return UserDTOToUser(&user), nil
 }
 
 // func (r *userRepository) FindByID(c context.Context, q *userdb.Queries, id uuid.UUID) (*User, error) {
