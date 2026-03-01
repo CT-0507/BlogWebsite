@@ -43,8 +43,14 @@ function BigScreenMenu({
       console.log(error);
     },
   });
+
   const handleLogout = () => {
     mutate();
+  };
+
+  const handleProfileNavigate = async () => {
+    await navigate("/user/profile");
+    handleMenuClose();
   };
   return (
     <Menu
@@ -64,7 +70,7 @@ function BigScreenMenu({
     >
       <MenuItem
         disabled={isPending}
-        onClick={handleMenuClose}
+        onClick={handleProfileNavigate}
         sx={{
           width: "80px",
           display: "flex",
@@ -153,6 +159,7 @@ function MobileMenu({
 
 export default function BasicLayout() {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] =
     useState<null | HTMLElement>(null);
@@ -180,6 +187,10 @@ export default function BasicLayout() {
     setMobileMoreAnchorEl(event.currentTarget);
   };
 
+  const handleLogoClick = () => {
+    navigate("/dashboard");
+  };
+
   return (
     <Box
       sx={{
@@ -190,7 +201,7 @@ export default function BasicLayout() {
       component="main"
     >
       {/* Header */}
-      <Box sx={{ flexGrow: 1 }}>
+      <Box display="contents" sx={{ flexGrow: 1 }}>
         <AppBar position="static">
           <Toolbar>
             {/* Logo placeholder */}
@@ -198,7 +209,8 @@ export default function BasicLayout() {
               component="img"
               src="/logo.png"
               alt="Logo"
-              sx={{ height: 40, mr: 2 }}
+              sx={{ height: 40, mr: 2, cursor: "pointer" }}
+              onClick={handleLogoClick}
             />
             <Typography variant="h6" component="div">
               My App Name
@@ -262,7 +274,7 @@ export default function BasicLayout() {
         sx={{
           flex: 1, // pushes footer down
           py: 1,
-          placeContent: "center",
+          justifyContent: "center",
         }}
       >
         <Outlet />

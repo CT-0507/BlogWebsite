@@ -11,7 +11,6 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
@@ -41,22 +40,24 @@ func (h *UserHandler) registerUser(c *gin.Context) {
 		return
 	}
 
-	hashedPassword, err := utils.HashPassword(user.Password)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if isValidPassword := utils.IsValidPassword(user.Password); !isValidPassword {
+		c.JSON(http.StatusBadRequest, &gin.H{"message": "Password is not valid"})
 		return
 	}
+
 	newUserId, err := h.service.RegisterUser(ctx, &User{
 		Username:  user.Username,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
-		Password:  hashedPassword,
+		Password:  user.Password,
 		Roles:     []string{"admin"},
 	})
 	if err != nil {
 		switch {
 		case errors.Is(err, &ErrUsernameAlreadyTaken{}):
 			c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
+		case errors.Is(err, &ErrFailedToHashString{}):
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
@@ -82,15 +83,20 @@ func (h *UserHandler) loginUser(c *gin.Context) {
 		return
 	}
 
-	foundUser, loginErr := h.service.LoginUser(ctx, user.Username)
-	if loginErr != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": loginErr.Error()})
+	if isValidPassword := utils.IsValidPassword(user.Password); !isValidPassword {
+		c.JSON(http.StatusBadRequest, &gin.H{"message": "Password is not valid"})
 		return
 	}
 
-	compareErr := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(user.Password))
-	if compareErr != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
+	foundUser, loginErr := h.service.LoginUser(ctx, user.Username, user.Password)
+	if loginErr != nil {
+		switch {
+		case errors.Is(loginErr, &ErrNotFound{}):
+		case errors.Is(loginErr, &ErrPasswordNotMatched{}):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Username or password is invalid"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": loginErr.Error()})
+		}
 		return
 	}
 
@@ -139,16 +145,6 @@ func (h *UserHandler) logout(c *gin.Context) {
 		true,
 		true,
 	)
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		Secure:   true,
-		HttpOnly: true,
-		SameSite: http.SameSiteNoneMode,
-	})
 
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -241,4 +237,129 @@ func (h *UserHandler) RefreshTokenHandler(c *gin.Context) {
 	c.SetCookie("refresh_token", newRefreshToken, 604800, "/", "localhost", true, true) //expires in 1 week
 
 	c.JSON(http.StatusOK, gin.H{"accessToken": newToken})
+}
+
+func (h *UserHandler) UpdateUserBasicInfo(c *gin.Context) {
+
+	var userInfo UpdateUserBasicInfoRequest
+	if err := c.ShouldBindJSON(&userInfo); err != nil {
+		c.JSON(http.StatusBadRequest, &gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, userInfo); err != nil {
+		c.JSON(http.StatusBadRequest, &err)
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Unable to logout",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, 5*time.Second)
+	defer cancel()
+
+	if err := h.service.UpdateBasicInfo(ctx, userID, &User{
+		FirstName: userInfo.FirstName,
+		LastName:  userInfo.LastName,
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, &gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "successfully change data",
+		"firstName": userInfo.FirstName,
+		"lastName":  userInfo.LastName})
+}
+
+func (h *UserHandler) UpdateUserEmail(c *gin.Context) {
+
+	var userEmail UpdateUserEmailRequest
+	if err := c.ShouldBindJSON(&userEmail); err != nil {
+		c.JSON(http.StatusBadRequest, &gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, userEmail); err != nil {
+		c.JSON(http.StatusBadRequest, &err)
+		return
+	}
+
+	if userEmail.ConfirmCode != "123456" {
+		c.JSON(http.StatusForbidden, &gin.H{
+			"message": "Confirm code is incorrect",
+		})
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Unable to logout",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, 5*time.Second)
+	defer cancel()
+
+	if err := h.service.UpdateEmail(ctx, userID, userEmail.Email); err != nil {
+		c.JSON(http.StatusInternalServerError, &gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, &gin.H{"email": userEmail.Email})
+}
+
+func (h *UserHandler) ChangePassword(c *gin.Context) {
+
+	var userPassword UpdatePasswordRequest
+	if err := c.ShouldBindJSON(&userPassword); err != nil {
+		c.JSON(http.StatusBadRequest, &gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, userPassword); err != nil {
+		c.JSON(http.StatusBadRequest, &err)
+		return
+	}
+
+	if isValidPassword := utils.IsValidPassword(userPassword.CurrentPassword); !isValidPassword {
+		c.JSON(http.StatusBadRequest, &gin.H{"message": "Current password is not valid"})
+		return
+	}
+
+	if isValidPassword := utils.IsValidPassword(userPassword.NewPassword); !isValidPassword {
+		c.JSON(http.StatusBadRequest, &gin.H{"message": "New password is not valid"})
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"message": "Unable to logout",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, 5*time.Second)
+	defer cancel()
+
+	if err := h.service.UpdatePassword(ctx, userID, &UpdatePasswordServiceParams{
+		CurrentPassword: userPassword.CurrentPassword,
+		NewPassword:     userPassword.NewPassword,
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, &gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, &gin.H{"message": "OK"})
+}
+
+func (h *UserHandler) GetChangeEmailCode(c *gin.Context) {
+	c.JSON(http.StatusOK, &gin.H{"code": "123456"})
 }

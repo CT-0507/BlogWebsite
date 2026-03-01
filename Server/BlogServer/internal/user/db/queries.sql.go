@@ -324,27 +324,20 @@ func (q *Queries) UpdateLastLogout(ctx context.Context, userID uuid.UUID) error 
 
 const updateUserData = `-- name: UpdateUserData :one
 UPDATE users.users
-    SET username = $1,
-    first_name = $2, 
-    last_name = $3
-WHERE user_id = $4
+    SET first_name = $1, 
+    last_name = $2
+WHERE user_id = $3
 RETURNING user_id
 `
 
 type UpdateUserDataParams struct {
-	Username  string
 	FirstName string
 	LastName  string
 	UserID    uuid.UUID
 }
 
 func (q *Queries) UpdateUserData(ctx context.Context, arg UpdateUserDataParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateUserData,
-		arg.Username,
-		arg.FirstName,
-		arg.LastName,
-		arg.UserID,
-	)
+	row := q.db.QueryRow(ctx, updateUserData, arg.FirstName, arg.LastName, arg.UserID)
 	var user_id uuid.UUID
 	err := row.Scan(&user_id)
 	return user_id, err

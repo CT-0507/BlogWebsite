@@ -71,10 +71,9 @@ UPDATE users.users
 
 -- name: UpdateUserData :one
 UPDATE users.users
-    SET username = $1,
-    first_name = $2, 
-    last_name = $3
-WHERE user_id = $4
+    SET first_name = $1, 
+    last_name = $2
+WHERE user_id = $3
 RETURNING user_id;
 
 -- name: UpdateUserPassword :one

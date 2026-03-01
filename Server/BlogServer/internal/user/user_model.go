@@ -49,3 +49,42 @@ type ErrUsernameAlreadyTaken struct{}
 func (e *ErrUsernameAlreadyTaken) Error() string {
 	return "User already exists"
 }
+
+type ErrPasswordNotMatched struct{}
+
+func (e *ErrPasswordNotMatched) Error() string {
+	return "Current password does not matched"
+}
+
+type ErrFailedToHashString struct{}
+
+func (e *ErrFailedToHashString) Error() string {
+	return "Failed to hash string"
+}
+
+type ErrNotFound struct{}
+
+func (e *ErrNotFound) Error() string {
+	return "Target not found"
+}
+
+type UpdateUserEmailRequest struct {
+	Email       string `json:"email" validate:"required,email,max=50"`
+	ConfirmCode string `json:"confirmCode" validate:"required,max=6"`
+}
+
+type UpdateUserBasicInfoRequest struct {
+	FirstName string `json:"firstName" validate:"required,min=1,max=20"`
+	LastName  string `json:"lastName" validate:"required,min=1,max=20"`
+}
+
+type UpdatePasswordRequest struct {
+	CurrentPassword    string `json:"currentPassword" validate:"required,min=8,max=20"`
+	NewPassword        string `json:"newPassword" validate:"required,min=8,max=20,nefield=CurrentPassword"`
+	ConfirmNewPassword string `json:"confirmNewPassword" validate:"required,min=8,max=20,eqfield=NewPassword"`
+}
+
+type UpdatePasswordServiceParams struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}

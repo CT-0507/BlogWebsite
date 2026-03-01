@@ -5,6 +5,7 @@ import (
 
 	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/db"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type UserRepository interface {
@@ -13,9 +14,9 @@ type UserRepository interface {
 	GetUserByUsername(c context.Context, q *userdb.Queries, username string) (*User, error)
 	UpdateLastLogout(c context.Context, q *userdb.Queries, userID uuid.UUID) error
 	GetUserByID(c context.Context, q *userdb.Queries, userID uuid.UUID) (*User, error)
-	// FindAll(c context.Context, q *userdb.Queries) ([]User, error)
-	// FindByID(c context.Context, q *userdb.Queries, id uuid.UUID) (*User, error)
-	// Update(user *User, q *userdb.Queries) error
+	UpdateEmail(c context.Context, q *userdb.Queries, userID uuid.UUID, email string) error
+	UpdateData(c context.Context, q *userdb.Queries, userID uuid.UUID, user *User) error
+	UpdatePassword(c context.Context, q *userdb.Queries, userID uuid.UUID, hashedPassword string) error
 	// Delete(c context.Context, q *userdb.Queries, id int64) (*int64, error)
 }
 
@@ -66,18 +67,30 @@ func (r *userRepository) GetUserByID(c context.Context, q *userdb.Queries, userI
 	return UserDTOToUser(&user), nil
 }
 
-// func (r *userRepository) FindByID(c context.Context, q *userdb.Queries, id uuid.UUID) (*User, error) {
+func (r *userRepository) UpdateEmail(c context.Context, q *userdb.Queries, userID uuid.UUID, email string) error {
+	_, err := q.UpdateUserEmail(c, userdb.UpdateUserEmailParams{
+		UserID: userID,
+		Email: pgtype.Text{
+			String: email,
+			Valid:  true,
+		},
+	})
+	return err
+}
 
-// 	newUser, err := q.GetUserByID()(c, userdb.CreateUserParams{
-// 		Email:     user.Email,
-// 		Password:  user.Password,
-// 		FirstName: user.FirstName,
-// 		LastName:  user.LastName,
-// 	})
+func (r *userRepository) UpdateData(c context.Context, q *userdb.Queries, userID uuid.UUID, user *User) error {
+	_, err := q.UpdateUserData(c, userdb.UpdateUserDataParams{
+		UserID:    userID,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+	})
+	return err
+}
 
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return UserDTOToBlog(&newUser), nil
-// }
+func (r *userRepository) UpdatePassword(c context.Context, q *userdb.Queries, userID uuid.UUID, hashedPassword string) error {
+	_, err := q.UpdateUserPassword(c, userdb.UpdateUserPasswordParams{
+		UserID:   userID,
+		Password: hashedPassword,
+	})
+	return err
+}

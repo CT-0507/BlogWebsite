@@ -12,7 +12,7 @@ export function AuthProviderContainer({
     queryFn: fetchMe,
     retry: false,
   });
-  console.log("rerender");
+
   return (
     <AuthProvider
       value={{

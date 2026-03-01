@@ -1,7 +1,7 @@
 import { loginSchema, type LoginFormValues } from "./model/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
@@ -14,7 +14,7 @@ import IconButton from "@mui/material/IconButton";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import Visibility from "@mui/icons-material/Visibility";
 import FormHelperText from "@mui/material/FormHelperText";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { loginRequest } from "@/api/auth";
 import { tokenStore } from "@/api/store/tokenStore";
@@ -22,7 +22,18 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/dashboard";
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
+
+  // Check if user has already logged in
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  });
+
   const {
     register,
     control,
@@ -36,8 +47,6 @@ export default function LoginForm() {
     },
     mode: "all",
   });
-  const auth = useAuth();
-  console.log(auth);
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -56,15 +65,16 @@ export default function LoginForm() {
     event.preventDefault();
     setShowPassword(false);
   };
+
   const { mutate, isPending } = useMutation({
     mutationFn: loginRequest,
     retry: false,
     onSuccess: (data) => {
-      console.log("Logged in:", data);
-      tokenStore.set(data.accessToken);
-      queryClient.setQueryData(["me"], data);
-      navigate(`/dashboard`);
       // save token / redirect
+      tokenStore.set(data.accessToken);
+      // Update me data on login response instead of fetching again
+      queryClient.setQueryData(["me"], data);
+      navigate(from, { replace: true });
     },
     onError: (error) => {
       // console.error(error.response?.data?.message || error.message);
@@ -74,7 +84,6 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     console.log("Form Data:", data);
-    // Call API here
     mutate(data);
   };
   return (
@@ -109,13 +118,13 @@ export default function LoginForm() {
           />
 
           <FormControl fullWidth>
-            <InputLabel>Password</InputLabel>
+            <InputLabel htmlFor="password">Password</InputLabel>
             <Controller
               control={control}
               name="password"
               render={({ field }) => (
                 <OutlinedInput
-                  id="outlined-adornment-password"
+                  id="password"
                   type={showPassword ? "text" : "password"}
                   {...field}
                   error={!!errors.password}

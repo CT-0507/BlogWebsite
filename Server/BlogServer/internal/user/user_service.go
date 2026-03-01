@@ -4,21 +4,25 @@ import (
 	"context"
 	"errors"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
 	Create(c context.Context, user *User) (string, error)
 	CheckExistedUsername(c context.Context, username string) (int64, error)
 	RegisterUser(c context.Context, user *User) (string, error)
-	LoginUser(c context.Context, username string) (*User, error)
+	LoginUser(c context.Context, username string, password string) (*User, error)
 	LogoutUser(c context.Context, userID uuid.UUID) error
 	// GetAll(c context.Context) ([]User, error)
 	GetUserByID(c context.Context, userID uuid.UUID) (*User, error)
-	// Update(user *User) error
+	UpdateEmail(c context.Context, userID uuid.UUID, email string) error
+	UpdatePassword(c context.Context, userID uuid.UUID, userPassword *UpdatePasswordServiceParams) error
+	UpdateBasicInfo(c context.Context, userID uuid.UUID, user *User) error
 	// Delete(c context.Context, id int64) (*int64, error)
 }
 
@@ -93,6 +97,12 @@ func (s *userService) RegisterUser(c context.Context, user *User) (string, error
 		if count > 0 {
 			return "", &ErrUsernameAlreadyTaken{}
 		}
+
+		hashedPassword, err := utils.HashPassword(user.Password)
+		if err != nil {
+			return "", &ErrFailedToHashString{}
+		}
+		user.Password = hashedPassword
 		newUser, err := s.repo.Create(c, q, user)
 		if err != nil {
 			return "", err
@@ -114,9 +124,20 @@ func (s *userService) CheckExistedUsername(c context.Context, username string) (
 	return s.repo.CountByUsername(c, q, username)
 }
 
-func (s *userService) LoginUser(c context.Context, username string) (*User, error) {
+func (s *userService) LoginUser(c context.Context, username string, password string) (*User, error) {
+
 	q := userdb.New(s.pool)
-	return s.repo.GetUserByUsername(c, q, username)
+	foundUser, err := s.repo.GetUserByUsername(c, q, username)
+	if err != nil {
+		return nil, &ErrNotFound{}
+	}
+
+	compareErr := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(password))
+	if compareErr != nil {
+		return nil, &ErrPasswordNotMatched{}
+	}
+
+	return foundUser, nil
 }
 
 func (s *userService) LogoutUser(c context.Context, userID uuid.UUID) error {
@@ -128,4 +149,37 @@ func (s *userService) LogoutUser(c context.Context, userID uuid.UUID) error {
 func (s *userService) GetUserByID(c context.Context, userID uuid.UUID) (*User, error) {
 	q := userdb.New(s.pool)
 	return s.repo.GetUserByID(c, q, userID)
+}
+
+func (s *userService) UpdateEmail(c context.Context, userID uuid.UUID, email string) error {
+	return s.withTxExec(c, func(q *userdb.Queries) error {
+		return s.repo.UpdateEmail(c, q, userID, email)
+	})
+}
+
+func (s *userService) UpdateBasicInfo(c context.Context, userID uuid.UUID, user *User) error {
+	return s.withTxExec(c, func(q *userdb.Queries) error {
+		return s.repo.UpdateData(c, q, userID, user)
+	})
+}
+
+func (s *userService) UpdatePassword(c context.Context, userID uuid.UUID, userPassword *UpdatePasswordServiceParams) error {
+	return s.withTxExec(c, func(q *userdb.Queries) error {
+
+		foundUser, err := s.repo.GetUserByID(c, q, userID)
+		if err != nil {
+			return err
+		}
+		compareErr := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(userPassword.CurrentPassword))
+		if compareErr != nil {
+			return &ErrPasswordNotMatched{}
+		}
+
+		hashedNewPassword, err := utils.HashPassword(userPassword.NewPassword)
+		if err != nil {
+			return &ErrFailedToHashString{}
+		}
+
+		return s.repo.UpdatePassword(c, q, userID, hashedNewPassword)
+	})
 }

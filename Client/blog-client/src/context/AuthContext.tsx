@@ -1,9 +1,10 @@
 import { createContext } from "react";
 
-type User = {
+export type User = {
   id: string;
   username: string;
   roles: string[];
+  email: string;
   firstName: string;
   lastName: string;
 };

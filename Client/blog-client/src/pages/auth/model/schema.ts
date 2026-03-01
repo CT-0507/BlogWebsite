@@ -5,7 +5,7 @@ export const loginSchema = z.object({
     .string()
     .min(4, "Must be at least 4 characters")
     .trim()
-    .nonempty("Bắt buộc"),
+    .nonempty("This is a required field"),
   password: z
     .string()
     .min(8, "Must be at least 8 characters")
