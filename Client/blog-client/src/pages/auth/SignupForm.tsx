@@ -57,7 +57,7 @@ export default function SignupForm() {
     mutationFn: signupRequest,
     onSuccess: (data) => {
       console.log("Logged in:", data);
-      navigate(`/home`);
+      navigate(`/account`);
       // save token / redirect
     },
     onError: (error) => {

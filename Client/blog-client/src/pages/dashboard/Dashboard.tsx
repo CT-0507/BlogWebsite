@@ -9,6 +9,7 @@ export default function Dashboard() {
       const { data } = await axiosAuth.get("/dashboard");
       return data;
     },
+    staleTime: 1000 * 60 * 5,
   });
   return (
     <>
