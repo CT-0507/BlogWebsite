@@ -26,6 +26,19 @@ func UserDTOToUser(userDTO *userdb.UsersUser) *User {
 	}
 }
 
+func NotificationDTOToNotification(notDTO *userdb.UsersNotification) *Notification {
+	return &Notification{
+		NotificationID: notDTO.NotificationID,
+		UserID:         notDTO.UserID.String(),
+		Content:        notDTO.Content,
+		IsRead:         notDTO.IsRead,
+
+		Audit: model.Audit{
+			CreatedAt: notDTO.CreatedAt.Time,
+		},
+	}
+}
+
 // func UserDTOToUserLogin(user *userdb.UsersUser) *User {
 // 	return &User{
 // 		UserID:    userDTO.UserID.String(),

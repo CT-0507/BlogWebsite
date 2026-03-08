@@ -12,10 +12,13 @@ import MenuItem from "@mui/material/MenuItem";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import MoreIcon from "@mui/icons-material/MoreVert";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Outlet, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
+import BorderColor from "@mui/icons-material/BorderColor";
+import Button from "@mui/material/Button";
+import { getNotifications } from "@/api/userApi";
 
 interface BigScreenMenuProps {
   menuId: string;
@@ -170,6 +173,28 @@ export default function BasicLayout() {
   const menuId = "primary-search-account-menu";
   const mobileMenuId = "primary-search-account-menu-mobile";
 
+  const { data, isLoading } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: getNotifications,
+    retry: false,
+    refetchInterval: 30 * 60 * 1000,
+  });
+
+  const nofiticationNumber = useMemo(() => {
+    if (!isLoading && data && Array.isArray(data)) {
+      return data.length;
+    }
+    return 0;
+  }, [data, isLoading]);
+
+  useEffect(() => {
+    document.title =
+      document.title +
+      (nofiticationNumber !== 0 ? `(${nofiticationNumber})` : "");
+  }, [nofiticationNumber]);
+
+  const handleShowNotifications = () => {};
+
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -221,22 +246,42 @@ export default function BasicLayout() {
                 size="large"
                 aria-label="show 17 new notifications"
                 color="inherit"
+                onClick={handleShowNotifications}
               >
-                <Badge badgeContent={17} color="error">
+                <Badge badgeContent={nofiticationNumber} color="error">
                   <NotificationsIcon />
                 </Badge>
               </IconButton>
               {isAuthenticated && (
-                <IconButton
-                  size="large"
-                  edge="end"
-                  aria-label="account of current user"
-                  aria-haspopup="true"
-                  onClick={handleProfileMenuOpen}
-                  color="inherit"
-                >
-                  <AccountCircle />
-                </IconButton>
+                <>
+                  <Button
+                    component={Link}
+                    to="/blog/publish"
+                    size="large"
+                    aria-label="account of current user"
+                    aria-haspopup="true"
+                    color="info"
+                    title="Publish new blog"
+                    variant="contained"
+                    sx={{
+                      mx: 1,
+                    }}
+                  >
+                    <BorderColor />
+                    <Typography ml={2}>Publish new blog</Typography>
+                  </Button>
+                  <IconButton
+                    size="large"
+                    edge="end"
+                    aria-label="account of current user"
+                    aria-haspopup="true"
+                    onClick={handleProfileMenuOpen}
+                    color="inherit"
+                    title="Profile"
+                  >
+                    <AccountCircle />
+                  </IconButton>
+                </>
               )}
             </Box>
             <Box sx={{ display: { xs: "flex", md: "none" } }}>

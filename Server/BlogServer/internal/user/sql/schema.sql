@@ -32,4 +32,18 @@ CREATE TABLE users.refresh_tokens (
     revoked_at TIMESTAMPTZ
 );
 
+CREATE TABLE users.notifications (
+    notification_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID REFERENCES users.users(user_id),
+    content TEXT NOT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by UUID REFERENCES users.users(user_id),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by UUID REFERENCES users.users(user_id),
+    deleted_at TIMESTAMPTZ,
+    deleted_by UUID REFERENCES users.users(user_id)
+);
+
 CREATE INDEX ON users.users (user_id);

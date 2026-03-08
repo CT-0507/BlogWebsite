@@ -2,7 +2,6 @@ package blog
 
 import (
 	"context"
-	"fmt"
 
 	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/db"
 	"github.com/google/uuid"
@@ -49,10 +48,11 @@ func (r *blogRepository) FindAll(c context.Context, q *blogdb.Queries) ([]BlogWi
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(rows)
+
 	var blogs []BlogWithAuthorDTO
 	for _, value := range rows {
-		blogs = append(blogs, *ListBlogsRowDTOToBlog(&value))
+		v := value
+		blogs = append(blogs, *ListBlogsRowDTOToBlog(&v))
 	}
 	return blogs, nil
 }

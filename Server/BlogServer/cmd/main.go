@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/broker"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
@@ -43,15 +46,21 @@ func main() {
 		log.Fatalf("Failed to reach database server: %v", err)
 	}
 
-	// Blog Feature block
-	blogRepo := blog.NewBlogRepository()
-	blogService := blog.NewBlogService(pool, blogRepo)
-	blogHandler := blog.NewBlogHandler(blogService)
+	// outbox
+	outboxRepo := outbox.New()
+
+	// broker
+	broker := broker.NewBroker()
 
 	// User Feature block
 	userRepo := user.NewUserRepository()
 	userService := user.NewUserService(pool, userRepo)
-	userHandler := user.NewUserHandler(userService)
+	userHandler := user.NewUserHandler(userService, broker)
+
+	// Blog Feature block
+	blogRepo := blog.NewBlogRepository()
+	blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
+	blogHandler := blog.NewBlogHandler(blogService, broker)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
@@ -87,6 +96,14 @@ func main() {
 
 	routes.SetupUnprotectedRoutes(router, blogHandler, userHandler, dashboardHanlder)
 	routes.SetupProtectedRoutes(router, pool, blogHandler, userHandler, dashboardHanlder)
+
+	bus := event.NewBus()
+
+	bus.Subscribe("blog.created", blogService.OnBlogPosted)
+
+	worker := outbox.NewOutboxWorker(pool, bus, outboxRepo)
+
+	go worker.Start(context.Background())
 
 	if err := router.Run(":8080"); err != nil {
 		fmt.Println("Failed to start server", err)

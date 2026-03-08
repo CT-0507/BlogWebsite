@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard/Dashboard";
 import { ROLES } from "@/config/roles";
 import UserHome from "@/pages/user/UserHome";
 import Profile from "@/pages/user/profile/Profile";
+import PublishPage from "@/pages/blog/publish/Publish";
 
 export default function AppRoutes() {
   return (
@@ -26,6 +27,12 @@ export default function AppRoutes() {
         >
           <Route index element={<UserHome />} />
           <Route path="profile" element={<Profile />} />
+        </Route>
+        <Route
+          path="/blog"
+          element={<RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.USER]} />}
+        >
+          <Route path="publish" element={<PublishPage />} />
         </Route>
       </Route>
     </Routes>

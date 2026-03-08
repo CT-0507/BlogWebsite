@@ -25,6 +25,27 @@ func (q *Queries) CountUserWithEmail(ctx context.Context, username string) (int6
 	return count, err
 }
 
+const createNotification = `-- name: CreateNotification :exec
+INSERT INTO users.notifications (
+    user_id,
+    content,
+    created_by,
+    updated_by
+)
+VALUES ($1, $2, $3, $3)
+`
+
+type CreateNotificationParams struct {
+	UserID    *uuid.UUID
+	Content   string
+	CreatedBy *uuid.UUID
+}
+
+func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) error {
+	_, err := q.db.Exec(ctx, createNotification, arg.UserID, arg.Content, arg.CreatedBy)
+	return err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users.users(
     username, 
@@ -207,6 +228,44 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (Users
 	return i, err
 }
 
+const getUserNotiticationsByID = `-- name: GetUserNotiticationsByID :many
+SELECT n.notification_id, n.user_id, n.content, n.is_read, n.created_at, n.created_by, n.updated_at, n.updated_by, n.deleted_at, n.deleted_by
+FROM users.users u
+JOIN users.notifications n ON n.user_id = u.user_id
+WHERE n.deleted_at IS NULL
+`
+
+func (q *Queries) GetUserNotiticationsByID(ctx context.Context) ([]UsersNotification, error) {
+	rows, err := q.db.Query(ctx, getUserNotiticationsByID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UsersNotification
+	for rows.Next() {
+		var i UsersNotification
+		if err := rows.Scan(
+			&i.NotificationID,
+			&i.UserID,
+			&i.Content,
+			&i.IsRead,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+			&i.DeletedAt,
+			&i.DeletedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT 
     user_id, 
@@ -313,8 +372,10 @@ func (q *Queries) ListWithDeleteUserUsers(ctx context.Context) ([]ListWithDelete
 const updateLastLogout = `-- name: UpdateLastLogout :exec
 UPDATE users.users
     SET last_logout = NOW(),
-    token_version = token_version + 1
-    WHERE user_id = $1
+    token_version = token_version + 1,
+    updated_at = NOW(),
+    updated_by = user_id
+WHERE user_id = $1
 `
 
 func (q *Queries) UpdateLastLogout(ctx context.Context, userID uuid.UUID) error {
@@ -322,22 +383,68 @@ func (q *Queries) UpdateLastLogout(ctx context.Context, userID uuid.UUID) error 
 	return err
 }
 
+const updateNotification = `-- name: UpdateNotification :exec
+UPDATE users.notifications 
+    SET is_read = $2,
+    updated_at = NOW(),
+    updated_by = $3
+WHERE notification_id = $1
+`
+
+type UpdateNotificationParams struct {
+	NotificationID int64
+	IsRead         bool
+	UpdatedBy      *uuid.UUID
+}
+
+func (q *Queries) UpdateNotification(ctx context.Context, arg UpdateNotificationParams) error {
+	_, err := q.db.Exec(ctx, updateNotification, arg.NotificationID, arg.IsRead, arg.UpdatedBy)
+	return err
+}
+
+const updateNotificationStatus = `-- name: UpdateNotificationStatus :exec
+UPDATE users.notifications
+    SET is_read = $1,
+    updated_at = NOW(),
+    updated_by = $2
+WHERE notification_id = ANY($3::int[])
+`
+
+type UpdateNotificationStatusParams struct {
+	IsRead    bool
+	UpdatedBy *uuid.UUID
+	Ids       []int32
+}
+
+func (q *Queries) UpdateNotificationStatus(ctx context.Context, arg UpdateNotificationStatusParams) error {
+	_, err := q.db.Exec(ctx, updateNotificationStatus, arg.IsRead, arg.UpdatedBy, arg.Ids)
+	return err
+}
+
 const updateUserData = `-- name: UpdateUserData :one
 UPDATE users.users
     SET first_name = $1, 
-    last_name = $2
-WHERE user_id = $3
+    last_name = $2,
+    updated_at = NOW(),
+    updated_by = $3
+WHERE user_id = $4
 RETURNING user_id
 `
 
 type UpdateUserDataParams struct {
 	FirstName string
 	LastName  string
+	UpdatedBy *uuid.UUID
 	UserID    uuid.UUID
 }
 
 func (q *Queries) UpdateUserData(ctx context.Context, arg UpdateUserDataParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateUserData, arg.FirstName, arg.LastName, arg.UserID)
+	row := q.db.QueryRow(ctx, updateUserData,
+		arg.FirstName,
+		arg.LastName,
+		arg.UpdatedBy,
+		arg.UserID,
+	)
 	var user_id uuid.UUID
 	err := row.Scan(&user_id)
 	return user_id, err
@@ -345,18 +452,21 @@ func (q *Queries) UpdateUserData(ctx context.Context, arg UpdateUserDataParams) 
 
 const updateUserEmail = `-- name: UpdateUserEmail :one
 UPDATE users.users
-    SET email = $1
+    SET email = $1,
+    updated_at = NOW(),
+    updated_by = $3
 WHERE user_id = $2
 RETURNING user_id
 `
 
 type UpdateUserEmailParams struct {
-	Email  pgtype.Text
-	UserID uuid.UUID
+	Email     pgtype.Text
+	UserID    uuid.UUID
+	UpdatedBy *uuid.UUID
 }
 
 func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateUserEmail, arg.Email, arg.UserID)
+	row := q.db.QueryRow(ctx, updateUserEmail, arg.Email, arg.UserID, arg.UpdatedBy)
 	var user_id uuid.UUID
 	err := row.Scan(&user_id)
 	return user_id, err
@@ -364,18 +474,21 @@ func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams
 
 const updateUserPassword = `-- name: UpdateUserPassword :one
 UPDATE users.users
-    SET password = $1
+    SET password = $1,
+    updated_at = NOW(),
+    updated_by = $3
 WHERE user_id = $2
 RETURNING user_id
 `
 
 type UpdateUserPasswordParams struct {
-	Password string
-	UserID   uuid.UUID
+	Password  string
+	UserID    uuid.UUID
+	UpdatedBy *uuid.UUID
 }
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateUserPassword, arg.Password, arg.UserID)
+	row := q.db.QueryRow(ctx, updateUserPassword, arg.Password, arg.UserID, arg.UpdatedBy)
 	var user_id uuid.UUID
 	err := row.Scan(&user_id)
 	return user_id, err

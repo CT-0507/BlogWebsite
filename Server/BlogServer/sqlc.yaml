@@ -42,3 +42,13 @@ sql:
         out: "internal/shared/repository/db"
         sql_package: "pgx/v5"
         overrides: *common_overrides
+
+  - engine: "postgresql"
+    queries: "internal/outbox/sql"
+    schema: "internal/outbox/sql"
+    gen:
+      go:
+        package: "outboxdb"
+        out: "internal/outbox/db"
+        sql_package: "pgx/v5"
+        overrides: *common_overrides

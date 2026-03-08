@@ -5,6 +5,15 @@ import "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 type ProfileData struct {
 }
 
+type Notification struct {
+	NotificationID int64  `json:"notification_id"`
+	UserID         string `json:"user_id"`
+	Content        string `json:"content"`
+	IsRead         bool   `json:"is_read"`
+
+	model.Audit
+}
+
 type User struct {
 	UserID       string      `json:"user_id"`
 	Username     string      `json:"username"`
@@ -87,4 +96,9 @@ type UpdatePasswordRequest struct {
 type UpdatePasswordServiceParams struct {
 	CurrentPassword string `json:"currentPassword"`
 	NewPassword     string `json:"newPassword"`
+}
+
+type UpdateNotificationStatusRequest struct {
+	NotId  int64 `json:"notificationID"`
+	Status bool  `json:"status"`
 }
