@@ -9,11 +9,9 @@ import (
 )
 
 type OutboxOutboxEvent struct {
-	ID            int64
-	AggregateType string
-	AggregateID   string
-	EventType     string
-	Payload       []byte
-	CreatedAt     pgtype.Timestamptz
-	ProcessedAt   pgtype.Timestamptz
+	ID          int64
+	Topic       string
+	Payload     []byte
+	CreatedAt   pgtype.Timestamptz
+	ProcessedAt pgtype.Timestamptz
 }

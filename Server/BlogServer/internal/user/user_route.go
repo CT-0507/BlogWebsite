@@ -16,7 +16,6 @@ func (h *UserHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 func (h *UserHandler) RegisterProtectedRoutes(r *gin.Engine) {
 	r.GET("/me", h.getUserById)
 	r.POST("/logout", h.logout)
-	r.GET("/admin/event", h.broker.ServeSSE)
 	user := r.Group("/user")
 	{
 		user.GET("/notifications", h.GetNotifications)

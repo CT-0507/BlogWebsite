@@ -19,6 +19,9 @@ import CircularProgress from "@mui/material/CircularProgress";
 import BorderColor from "@mui/icons-material/BorderColor";
 import Button from "@mui/material/Button";
 import { getNotifications } from "@/api/userApi";
+import Snackbar from "@mui/material/Snackbar";
+import CloseIcon from "@mui/icons-material/Close";
+import { axiosAuth } from "@/api/axiosConfig";
 
 interface BigScreenMenuProps {
   menuId: string;
@@ -166,7 +169,7 @@ export default function BasicLayout() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] =
     useState<null | HTMLElement>(null);
-
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const isMenuOpen = Boolean(anchorEl);
   const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
 
@@ -193,6 +196,20 @@ export default function BasicLayout() {
       (nofiticationNumber !== 0 ? `(${nofiticationNumber})` : "");
   }, [nofiticationNumber]);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      const evt = new EventSource(
+        `${import.meta.env.VITE_API_BASE_URL}/events?topics=blog_created_admin`,
+        { withCredentials: true }
+      );
+      console.log("Subscribing");
+      evt.addEventListener("blog_created_admin", (e) => {
+        console.log(JSON.parse(e.data));
+        setSnackbarOpen(true);
+      });
+    }
+  }, [isAuthenticated]);
+
   const handleShowNotifications = () => {};
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -216,6 +233,10 @@ export default function BasicLayout() {
     navigate("/dashboard");
   };
 
+  const handleCloseSnackBar = () => {
+    setSnackbarOpen(false);
+  };
+
   return (
     <Box
       sx={{
@@ -225,6 +246,25 @@ export default function BasicLayout() {
       }}
       component="main"
     >
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackBar}
+        message="Note archived"
+        action={
+          <>
+            <Typography>You have notification</Typography>
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={handleCloseSnackBar}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </>
+        }
+      />
       {/* Header */}
       <Box display="contents" sx={{ flexGrow: 1 }}>
         <AppBar position="static">

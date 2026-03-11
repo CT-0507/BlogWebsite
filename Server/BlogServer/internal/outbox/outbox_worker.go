@@ -58,7 +58,7 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 
 	for _, row := range rows {
 
-		err = w.handleEvent(row.EventType, row.Payload)
+		err = w.handleEvent(row.Topic, row.Payload)
 		if err != nil {
 			continue
 		}
@@ -82,9 +82,9 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 // 	Type   string
 // }
 
-func (w *OutboxWorker) handleEvent(eventType string, payload []byte) error {
+func (w *OutboxWorker) handleEvent(topic string, payload []byte) error {
 
-	switch eventType {
+	switch topic {
 
 	case "blog.created":
 
@@ -94,7 +94,17 @@ func (w *OutboxWorker) handleEvent(eventType string, payload []byte) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		return w.bus.Publish(ctx, "blog.created", payload)
+		return w.bus.Publish(ctx, topic, payload)
+
+	case "notification.created":
+
+		// var evt BlogCreatedEvent
+		// json.Unmarshal(payload, &evt)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		return w.bus.Publish(ctx, topic, payload)
 
 	}
 

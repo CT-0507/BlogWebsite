@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/broker"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
@@ -17,11 +16,10 @@ import (
 
 type BlogHandler struct {
 	service BlogService
-	broker  *broker.Broker
 }
 
-func NewBlogHandler(service BlogService, broker *broker.Broker) *BlogHandler {
-	return &BlogHandler{service: service, broker: broker}
+func NewBlogHandler(service BlogService) *BlogHandler {
+	return &BlogHandler{service: service}
 }
 
 // Description: create new blog

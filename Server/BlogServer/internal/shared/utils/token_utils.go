@@ -46,6 +46,7 @@ func GenerateToken(username, firstName, lastName, userID string, roles []string,
 		FirstName:    firstName,
 		LastName:     lastName,
 		TokenVersion: tokenVer,
+		Roles:        roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    "BlogServer",
 			IssuedAt:  jwt.NewNumericDate(issuedAt),

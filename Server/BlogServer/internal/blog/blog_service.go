@@ -98,19 +98,15 @@ func (s *blogService) CreateWithOutBox(c context.Context, blog *Blog) error {
 		BlogTitle: blog.Title,
 	}
 
-	log.Println("Before insert outbox")
-
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
-	err = s.outboxRepo.Insert(c, tx, "blog", blog.BlogID, event.EventName(), payload)
+	err = s.outboxRepo.Insert(c, tx, event.EventName(), payload)
 	if err != nil {
 		return err
 	}
-
-	log.Println("After insert outbox")
 
 	return tx.Commit(c)
 }
@@ -142,15 +138,39 @@ func (s *blogService) Delete(c context.Context, id int64, userId uuid.UUID) (*in
 
 func (s *blogService) OnBlogPosted(c context.Context, payload []byte) error {
 
+	tx, err := s.pool.BeginTx(c, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(c)
+
 	var evt BlogCreatedEvent
 	if err := json.Unmarshal(payload, &evt); err != nil {
 		return err
 	}
 	content := fmt.Sprintf("A blog with title %s has just created", evt.BlogTitle)
-	err := s.userService.CreateNotification(c, content, uuid.MustParse(config.ADMIN_ID), uuid.MustParse(config.SYSTEM_ID))
+	err = s.userService.CreateNotification(c, content, uuid.MustParse(config.ADMIN_ID), uuid.MustParse(config.SYSTEM_ID))
 	if err != nil {
 		return err
 	}
 
-	return nil
+	log.Println("Before insert notification")
+
+	notificationEvent := struct {
+		Message string
+	}{
+		Message: "You have a new blog to check",
+	}
+	notificationPayload, err := json.Marshal(notificationEvent)
+	if err != nil {
+		log.Println(err.Error())
+		return err
+	}
+
+	err = s.outboxRepo.Insert(c, tx, "notification.created", notificationPayload)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit(c)
 }

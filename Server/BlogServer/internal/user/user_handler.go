@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/broker"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
@@ -16,11 +15,10 @@ import (
 
 type UserHandler struct {
 	service UserService
-	broker  *broker.Broker
 }
 
-func NewUserHandler(service UserService, broker *broker.Broker) *UserHandler {
-	return &UserHandler{service: service, broker: broker}
+func NewUserHandler(service UserService) *UserHandler {
+	return &UserHandler{service: service}
 }
 
 // Description: create new blog

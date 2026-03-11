@@ -10,7 +10,7 @@ import (
 )
 
 const getUnprocessedEvent = `-- name: GetUnprocessedEvent :many
-SELECT id, event_type, payload
+SELECT id, topic, payload
 FROM outbox.outbox_events
 WHERE processed_at IS NULL
 ORDER BY created_at
@@ -19,9 +19,9 @@ FOR UPDATE SKIP LOCKED
 `
 
 type GetUnprocessedEventRow struct {
-	ID        int64
-	EventType string
-	Payload   []byte
+	ID      int64
+	Topic   string
+	Payload []byte
 }
 
 func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]GetUnprocessedEventRow, error) {
@@ -33,7 +33,7 @@ func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]GetUnprocessedEven
 	var items []GetUnprocessedEventRow
 	for rows.Next() {
 		var i GetUnprocessedEventRow
-		if err := rows.Scan(&i.ID, &i.EventType, &i.Payload); err != nil {
+		if err := rows.Scan(&i.ID, &i.Topic, &i.Payload); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -46,24 +46,17 @@ func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]GetUnprocessedEven
 
 const insertRecord = `-- name: InsertRecord :exec
 INSERT INTO outbox.outbox_events
-        (aggregate_type, aggregate_id, event_type, payload)
-VALUES ($1,$2,$3,$4)
+    (topic, payload)
+VALUES ($1,$2)
 `
 
 type InsertRecordParams struct {
-	AggregateType string
-	AggregateID   string
-	EventType     string
-	Payload       []byte
+	Topic   string
+	Payload []byte
 }
 
 func (q *Queries) InsertRecord(ctx context.Context, arg InsertRecordParams) error {
-	_, err := q.db.Exec(ctx, insertRecord,
-		arg.AggregateType,
-		arg.AggregateID,
-		arg.EventType,
-		arg.Payload,
-	)
+	_, err := q.db.Exec(ctx, insertRecord, arg.Topic, arg.Payload)
 	return err
 }
 

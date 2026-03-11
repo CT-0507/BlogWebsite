@@ -1,7 +1,7 @@
 -- name: InsertRecord :exec
 INSERT INTO outbox.outbox_events
-        (aggregate_type, aggregate_id, event_type, payload)
-VALUES ($1,$2,$3,$4);
+    (topic, payload)
+VALUES ($1,$2);
 
 -- name: UpdateProcessedAt :exec
 UPDATE outbox.outbox_events
@@ -9,7 +9,7 @@ UPDATE outbox.outbox_events
 WHERE id = ANY($1::bigint[]);
 
 -- name: GetUnprocessedEvent :many
-SELECT id, event_type, payload
+SELECT id, topic, payload
 FROM outbox.outbox_events
 WHERE processed_at IS NULL
 ORDER BY created_at

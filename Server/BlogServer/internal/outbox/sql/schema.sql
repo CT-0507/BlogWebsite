@@ -3,9 +3,7 @@ CREATE SCHEMA IF NOT EXISTS outbox;
 
 CREATE TABLE outbox.outbox_events (
     id BIGSERIAL PRIMARY KEY,
-    aggregate_type TEXT NOT NULL,
-    aggregate_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
+    topic TEXT NOT NULL,
     payload JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     processed_at TIMESTAMPTZ

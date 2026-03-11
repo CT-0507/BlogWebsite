@@ -9,11 +9,12 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/broker"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/notification"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
 	"github.com/gin-contrib/cors"
@@ -50,20 +51,26 @@ func main() {
 	outboxRepo := outbox.New()
 
 	// broker
-	broker := broker.NewBroker()
+	broker := sse.NewBroker()
+
+	// sse
+	sseHandler := sse.NewSSEHandler(broker)
 
 	// User Feature block
 	userRepo := user.NewUserRepository()
 	userService := user.NewUserService(pool, userRepo)
-	userHandler := user.NewUserHandler(userService, broker)
+	userHandler := user.NewUserHandler(userService)
 
 	// Blog Feature block
 	blogRepo := blog.NewBlogRepository()
 	blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
-	blogHandler := blog.NewBlogHandler(blogService, broker)
+	blogHandler := blog.NewBlogHandler(blogService)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
+
+	// Notification
+	notificationService := notification.NewNotificationService(broker)
 
 	// Register Router
 	router := gin.Default()
@@ -94,12 +101,13 @@ func main() {
 	}))
 	router.Use(gin.Logger())
 
-	routes.SetupUnprotectedRoutes(router, blogHandler, userHandler, dashboardHanlder)
-	routes.SetupProtectedRoutes(router, pool, blogHandler, userHandler, dashboardHanlder)
+	routes.SetupUnprotectedRoutes(router, blogHandler, userHandler, dashboardHanlder, sseHandler)
+	routes.SetupProtectedRoutes(router, pool, blogHandler, userHandler, dashboardHanlder, sseHandler)
 
 	bus := event.NewBus()
 
 	bus.Subscribe("blog.created", blogService.OnBlogPosted)
+	bus.Subscribe("notification.created", notificationService.PublishNotification)
 
 	worker := outbox.NewOutboxWorker(pool, bus, outboxRepo)
 
