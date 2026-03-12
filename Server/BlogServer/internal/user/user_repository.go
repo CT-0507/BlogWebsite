@@ -18,7 +18,7 @@ type UserRepository interface {
 	UpdateData(c context.Context, q *userdb.Queries, userID uuid.UUID, user *User, updatedBy *uuid.UUID) error
 	UpdatePassword(c context.Context, q *userdb.Queries, userID uuid.UUID, hashedPassword string, updatedBy *uuid.UUID) error
 	GetNotificationsByUserID(c context.Context, q *userdb.Queries, userID uuid.UUID) ([]Notification, error)
-	CreateNotification(c context.Context, q *userdb.Queries, content string, userID uuid.UUID, createdBy uuid.UUID) error
+	CreateNotification(c context.Context, q *userdb.Queries, content string, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error)
 	UpdateNotificationByID(c context.Context, q *userdb.Queries, notificationID int64, status bool, updatedBy *uuid.UUID) error
 	// Delete(c context.Context, q *userdb.Queries, id int64) (*int64, error)
 }
@@ -114,12 +114,13 @@ func (r *userRepository) GetNotificationsByUserID(c context.Context, q *userdb.Q
 	return notifications, nil
 }
 
-func (r *userRepository) CreateNotification(c context.Context, q *userdb.Queries, content string, userID uuid.UUID, createdBy uuid.UUID) error {
-	return q.CreateNotification(c, userdb.CreateNotificationParams{
+func (r *userRepository) CreateNotification(c context.Context, q *userdb.Queries, content string, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error) {
+	notification, err := q.CreateNotification(c, userdb.CreateNotificationParams{
 		UserID:    &userID,
 		Content:   content,
 		CreatedBy: &createdBy,
 	})
+	return NotificationDTOToNotification(&notification), err
 }
 
 func (r *userRepository) UpdateNotificationByID(c context.Context, q *userdb.Queries, notificationID int64, status bool, updatedBy *uuid.UUID) error {

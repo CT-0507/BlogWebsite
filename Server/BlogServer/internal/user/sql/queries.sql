@@ -107,14 +107,15 @@ FROM users.users u
 JOIN users.notifications n ON n.user_id = u.user_id
 WHERE n.deleted_at IS NULL;
 
--- name: CreateNotification :exec
+-- name: CreateNotification :one
 INSERT INTO users.notifications (
     user_id,
     content,
     created_by,
     updated_by
 )
-VALUES ($1, $2, $3, $3);
+VALUES ($1, $2, $3, $3)
+RETURNING *;
 
 -- name: UpdateNotification :exec
 UPDATE users.notifications 

@@ -25,7 +25,7 @@ func (q *Queries) CountUserWithEmail(ctx context.Context, username string) (int6
 	return count, err
 }
 
-const createNotification = `-- name: CreateNotification :exec
+const createNotification = `-- name: CreateNotification :one
 INSERT INTO users.notifications (
     user_id,
     content,
@@ -33,6 +33,7 @@ INSERT INTO users.notifications (
     updated_by
 )
 VALUES ($1, $2, $3, $3)
+RETURNING notification_id, user_id, content, is_read, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateNotificationParams struct {
@@ -41,9 +42,22 @@ type CreateNotificationParams struct {
 	CreatedBy *uuid.UUID
 }
 
-func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) error {
-	_, err := q.db.Exec(ctx, createNotification, arg.UserID, arg.Content, arg.CreatedBy)
-	return err
+func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (UsersNotification, error) {
+	row := q.db.QueryRow(ctx, createNotification, arg.UserID, arg.Content, arg.CreatedBy)
+	var i UsersNotification
+	err := row.Scan(
+		&i.NotificationID,
+		&i.UserID,
+		&i.Content,
+		&i.IsRead,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+		&i.DeletedAt,
+		&i.DeletedBy,
+	)
+	return i, err
 }
 
 const createUser = `-- name: CreateUser :one

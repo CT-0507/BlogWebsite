@@ -149,7 +149,7 @@ func (s *blogService) OnBlogPosted(c context.Context, payload []byte) error {
 		return err
 	}
 	content := fmt.Sprintf("A blog with title %s has just created", evt.BlogTitle)
-	err = s.userService.CreateNotification(c, content, uuid.MustParse(config.ADMIN_ID), uuid.MustParse(config.SYSTEM_ID))
+	not, err := s.userService.CreateNotification(c, content, uuid.MustParse(config.ADMIN_ID), uuid.MustParse(config.SYSTEM_ID))
 	if err != nil {
 		return err
 	}
@@ -157,9 +157,11 @@ func (s *blogService) OnBlogPosted(c context.Context, payload []byte) error {
 	log.Println("Before insert notification")
 
 	notificationEvent := struct {
-		Message string
+		NotifcationID int64
+		Content       string
 	}{
-		Message: "You have a new blog to check",
+		NotifcationID: not.NotificationID,
+		Content:       not.Content,
 	}
 	notificationPayload, err := json.Marshal(notificationEvent)
 	if err != nil {

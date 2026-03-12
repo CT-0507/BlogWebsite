@@ -25,7 +25,7 @@ type UserService interface {
 	UpdatePassword(c context.Context, userID uuid.UUID, userPassword *UpdatePasswordServiceParams) error
 	UpdateBasicInfo(c context.Context, userID uuid.UUID, user *User) error
 	GetUserNotifications(c context.Context, userID uuid.UUID) ([]Notification, error)
-	CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) error
+	CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error)
 	UpdateNotificationStatus(c context.Context, notID int64, status bool, updatedBy *uuid.UUID) error
 	GetHashedString(str string) (string, error)
 	// Delete(c context.Context, id int64) (*int64, error)
@@ -199,11 +199,15 @@ func (s *userService) UpdateNotificationStatus(c context.Context, notID int64, s
 	return s.repo.UpdateNotificationByID(c, q, notID, status, updatedBy)
 }
 
-func (s *userService) CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) error {
+func (s *userService) CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error) {
 	systemId := uuid.MustParse(config.SYSTEM_ID)
-	return s.withTxExec(c, func(q *userdb.Queries) error {
+	not, err := s.withTx(c, func(q *userdb.Queries) (any, error) {
 		return s.repo.CreateNotification(c, q, content, userID, systemId)
 	})
+	if err != nil {
+		return nil, err
+	}
+	return not.(*Notification), nil
 }
 
 // func (s *userService) UpdateNotificationsStatusByIds(c context.Context, not *Notification, userID uuid.UUID, createdBy uuid.UUID) error {

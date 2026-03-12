@@ -29,7 +29,7 @@ func UserDTOToUser(userDTO *userdb.UsersUser) *User {
 func NotificationDTOToNotification(notDTO *userdb.UsersNotification) *Notification {
 	return &Notification{
 		NotificationID: notDTO.NotificationID,
-		UserID:         notDTO.UserID.String(),
+		UserID:         "",
 		Content:        notDTO.Content,
 		IsRead:         notDTO.IsRead,
 

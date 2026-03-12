@@ -21,7 +21,7 @@ import Button from "@mui/material/Button";
 import { getNotifications } from "@/api/userApi";
 import Snackbar from "@mui/material/Snackbar";
 import CloseIcon from "@mui/icons-material/Close";
-import { axiosAuth } from "@/api/axiosConfig";
+import { useAuthSSE } from "@/hooks/useSSECacheBridge";
 
 interface BigScreenMenuProps {
   menuId: string;
@@ -163,19 +163,7 @@ function MobileMenu({
   );
 }
 
-export default function BasicLayout() {
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [mobileMoreAnchorEl, setMobileMoreAnchorEl] =
-    useState<null | HTMLElement>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const isMenuOpen = Boolean(anchorEl);
-  const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
-
-  const menuId = "primary-search-account-menu";
-  const mobileMenuId = "primary-search-account-menu-mobile";
-
+function NotificationMenu() {
   const { data, isLoading } = useQuery({
     queryKey: ["notifications"],
     queryFn: getNotifications,
@@ -190,27 +178,46 @@ export default function BasicLayout() {
     return 0;
   }, [data, isLoading]);
 
+  const handleShowNotifications = () => {};
+
   useEffect(() => {
     document.title =
       document.title +
       (nofiticationNumber !== 0 ? `(${nofiticationNumber})` : "");
   }, [nofiticationNumber]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      const evt = new EventSource(
-        `${import.meta.env.VITE_API_BASE_URL}/events?topics=blog_created_admin`,
-        { withCredentials: true }
-      );
-      console.log("Subscribing");
-      evt.addEventListener("blog_created_admin", (e) => {
-        console.log(JSON.parse(e.data));
-        setSnackbarOpen(true);
-      });
-    }
-  }, [isAuthenticated]);
+  return (
+    <IconButton
+      size="large"
+      aria-label="show 17 new notifications"
+      color="inherit"
+      onClick={handleShowNotifications}
+    >
+      <Badge badgeContent={nofiticationNumber} color="error">
+        <NotificationsIcon />
+      </Badge>
+    </IconButton>
+  );
+}
 
-  const handleShowNotifications = () => {};
+export default function BasicLayout() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [mobileMoreAnchorEl, setMobileMoreAnchorEl] =
+    useState<null | HTMLElement>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const isMenuOpen = Boolean(anchorEl);
+  const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
+
+  const menuId = "primary-search-account-menu";
+  const mobileMenuId = "primary-search-account-menu-mobile";
+
+  console.log("Rerender");
+  console.log(isAuthenticated);
+  useAuthSSE(isAuthenticated ? tokenStore.get() : null, undefined, [
+    "blog_created_admin",
+  ]);
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -282,18 +289,9 @@ export default function BasicLayout() {
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Box sx={{ display: { xs: "none", md: "flex" } }}>
-              <IconButton
-                size="large"
-                aria-label="show 17 new notifications"
-                color="inherit"
-                onClick={handleShowNotifications}
-              >
-                <Badge badgeContent={nofiticationNumber} color="error">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-              {isAuthenticated && (
+              {isAuthenticated ? (
                 <>
+                  <NotificationMenu />
                   <Button
                     component={Link}
                     to="/blog/publish"
@@ -321,6 +319,12 @@ export default function BasicLayout() {
                   >
                     <AccountCircle />
                   </IconButton>
+                </>
+              ) : (
+                <>
+                  <Button component={Link} to="/account" color="info">
+                    Account
+                  </Button>
                 </>
               )}
             </Box>

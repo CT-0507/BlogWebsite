@@ -20,11 +20,8 @@ func NewNotificationService(broker *sse.Broker) NotificationService {
 }
 
 type NotificationCreatedEvent struct {
-	Message string
-}
-
-type NotificationMessage struct {
-	Message string
+	NotID   string
+	Content string
 }
 
 func (s *notificationService) PublishNotification(c context.Context, payload []byte) error {
@@ -32,8 +29,10 @@ func (s *notificationService) PublishNotification(c context.Context, payload []b
 	if err := json.Unmarshal(payload, &evt); err != nil {
 		return err
 	}
-	s.broker.Publish("blog_created_admin", "blog", &NotificationMessage{
-		Message: evt.Message,
+	s.broker.PublishCache("blog_created_admin", "blog", sse.Cache{
+		QueryKey: []string{"notifications"},
+		Op:       "append",
+		Data:     evt,
 	})
 
 	return nil
