@@ -5,25 +5,20 @@ import (
 	"sync"
 )
 
-// type Message struct {
-// 	Event string
-// 	Data  interface{}
-// }
-
 type Message struct {
-	Topic   string
-	Content Content
+	Event string
+	Data  interface{}
 }
 
 type Content struct {
-	Cache *Cache
-	Event *interface{}
+	Cache *Cache       `json:"cache"`
+	Event *interface{} `json:"eventData"`
 }
 
 type Cache struct {
-	QueryKey []string
-	Op       string
-	Data     interface{}
+	QueryKey []string    `json:"queryKey"`
+	Op       string      `json:"op"`
+	Data     interface{} `json:"data"`
 }
 
 type Client struct {
@@ -87,27 +82,20 @@ func (b *Broker) Subscribe(client *Client, topic string) {
 
 	b.topics[topic][client.ID] = client
 	client.Topics[topic] = true
-	log.Println(b.topics[topic][client.ID])
-	log.Println(b.topics[topic])
 }
 
 func (b *Broker) PublishCache(topic, event string, data Cache) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	log.Println(topic)
-	log.Println(b.topics)
-
 	subs := b.topics[topic]
 
 	msg := Message{
-		Topic: topic,
-		Content: Content{
+		Event: topic,
+		Data: Content{
 			Cache: &data,
 		},
 	}
-	log.Println("In publishing Cache")
-	log.Println(subs)
 	for _, client := range subs {
 
 		select {
@@ -126,13 +114,11 @@ func (b *Broker) PublishEvent(topic, event string, data interface{}) {
 	subs := b.topics[topic]
 
 	msg := Message{
-		Topic: event,
-		Content: Content{
+		Event: event,
+		Data: Content{
 			Event: &data,
 		},
 	}
-	log.Println("In publishing")
-	log.Println(subs)
 	for _, client := range subs {
 
 		select {

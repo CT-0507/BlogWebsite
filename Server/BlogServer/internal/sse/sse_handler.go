@@ -2,7 +2,6 @@ package sse
 
 import (
 	"io"
-	"log"
 	"strings"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
@@ -20,7 +19,6 @@ func NewSSEHandler(b *Broker) *SSEHandler {
 
 func (h *SSEHandler) StreamPublic(c *gin.Context) {
 
-	log.Println("In public")
 	clientID := uuid.NewString()
 	client := h.broker.AddClient(clientID)
 	defer h.broker.RemoveClient(clientID)
@@ -50,7 +48,7 @@ func (h *SSEHandler) StreamPublic(c *gin.Context) {
 				return false
 			}
 
-			c.SSEvent(msg.Topic, msg.Content)
+			c.SSEvent(msg.Event, msg.Data)
 
 			return true
 
@@ -63,33 +61,24 @@ func (h *SSEHandler) StreamPublic(c *gin.Context) {
 
 func (h *SSEHandler) StreamAuth(c *gin.Context) {
 
-	log.Println("In auth")
-
 	clientID := uuid.NewString()
 	client := h.broker.AddClient(clientID)
 	defer h.broker.RemoveClient(clientID)
-	log.Println("opics")
+
 	roles := c.MustGet("roles").([]string)
 	userID := c.MustGet("userID").(string)
 
 	topics := strings.SplitSeq(c.Query("topics"), ",")
-	log.Println(userID)
-	log.Println(topics)
-	log.Println(roles)
-	log.Println(utils.CanSubscribe(userID, roles, "blog_created_admin"))
 
 	for topic := range topics {
-		log.Println(topic)
 		if topic == "" {
 			continue
 		}
 
-		// if !utils.CanSubscribe(userID, roles, topic) {
-		// 	c.SSEvent("error", "unauthorized_topic")
-		// 	log.Println("Failed")
-		// 	return
-		// }
-		log.Println("In auth sub")
+		if !utils.CanSubscribe(userID, roles, topic) {
+			c.SSEvent("error", "unauthorized_topic")
+			return
+		}
 		h.broker.Subscribe(client, topic)
 	}
 
@@ -98,16 +87,13 @@ func (h *SSEHandler) StreamAuth(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 
 	c.Stream(func(w io.Writer) bool {
-		log.Println("In auth sub1")
 		select {
 		case msg, ok := <-client.Channel:
-			log.Println("In auth sub2")
-
 			if !ok {
 				return false
 			}
 
-			c.SSEvent(msg.Topic, msg.Content)
+			c.SSEvent(msg.Event, msg.Data)
 
 			return true
 

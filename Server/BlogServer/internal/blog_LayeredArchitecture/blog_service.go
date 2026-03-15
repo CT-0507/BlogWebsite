@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/db"
@@ -78,6 +77,7 @@ func (s *blogService) Create(c context.Context, blog *Blog) error {
 	})
 }
 
+// Save a box to database and Create an Event to outbox_events table
 func (s *blogService) CreateWithOutBox(c context.Context, blog *Blog) error {
 
 	tx, err := s.pool.BeginTx(c, pgx.TxOptions{})
@@ -103,7 +103,7 @@ func (s *blogService) CreateWithOutBox(c context.Context, blog *Blog) error {
 		return err
 	}
 
-	err = s.outboxRepo.Insert(c, tx, event.EventName(), payload)
+	err = s.outboxRepo.Insert(c, event.EventName(), payload)
 	if err != nil {
 		return err
 	}
@@ -154,22 +154,21 @@ func (s *blogService) OnBlogPosted(c context.Context, payload []byte) error {
 		return err
 	}
 
-	log.Println("Before insert notification")
-
-	notificationEvent := struct {
-		NotifcationID int64
-		Content       string
-	}{
-		NotifcationID: not.NotificationID,
-		Content:       not.Content,
-	}
-	notificationPayload, err := json.Marshal(notificationEvent)
+	// notificationEvent := struct {
+	// 	NotifcationID int64
+	// 	Content       string
+	// 	IsRead        bool
+	// }{
+	// 	NotifcationID: not.NotificationID,
+	// 	Content:       not.Content,
+	// 	IsRead:        not.IsRead,
+	// }
+	notificationPayload, err := json.Marshal(not)
 	if err != nil {
-		log.Println(err.Error())
 		return err
 	}
 
-	err = s.outboxRepo.Insert(c, tx, "notification.created", notificationPayload)
+	err = s.outboxRepo.Insert(c, "notification.created", notificationPayload)
 	if err != nil {
 		return err
 	}

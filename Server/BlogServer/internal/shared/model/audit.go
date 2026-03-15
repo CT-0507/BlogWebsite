@@ -5,10 +5,10 @@ import (
 )
 
 type Audit struct {
-	CreatedAt time.Time  `json:"created_at"`
-	CreatedBy *string    `json:"created_by,omitempty"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	UpdatedBy *string    `json:"updated_by,omitempty"`
-	DeletedAt *time.Time `json:"deleted_at"`
-	DeletedBy *string    `json:"deleted_by,omitempty"`
+	CreatedAt time.Time  `json:"createdAt"`
+	CreatedBy *string    `json:"createdBy,omitempty"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	UpdatedBy *string    `json:"updatedBy,omitempty"`
+	DeletedAt *time.Time `json:"deletedAt"`
+	DeletedBy *string    `json:"deletedBy,omitempty"`
 }

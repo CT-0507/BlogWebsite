@@ -20,7 +20,7 @@ let token = null;
 let retryCount = 0;
 const MAX_RETRIES = 10;
 const BASE_DELAY = 1000;
-const BASE_URL = "http://localhost:8080";
+let BASE_URL;
 
 async function startStream(
   url,
@@ -28,7 +28,6 @@ async function startStream(
   route,
   headers
 ) {
-  console.log("Herer")
   const response = await fetch(BASE_URL + url, {
     headers: {
       Accept: "text/event-stream",
@@ -59,7 +58,6 @@ async function startStream(
       const payload = JSON.parse(line.replace("data:", "").trim());
 
       route(payload);
-      console.log(payload)
     }
   }
 }
@@ -83,13 +81,13 @@ function mapTopicsToQueryParams(topics) {
   return queryParams;
 }
 
-async function startAuthStream(topics) {
+async function startAuthStream(baseUrl, topics) {
   if (authController || !token) return;
 
   authController = new AbortController();
 
   await startStream(
-    "/events/auth?topics=blog_created_admin",
+    baseUrl + "/events/auth" + mapTopicsToQueryParams(topics),
     authController,
     (event) => routeEvent(event, "auth"),
     { Authorization: `Bearer ${token}` }
@@ -133,11 +131,7 @@ function routeEvent(event, type) {
   }
 }
 
-console.log("Here")
-
 onconnect = (e) => {
-
-  console.log("Here")
 
   const port = e.ports[0]
 
@@ -149,6 +143,7 @@ onconnect = (e) => {
 
     const data = msg.data
     const topics = msg.topics
+    BASE_URL = msg.baseURL
 
     if (data.type === "init-auth") {
 

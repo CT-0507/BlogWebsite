@@ -6,46 +6,14 @@ import { initAuthSSE, initPublicSSE } from "../lib/sseClient";
 export function useAuthSSE(
   token: string | null,
   topics?: string[],
-  globalTopics?: string[]
+  globalTopics?: string[],
+  setSnackbar?: (value: boolean) => void
 ) {
   console.log("Run");
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!token) return;
-
-    console.log(globalTopics);
-
-    fetch("http://localhost:8080/events/auth?topics=blog_created_admin", {
-      headers: {
-        Accept: "text/event-stream",
-        Authorization: `Bearer ${token}`,
-      },
-    }).then(async (res) => {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() || "";
-
-        for (const part of parts) {
-          const line = part.split("\n").find((l) => l.startsWith("content:"));
-          if (!line) continue;
-
-          const payload = JSON.parse(line.replace("Cache:", "").trim());
-
-          console.log(payload);
-        }
-      }
-    });
 
     const worker = initAuthSSE(token, topics, globalTopics);
 
@@ -56,6 +24,8 @@ export function useAuthSSE(
       if (msg.data.type !== "cache-patch") return;
 
       const { queryKey, op, data } = msg.data.patch;
+
+      setSnackbar?.(true);
 
       queryClient.setQueryData(queryKey, (old: any) => {
         if (!old) return old;
@@ -81,7 +51,7 @@ export function useAuthSSE(
         }
       });
     };
-  }, [topics, token, queryClient, globalTopics]);
+  }, [topics, token, queryClient, globalTopics, setSnackbar]);
 }
 
 export function usePublicSSE(topics: string[], globalTopics?: string[]) {

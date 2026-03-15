@@ -6,10 +6,10 @@ type ProfileData struct {
 }
 
 type Notification struct {
-	NotificationID int64  `json:"notification_id"`
-	UserID         string `json:"user_id"`
+	NotificationID int64  `json:"notificationId"`
+	UserID         string `json:"userId"`
 	Content        string `json:"content"`
-	IsRead         bool   `json:"is_read"`
+	IsRead         bool   `json:"isRead"`
 
 	model.Audit
 }

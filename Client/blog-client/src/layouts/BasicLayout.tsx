@@ -1,204 +1,22 @@
-import { logoutRequest } from "@/api/auth";
 import { tokenStore } from "@/api/store/tokenStore";
 import { useAuth } from "@/hooks/useAuth";
 import AppBar from "@mui/material/AppBar";
-import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import AccountCircle from "@mui/icons-material/AccountCircle";
-import NotificationsIcon from "@mui/icons-material/Notifications";
 import MoreIcon from "@mui/icons-material/MoreVert";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-import CircularProgress from "@mui/material/CircularProgress";
+import { useState } from "react";
 import BorderColor from "@mui/icons-material/BorderColor";
 import Button from "@mui/material/Button";
-import { getNotifications } from "@/api/userApi";
 import Snackbar from "@mui/material/Snackbar";
 import CloseIcon from "@mui/icons-material/Close";
 import { useAuthSSE } from "@/hooks/useSSECacheBridge";
-
-interface BigScreenMenuProps {
-  menuId: string;
-  anchorEl: null | HTMLElement;
-  isMenuOpen: boolean;
-  handleMenuClose: () => void;
-}
-function BigScreenMenu({
-  menuId,
-  anchorEl,
-  isMenuOpen,
-  handleMenuClose,
-}: BigScreenMenuProps) {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const { isPending, mutate } = useMutation({
-    mutationFn: logoutRequest,
-    onSuccess: () => {
-      tokenStore.clear();
-      queryClient.setQueryData(["me"], null);
-      handleMenuClose();
-      navigate("/account");
-    },
-    onError: (error) => {
-      console.log(error);
-    },
-  });
-
-  const handleLogout = () => {
-    mutate();
-  };
-
-  const handleProfileNavigate = async () => {
-    await navigate("/user/profile");
-    handleMenuClose();
-  };
-  return (
-    <Menu
-      anchorEl={anchorEl}
-      anchorOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      id={menuId}
-      keepMounted
-      transformOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      open={isMenuOpen}
-      onClose={handleMenuClose}
-    >
-      <MenuItem
-        disabled={isPending}
-        onClick={handleProfileNavigate}
-        sx={{
-          width: "80px",
-          display: "flex",
-          placeContent: "center",
-        }}
-      >
-        Profile
-      </MenuItem>
-      <MenuItem
-        disabled={isPending}
-        onClick={handleLogout}
-        sx={{
-          width: "80px",
-          display: "flex",
-          placeContent: "center",
-        }}
-      >
-        {isPending ? <CircularProgress size="20px" /> : "Logout"}
-      </MenuItem>
-    </Menu>
-  );
-}
-
-interface MobileMenuProps {
-  mobileMenuId: string;
-  mobileMoreAnchorEl: null | HTMLElement;
-  isMobileMenuOpen: boolean;
-  handleMobileMenuClose: (event: React.MouseEvent<HTMLElement>) => void;
-  handleProfileMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
-}
-
-function MobileMenu({
-  mobileMenuId,
-  mobileMoreAnchorEl,
-  isMobileMenuOpen,
-  handleMobileMenuClose,
-  handleProfileMenuOpen,
-}: MobileMenuProps) {
-  const { user } = useAuth();
-  return (
-    <Menu
-      sx={{ zIndex: 99 }}
-      anchorEl={mobileMoreAnchorEl}
-      anchorOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      id={mobileMenuId}
-      keepMounted
-      transformOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      open={isMobileMenuOpen}
-      onClose={handleMobileMenuClose}
-    >
-      <MenuItem>
-        <IconButton
-          size="large"
-          aria-label="show 17 new notifications"
-          color="inherit"
-        >
-          <Badge badgeContent={17} color="error">
-            <NotificationsIcon />
-          </Badge>
-        </IconButton>
-        <p>Notifications</p>
-      </MenuItem>
-      {user && (
-        <MenuItem onClick={handleProfileMenuOpen}>
-          <IconButton
-            size="large"
-            aria-label="account of current user"
-            aria-controls="primary-search-account-menu"
-            aria-haspopup="true"
-            color="inherit"
-          >
-            <AccountCircle />
-          </IconButton>
-          <p>Profile</p>
-        </MenuItem>
-      )}
-    </Menu>
-  );
-}
-
-function NotificationMenu() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: getNotifications,
-    retry: false,
-    refetchInterval: 30 * 60 * 1000,
-  });
-
-  const nofiticationNumber = useMemo(() => {
-    if (!isLoading && data && Array.isArray(data)) {
-      return data.length;
-    }
-    return 0;
-  }, [data, isLoading]);
-
-  const handleShowNotifications = () => {};
-
-  useEffect(() => {
-    document.title =
-      document.title +
-      (nofiticationNumber !== 0 ? `(${nofiticationNumber})` : "");
-  }, [nofiticationNumber]);
-
-  return (
-    <IconButton
-      size="large"
-      aria-label="show 17 new notifications"
-      color="inherit"
-      onClick={handleShowNotifications}
-    >
-      <Badge badgeContent={nofiticationNumber} color="error">
-        <NotificationsIcon />
-      </Badge>
-    </IconButton>
-  );
-}
+import NotificationMenu from "./NotificationMenu";
+import MobileMenu from "./MobileMenu";
+import BigScreenMenu from "./BigScreenMenu";
 
 export default function BasicLayout() {
   const { isAuthenticated } = useAuth();
@@ -213,11 +31,12 @@ export default function BasicLayout() {
   const menuId = "primary-search-account-menu";
   const mobileMenuId = "primary-search-account-menu-mobile";
 
-  console.log("Rerender");
-  console.log(isAuthenticated);
-  useAuthSSE(isAuthenticated ? tokenStore.get() : null, undefined, [
-    "blog_created_admin",
-  ]);
+  useAuthSSE(
+    isAuthenticated ? tokenStore.get() : null,
+    undefined,
+    ["blog_created_admin"],
+    setSnackbarOpen
+  );
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

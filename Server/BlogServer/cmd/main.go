@@ -41,14 +41,9 @@ func main() {
 		log.Fatal(err)
 	}
 	defer pool.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("Failed to reach database server: %v", err)
-	}
 
 	// outbox
-	outboxRepo := outbox.New()
+	outboxRepo := outbox.New(pool)
 
 	// broker
 	broker := sse.NewBroker()
@@ -62,9 +57,12 @@ func main() {
 	userHandler := user.NewUserHandler(userService)
 
 	// Blog Feature block
-	blogRepo := blog.NewBlogRepository()
-	blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
-	blogHandler := blog.NewBlogHandler(blogService)
+	// blogRepo := blog.NewBlogRepository()
+	// blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
+	// blogHandler := blog.NewBlogHandler(blogService)
+
+	// Blog CA
+	blogModule := blog.NewBlogModule(pool, userService, outboxRepo)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
@@ -101,12 +99,12 @@ func main() {
 	}))
 	router.Use(gin.Logger())
 
-	routes.SetupUnprotectedRoutes(router, blogHandler, userHandler, dashboardHanlder, sseHandler)
-	routes.SetupProtectedRoutes(router, pool, blogHandler, userHandler, dashboardHanlder, sseHandler)
+	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userHandler, dashboardHanlder, sseHandler)
+	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userHandler, dashboardHanlder, sseHandler)
 
 	bus := event.NewBus()
 
-	bus.Subscribe("blog.created", blogService.OnBlogPosted)
+	bus.Subscribe("blog.created", blogModule.Service.OnBlogPosted)
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
 
 	worker := outbox.NewOutboxWorker(pool, bus, outboxRepo)

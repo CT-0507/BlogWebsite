@@ -19,13 +19,13 @@ func NewNotificationService(broker *sse.Broker) NotificationService {
 	return &notificationService{broker: broker}
 }
 
-type NotificationCreatedEvent struct {
-	NotID   string
-	Content string
-}
+// type NotificationCreatedEvent struct {
+// 	NotID   string
+// 	Content string
+// }
 
 func (s *notificationService) PublishNotification(c context.Context, payload []byte) error {
-	var evt NotificationCreatedEvent
+	var evt interface{}
 	if err := json.Unmarshal(payload, &evt); err != nil {
 		return err
 	}
