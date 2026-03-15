@@ -4,6 +4,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { initAuthSSE, initPublicSSE } from "../lib/sseClient";
 import { BASE_URL } from "@/api/axiosConfig";
 
+/**
+ * Open Authorized SSE stream
+ * @param token string authorization Token
+ * @param topics string[] current tab only topics
+ * @param globalTopics string[] broadcast to all tabs topics
+ * @param setSnackbar (value: boolean) => void | undefined callback to open snackbar
+ * @example
+ * // No tab specific topics
+ * useAuthSSE(token, [], ["global topics"], undefined)
+ */
 export function useAuthSSE(
   token: string | null,
   topics: string[],
@@ -54,6 +64,14 @@ export function useAuthSSE(
   }, [topics, token, queryClient, globalTopics, setSnackbar]);
 }
 
+/**
+ * Open Public SSE stream
+ * @param topics string[] current tab only topics
+ * @param globalTopics string[] broadcast to all tabs topics
+ * @example
+ * // No tab specific topics
+ * usePublicSSE([], ["global topics"])
+ */
 export function usePublicSSE(topics: string[], globalTopics?: string[]) {
   const queryClient = useQueryClient();
 

@@ -13,15 +13,15 @@ import (
 	"github.com/google/uuid"
 )
 
-type CreateBlogUseCase struct {
+type CreateBlogUseCases struct {
 	txManager   *database.TxManager
 	repo        domain.BlogRepository
 	userService user.UserService
 	outboxRepo  outbox.OutboxRepository
 }
 
-func NewCreateBlogUseCase(txManager *database.TxManager, repo domain.BlogRepository, userService user.UserService, outboxRepo outbox.OutboxRepository) *CreateBlogUseCase {
-	return &CreateBlogUseCase{
+func NewCreateBlogUseCases(txManager *database.TxManager, repo domain.BlogRepository, userService user.UserService, outboxRepo outbox.OutboxRepository) *CreateBlogUseCases {
+	return &CreateBlogUseCases{
 		txManager:   txManager,
 		repo:        repo,
 		userService: userService,
@@ -30,8 +30,7 @@ func NewCreateBlogUseCase(txManager *database.TxManager, repo domain.BlogReposit
 }
 
 // Save a box to database and Create an Event to outbox_events table
-func (s *CreateBlogUseCase) CreateWithOutBox(c context.Context, blog *domain.Blog) error {
-
+func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Blog) error {
 	return s.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
 		insertedBlog, err := s.repo.Create(c, blog)
@@ -39,6 +38,7 @@ func (s *CreateBlogUseCase) CreateWithOutBox(c context.Context, blog *domain.Blo
 			return err
 		}
 
+		// Save event to outbox table
 		event := &BlogCreatedEvent{
 			BlogID:    insertedBlog.BlogID,
 			BlogTitle: insertedBlog.Title,
@@ -56,22 +56,24 @@ func (s *CreateBlogUseCase) CreateWithOutBox(c context.Context, blog *domain.Blo
 
 		return nil
 	})
-
 }
 
-func (s *CreateBlogUseCase) OnBlogPosted(c context.Context, payload []byte) error {
-
+// Handle blog posted event for event bus
+func (s *CreateBlogUseCases) OnBlogPosted(c context.Context, payload []byte) error {
 	return s.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
 		var evt BlogCreatedEvent
 		if err := json.Unmarshal(payload, &evt); err != nil {
 			return err
 		}
+
 		content := fmt.Sprintf("A blog with title %s has just been created", evt.BlogTitle)
 		not, err := s.userService.CreateNotification(c, content, uuid.MustParse(config.ADMIN_ID), uuid.MustParse(config.SYSTEM_ID))
 		if err != nil {
 			return err
 		}
 
+		// Insert event into outbox table
 		notificationPayload, err := json.Marshal(not)
 		if err != nil {
 			return err
@@ -83,5 +85,4 @@ func (s *CreateBlogUseCase) OnBlogPosted(c context.Context, payload []byte) erro
 		}
 		return nil
 	})
-
 }

@@ -14,6 +14,7 @@ type Module struct {
 	Service application.BlogService
 }
 
+// Hide blog module wiring and expose handler, service for other module
 func NewBlogModule(pool *pgxpool.Pool, userService user.UserService, outboxRepo outbox.OutboxRepository) *Module {
 	repo := infrastructure.NewBlogRepository(pool)
 

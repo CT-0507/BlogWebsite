@@ -12,12 +12,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Capsule all blog service
 type BlogService struct {
-	createBlog   *application.CreateBlogUseCase
-	onBlogPosted *application.BlogCreatedEvent
-	getBlog      *application.GetBlogUseCase
-	listBlogs    *application.ListBlogsUseCase
-	deleteBlog   *application.DeleteBlogUseCase
+	createBlog *application.CreateBlogUseCases
+	getBlog    *application.GetBlogUseCases
+	listBlogs  *application.ListBlogsUseCases
+	deleteBlog *application.DeleteBlogUseCase
 }
 
 func NewBlogService(
@@ -29,10 +29,10 @@ func NewBlogService(
 	txManager := database.NewTxManager(pool)
 
 	return &BlogService{
-		createBlog: application.NewCreateBlogUseCase(txManager, repo, userService, outboxRepo),
-		getBlog:    application.NewGetBlogUseCase(txManager, repo),
-		listBlogs:  application.NewListBlogsUseCase(txManager, repo),
-		deleteBlog: application.NewDeleteBlogUseCase(txManager, repo),
+		createBlog: application.NewCreateBlogUseCases(txManager, repo, userService, outboxRepo),
+		getBlog:    application.NewGetBlogUseCases(txManager, repo),
+		listBlogs:  application.NewListBlogsUseCases(txManager, repo),
+		deleteBlog: application.NewDeleteBlogUseCases(txManager, repo),
 	}
 }
 

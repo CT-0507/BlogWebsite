@@ -7,18 +7,19 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
-type ListBlogsUseCase struct {
+// List blog related use cases like list all, list with filter, etc
+type ListBlogsUseCases struct {
 	txManager *database.TxManager
 	repo      domain.BlogRepository
 }
 
-func NewListBlogsUseCase(txManager *database.TxManager, repo domain.BlogRepository) *ListBlogsUseCase {
-	return &ListBlogsUseCase{
+func NewListBlogsUseCases(txManager *database.TxManager, repo domain.BlogRepository) *ListBlogsUseCases {
+	return &ListBlogsUseCases{
 		txManager: txManager,
 		repo:      repo,
 	}
 }
 
-func (s *ListBlogsUseCase) ListBlogs(ctx context.Context) ([]domain.BlogWithAuthorData, error) {
+func (s *ListBlogsUseCases) ListBlogs(ctx context.Context) ([]domain.BlogWithAuthorData, error) {
 	return s.repo.FindAll(ctx)
 }

@@ -13,13 +13,14 @@ type DeleteBlogUseCase struct {
 	repo      domain.BlogRepository
 }
 
-func NewDeleteBlogUseCase(txManager *database.TxManager, repo domain.BlogRepository) *DeleteBlogUseCase {
+func NewDeleteBlogUseCases(txManager *database.TxManager, repo domain.BlogRepository) *DeleteBlogUseCase {
 	return &DeleteBlogUseCase{
 		txManager: txManager,
 		repo:      repo,
 	}
 }
 
+// Soft delete blog
 func (s *DeleteBlogUseCase) DeleteBlog(ctx context.Context, id int64, userID uuid.UUID) (*int64, error) {
 	return s.repo.Delete(ctx, id, userID)
 }

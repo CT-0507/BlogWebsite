@@ -12,7 +12,6 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type BlogHandler struct {
@@ -62,6 +61,9 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 	c.JSON(http.StatusCreated, "Okay")
 }
 
+// Description: get all blogs
+//   - @route GET /blogs
+//   - @access Public
 func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 10*time.Second)
@@ -81,6 +83,9 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 	c.JSON(http.StatusOK, blogs)
 }
 
+// Description: get blog by id
+//   - @route GET /blogs/:id
+//   - @access Puclic
 func (h *BlogHandler) getBlogByID(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 10*time.Second)
@@ -113,6 +118,9 @@ func (h *BlogHandler) getBlogByID(c *gin.Context) {
 	c.JSON(http.StatusOK, blog)
 }
 
+// Description: delete blog by id
+//   - @route DELETE /blogs/:id
+//   - @access Private
 func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 10*time.Second)
@@ -134,23 +142,15 @@ func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 		return
 	}
 
-	userId, valid := c.Params.Get("user_id")
-	if !valid {
+	userID, error := utils.GetUserIDFromContext(c)
+	if error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "blogId not found",
+			"message": "userID not found",
 		})
 		return
 	}
 
-	userUUId, pErr := uuid.Parse(userId)
-	if pErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "userId is invalid",
-		})
-		return
-	}
-
-	id, err := h.service.DeleteBlog(ctx, blogIdInt, userUUId)
+	id, err := h.service.DeleteBlog(ctx, blogIdInt, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "blogId not valid",
