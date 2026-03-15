@@ -6,7 +6,7 @@ import { BASE_URL } from "@/api/axiosConfig";
 
 export function useAuthSSE(
   token: string | null,
-  topics?: string[],
+  topics: string[],
   globalTopics?: string[],
   setSnackbar?: (value: boolean) => void
 ) {

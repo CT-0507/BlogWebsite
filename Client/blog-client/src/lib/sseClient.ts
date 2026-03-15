@@ -12,7 +12,7 @@ function getWorker() {
 export function initAuthSSE(
   baseURL: string,
   token: string,
-  topics?: string[],
+  topics: string[],
   globalTopics?: string[]
 ) {
   const w = getWorker();

@@ -1,5 +1,6 @@
 const ports = new Map();
 
+// Store topics that are broadcasted to all tabs
 const globalTopics = new Set();
 
 // Expected message for set cache
@@ -17,9 +18,12 @@ let publicController = null;
 
 let token = null;
 
+// TODO: auto retry on server connection failure
 let retryCount = 0;
 const MAX_RETRIES = 10;
 const BASE_DELAY = 1000;
+
+// SSE server URL
 let BASE_URL;
 
 async function startStream(
@@ -36,12 +40,14 @@ async function startStream(
     signal: controller.signal,
   });
 
+  // Manually decode message from server
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
   let buffer = "";
 
   while (true) {
+
     const { done, value } = await reader.read();
 
     if (done) break;
@@ -52,6 +58,8 @@ async function startStream(
     buffer = parts.pop() || "";
 
     for (const part of parts) {
+
+      // Take only data property to broadcast
       const line = part.split("\n").find((l) => l.startsWith("data:"));
       if (!line) continue;
 
@@ -74,26 +82,31 @@ function addGlobalTopics(topics) {
 
 function mapTopicsToQueryParams(topics) {
   let queryParams = "?topics=";
-  for (var topic of topics) {
-    queryParams += topic;
+  for (var topic of globalTopics) {
+    queryParams += topic + ",";
   }
-  console.log(queryParams);
+  for (var topic of topics) {
+    queryParams += topic + ",";
+  }
+  queryParams = queryParams.slice(0, -1);
   return queryParams;
 }
 
-async function startAuthStream(baseUrl, topics) {
+/** Start authorized SSE */ 
+async function startAuthStream(topics) {
   if (authController || !token) return;
 
   authController = new AbortController();
 
   await startStream(
-    baseUrl + "/events/auth" + mapTopicsToQueryParams(topics),
+    "/events/auth" + mapTopicsToQueryParams(topics),
     authController,
     (event) => routeEvent(event, "auth"),
     { Authorization: `Bearer ${token}` }
   );
 }
 
+/** Start public SSE */ 
 async function startPublicStream(topics) {
   if (publicController) return;
 
@@ -104,6 +117,7 @@ async function startPublicStream(topics) {
   );
 }
 
+/** Route event to its corresponding tab and route global event to all tab */
 function routeEvent(event, type) {
 
   if (globalTopics.has(event.topic)) {
@@ -111,10 +125,13 @@ function routeEvent(event, type) {
     // broadcast to all tabs
     for (const port of portTopics.keys()) {
 
+      // Only update cache event for now
       port.postMessage({
         type: "cache-patch",
         patch: event.cache
       })
+
+      // TODO: implement other kind of messages
     }
 
     return
@@ -142,8 +159,8 @@ onconnect = (e) => {
   port.onmessage = msg => {
 
     const data = msg.data
-    const topics = msg.topics
-    BASE_URL = msg.baseURL
+    const topics = data.topics
+    BASE_URL = data.baseURL
 
     if (data.type === "init-auth") {
 

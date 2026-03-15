@@ -33,7 +33,7 @@ export default function BasicLayout() {
 
   useAuthSSE(
     isAuthenticated ? tokenStore.get() : null,
-    undefined,
+    [],
     ["blog_created_admin"],
     setSnackbarOpen
   );
