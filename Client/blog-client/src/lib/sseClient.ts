@@ -10,15 +10,16 @@ function getWorker() {
 }
 
 export function initAuthSSE(
+  baseURL: string,
   token: string,
   topics?: string[],
   globalTopics?: string[]
 ) {
-  console.log("Auth w");
   const w = getWorker();
 
   w.port.postMessage({
     type: "init-auth",
+    baseURL,
     token,
     topics,
     globalTopics,
@@ -29,11 +30,16 @@ export function initAuthSSE(
   return w;
 }
 
-export function initPublicSSE(topics?: string[], globalTopics?: string[]) {
+export function initPublicSSE(
+  baseURL: string,
+  topics?: string[],
+  globalTopics?: string[]
+) {
   const w = getWorker();
 
   w.port.postMessage({
     type: "init-public",
+    baseURL,
     topics,
     globalTopics,
   });

@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { initAuthSSE, initPublicSSE } from "../lib/sseClient";
+import { BASE_URL } from "@/api/axiosConfig";
 
 export function useAuthSSE(
   token: string | null,
@@ -9,13 +10,12 @@ export function useAuthSSE(
   globalTopics?: string[],
   setSnackbar?: (value: boolean) => void
 ) {
-  console.log("Run");
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!token) return;
 
-    const worker = initAuthSSE(token, topics, globalTopics);
+    const worker = initAuthSSE(BASE_URL, token, topics, globalTopics);
 
     worker.port.start();
 
@@ -58,7 +58,7 @@ export function usePublicSSE(topics: string[], globalTopics?: string[]) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const worker = initPublicSSE(topics, globalTopics);
+    const worker = initPublicSSE(BASE_URL, topics, globalTopics);
 
     worker.port.onmessage = (msg) => {
       if (msg.data.type !== "cache-patch") return;
