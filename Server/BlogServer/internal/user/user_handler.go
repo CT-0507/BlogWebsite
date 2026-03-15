@@ -363,3 +363,75 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 func (h *UserHandler) GetChangeEmailCode(c *gin.Context) {
 	c.JSON(http.StatusOK, &gin.H{"code": "123456"})
 }
+
+func (h *UserHandler) GetNotifications(c *gin.Context) {
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{"message": "No user found"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	notifications, err := h.service.GetUserNotifications(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, notifications)
+}
+
+func (h *UserHandler) UpdateNotification(c *gin.Context) {
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{"message": "No user found"})
+		return
+	}
+
+	var requestJson UpdateNotificationStatusRequest
+	if err := c.ShouldBindBodyWithJSON(&requestJson); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	if err := h.service.UpdateNotificationStatus(ctx, requestJson.NotId, requestJson.Status, &userID); err != nil {
+		c.JSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, &gin.H{
+		"message": "Success",
+	})
+
+}
+
+func (h *UserHandler) GetHashedString(c *gin.Context) {
+
+	str := c.Query("string")
+	if str == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "string param is required"})
+		return
+	}
+
+	if isValidPassword := utils.IsValidPassword(str); !isValidPassword {
+		c.JSON(http.StatusBadRequest, &gin.H{"message": "Password is not valid"})
+		return
+	}
+
+	hashedString, err := h.service.GetHashedString(str)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, &gin.H{"message": "Cannot hash"})
+		return
+	}
+
+	c.JSON(http.StatusOK, &gin.H{
+		"hashed_string": hashedString,
+	})
+}

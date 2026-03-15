@@ -46,6 +46,19 @@ type BlogsTag struct {
 	DeletedBy *uuid.UUID
 }
 
+type UsersNotification struct {
+	NotificationID int64
+	UserID         *uuid.UUID
+	Content        string
+	IsRead         bool
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      *uuid.UUID
+	UpdatedAt      pgtype.Timestamptz
+	UpdatedBy      *uuid.UUID
+	DeletedAt      pgtype.Timestamptz
+	DeletedBy      *uuid.UUID
+}
+
 type UsersRefreshToken struct {
 	TokenID          uuid.UUID
 	UserID           uuid.UUID

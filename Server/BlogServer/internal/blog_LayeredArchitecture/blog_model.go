@@ -38,3 +38,13 @@ type CreateBlogRequest struct {
 	Title   string `json:"title" validate:"required"`
 	Content string `json:"content" validate:"required"`
 }
+
+// event
+type BlogCreatedEvent struct {
+	BlogID    int64
+	BlogTitle string
+}
+
+func (e BlogCreatedEvent) EventName() string {
+	return "blog.created"
+}

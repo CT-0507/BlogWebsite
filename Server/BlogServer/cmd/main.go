@@ -10,7 +10,11 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/notification"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
 	"github.com/gin-contrib/cors"
@@ -37,24 +41,34 @@ func main() {
 		log.Fatal(err)
 	}
 	defer pool.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("Failed to reach database server: %v", err)
-	}
 
-	// Blog Feature block
-	blogRepo := blog.NewBlogRepository()
-	blogService := blog.NewBlogService(pool, blogRepo)
-	blogHandler := blog.NewBlogHandler(blogService)
+	// outbox
+	outboxRepo := outbox.New(pool)
+
+	// broker
+	broker := sse.NewBroker()
+
+	// sse
+	sseHandler := sse.NewSSEHandler(broker)
 
 	// User Feature block
 	userRepo := user.NewUserRepository()
 	userService := user.NewUserService(pool, userRepo)
 	userHandler := user.NewUserHandler(userService)
 
+	// Blog Feature block
+	// blogRepo := blog.NewBlogRepository()
+	// blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
+	// blogHandler := blog.NewBlogHandler(blogService)
+
+	// Blog CA
+	blogModule := blog.NewBlogModule(pool, userService, outboxRepo)
+
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
+
+	// Notification
+	notificationService := notification.NewNotificationService(broker)
 
 	// Register Router
 	router := gin.Default()
@@ -85,8 +99,17 @@ func main() {
 	}))
 	router.Use(gin.Logger())
 
-	routes.SetupUnprotectedRoutes(router, blogHandler, userHandler, dashboardHanlder)
-	routes.SetupProtectedRoutes(router, pool, blogHandler, userHandler, dashboardHanlder)
+	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userHandler, dashboardHanlder, sseHandler)
+	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userHandler, dashboardHanlder, sseHandler)
+
+	bus := event.NewBus()
+
+	bus.Subscribe("blog.created", blogModule.Service.OnBlogPosted)
+	bus.Subscribe("notification.created", notificationService.PublishNotification)
+
+	worker := outbox.NewOutboxWorker(pool, bus, outboxRepo)
+
+	go worker.Start(context.Background())
 
 	if err := router.Run(":8080"); err != nil {
 		fmt.Println("Failed to start server", err)

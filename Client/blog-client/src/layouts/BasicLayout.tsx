@@ -1,161 +1,22 @@
-import { logoutRequest } from "@/api/auth";
 import { tokenStore } from "@/api/store/tokenStore";
 import { useAuth } from "@/hooks/useAuth";
 import AppBar from "@mui/material/AppBar";
-import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 import AccountCircle from "@mui/icons-material/AccountCircle";
-import NotificationsIcon from "@mui/icons-material/Notifications";
 import MoreIcon from "@mui/icons-material/MoreVert";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import CircularProgress from "@mui/material/CircularProgress";
-
-interface BigScreenMenuProps {
-  menuId: string;
-  anchorEl: null | HTMLElement;
-  isMenuOpen: boolean;
-  handleMenuClose: () => void;
-}
-function BigScreenMenu({
-  menuId,
-  anchorEl,
-  isMenuOpen,
-  handleMenuClose,
-}: BigScreenMenuProps) {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const { isPending, mutate } = useMutation({
-    mutationFn: logoutRequest,
-    onSuccess: () => {
-      tokenStore.clear();
-      queryClient.setQueryData(["me"], null);
-      handleMenuClose();
-      navigate("/account");
-    },
-    onError: (error) => {
-      console.log(error);
-    },
-  });
-
-  const handleLogout = () => {
-    mutate();
-  };
-
-  const handleProfileNavigate = async () => {
-    await navigate("/user/profile");
-    handleMenuClose();
-  };
-  return (
-    <Menu
-      anchorEl={anchorEl}
-      anchorOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      id={menuId}
-      keepMounted
-      transformOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      open={isMenuOpen}
-      onClose={handleMenuClose}
-    >
-      <MenuItem
-        disabled={isPending}
-        onClick={handleProfileNavigate}
-        sx={{
-          width: "80px",
-          display: "flex",
-          placeContent: "center",
-        }}
-      >
-        Profile
-      </MenuItem>
-      <MenuItem
-        disabled={isPending}
-        onClick={handleLogout}
-        sx={{
-          width: "80px",
-          display: "flex",
-          placeContent: "center",
-        }}
-      >
-        {isPending ? <CircularProgress size="20px" /> : "Logout"}
-      </MenuItem>
-    </Menu>
-  );
-}
-
-interface MobileMenuProps {
-  mobileMenuId: string;
-  mobileMoreAnchorEl: null | HTMLElement;
-  isMobileMenuOpen: boolean;
-  handleMobileMenuClose: (event: React.MouseEvent<HTMLElement>) => void;
-  handleProfileMenuOpen: (event: React.MouseEvent<HTMLElement>) => void;
-}
-
-function MobileMenu({
-  mobileMenuId,
-  mobileMoreAnchorEl,
-  isMobileMenuOpen,
-  handleMobileMenuClose,
-  handleProfileMenuOpen,
-}: MobileMenuProps) {
-  const { user } = useAuth();
-  return (
-    <Menu
-      sx={{ zIndex: 99 }}
-      anchorEl={mobileMoreAnchorEl}
-      anchorOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      id={mobileMenuId}
-      keepMounted
-      transformOrigin={{
-        vertical: "top",
-        horizontal: "right",
-      }}
-      open={isMobileMenuOpen}
-      onClose={handleMobileMenuClose}
-    >
-      <MenuItem>
-        <IconButton
-          size="large"
-          aria-label="show 17 new notifications"
-          color="inherit"
-        >
-          <Badge badgeContent={17} color="error">
-            <NotificationsIcon />
-          </Badge>
-        </IconButton>
-        <p>Notifications</p>
-      </MenuItem>
-      {user && (
-        <MenuItem onClick={handleProfileMenuOpen}>
-          <IconButton
-            size="large"
-            aria-label="account of current user"
-            aria-controls="primary-search-account-menu"
-            aria-haspopup="true"
-            color="inherit"
-          >
-            <AccountCircle />
-          </IconButton>
-          <p>Profile</p>
-        </MenuItem>
-      )}
-    </Menu>
-  );
-}
+import BorderColor from "@mui/icons-material/BorderColor";
+import Button from "@mui/material/Button";
+import Snackbar from "@mui/material/Snackbar";
+import CloseIcon from "@mui/icons-material/Close";
+import { useAuthSSE } from "@/hooks/useSSECacheBridge";
+import NotificationMenu from "./NotificationMenu";
+import MobileMenu from "./MobileMenu";
+import BigScreenMenu from "./BigScreenMenu";
 
 export default function BasicLayout() {
   const { isAuthenticated } = useAuth();
@@ -163,12 +24,19 @@ export default function BasicLayout() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] =
     useState<null | HTMLElement>(null);
-
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const isMenuOpen = Boolean(anchorEl);
   const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
 
   const menuId = "primary-search-account-menu";
   const mobileMenuId = "primary-search-account-menu-mobile";
+
+  useAuthSSE(
+    isAuthenticated ? tokenStore.get() : null,
+    [],
+    ["blog_created_admin"],
+    setSnackbarOpen
+  );
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -191,6 +59,10 @@ export default function BasicLayout() {
     navigate("/dashboard");
   };
 
+  const handleCloseSnackBar = () => {
+    setSnackbarOpen(false);
+  };
+
   return (
     <Box
       sx={{
@@ -200,6 +72,25 @@ export default function BasicLayout() {
       }}
       component="main"
     >
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackBar}
+        message="Note archived"
+        action={
+          <>
+            <Typography>You have notification</Typography>
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={handleCloseSnackBar}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </>
+        }
+      />
       {/* Header */}
       <Box display="contents" sx={{ flexGrow: 1 }}>
         <AppBar position="static">
@@ -217,26 +108,43 @@ export default function BasicLayout() {
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Box sx={{ display: { xs: "none", md: "flex" } }}>
-              <IconButton
-                size="large"
-                aria-label="show 17 new notifications"
-                color="inherit"
-              >
-                <Badge badgeContent={17} color="error">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-              {isAuthenticated && (
-                <IconButton
-                  size="large"
-                  edge="end"
-                  aria-label="account of current user"
-                  aria-haspopup="true"
-                  onClick={handleProfileMenuOpen}
-                  color="inherit"
-                >
-                  <AccountCircle />
-                </IconButton>
+              {isAuthenticated ? (
+                <>
+                  <NotificationMenu />
+                  <Button
+                    component={Link}
+                    to="/blog/publish"
+                    size="large"
+                    aria-label="account of current user"
+                    aria-haspopup="true"
+                    color="info"
+                    title="Publish new blog"
+                    variant="contained"
+                    sx={{
+                      mx: 1,
+                    }}
+                  >
+                    <BorderColor />
+                    <Typography ml={2}>Publish new blog</Typography>
+                  </Button>
+                  <IconButton
+                    size="large"
+                    edge="end"
+                    aria-label="account of current user"
+                    aria-haspopup="true"
+                    onClick={handleProfileMenuOpen}
+                    color="inherit"
+                    title="Profile"
+                  >
+                    <AccountCircle />
+                  </IconButton>
+                </>
+              ) : (
+                <>
+                  <Button component={Link} to="/account" color="info">
+                    Account
+                  </Button>
+                </>
               )}
             </Box>
             <Box sx={{ display: { xs: "flex", md: "none" } }}>

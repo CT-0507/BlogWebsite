@@ -49,7 +49,7 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Create(ctx, &Blog{
+	if err := h.service.CreateWithOutBox(ctx, &Blog{
 		AuthorID: uuid,
 		Title:    blog.Title,
 		Content:  blog.Content,

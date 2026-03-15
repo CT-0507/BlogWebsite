@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/db"
 	"github.com/google/uuid"
@@ -23,6 +24,10 @@ type UserService interface {
 	UpdateEmail(c context.Context, userID uuid.UUID, email string) error
 	UpdatePassword(c context.Context, userID uuid.UUID, userPassword *UpdatePasswordServiceParams) error
 	UpdateBasicInfo(c context.Context, userID uuid.UUID, user *User) error
+	GetUserNotifications(c context.Context, userID uuid.UUID) ([]Notification, error)
+	CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error)
+	UpdateNotificationStatus(c context.Context, notID int64, status bool, updatedBy *uuid.UUID) error
+	GetHashedString(str string) (string, error)
 	// Delete(c context.Context, id int64) (*int64, error)
 }
 
@@ -153,13 +158,13 @@ func (s *userService) GetUserByID(c context.Context, userID uuid.UUID) (*User, e
 
 func (s *userService) UpdateEmail(c context.Context, userID uuid.UUID, email string) error {
 	return s.withTxExec(c, func(q *userdb.Queries) error {
-		return s.repo.UpdateEmail(c, q, userID, email)
+		return s.repo.UpdateEmail(c, q, userID, email, &userID)
 	})
 }
 
 func (s *userService) UpdateBasicInfo(c context.Context, userID uuid.UUID, user *User) error {
 	return s.withTxExec(c, func(q *userdb.Queries) error {
-		return s.repo.UpdateData(c, q, userID, user)
+		return s.repo.UpdateData(c, q, userID, user, &userID)
 	})
 }
 
@@ -180,6 +185,38 @@ func (s *userService) UpdatePassword(c context.Context, userID uuid.UUID, userPa
 			return &ErrFailedToHashString{}
 		}
 
-		return s.repo.UpdatePassword(c, q, userID, hashedNewPassword)
+		return s.repo.UpdatePassword(c, q, userID, hashedNewPassword, &userID)
 	})
+}
+
+func (s *userService) GetUserNotifications(c context.Context, userID uuid.UUID) ([]Notification, error) {
+	q := userdb.New(s.pool)
+	return s.repo.GetNotificationsByUserID(c, q, userID)
+}
+
+func (s *userService) UpdateNotificationStatus(c context.Context, notID int64, status bool, updatedBy *uuid.UUID) error {
+	q := userdb.New(s.pool)
+	return s.repo.UpdateNotificationByID(c, q, notID, status, updatedBy)
+}
+
+func (s *userService) CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error) {
+	systemId := uuid.MustParse(config.SYSTEM_ID)
+	not, err := s.withTx(c, func(q *userdb.Queries) (any, error) {
+		return s.repo.CreateNotification(c, q, content, userID, systemId)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return not.(*Notification), nil
+}
+
+// func (s *userService) UpdateNotificationsStatusByIds(c context.Context, not *Notification, userID uuid.UUID, createdBy uuid.UUID) error {
+// 	systemId := uuid.MustParse(config.SYSTEM_ID)
+// 	return s.withTxExec(c, func(q *userdb.Queries) error {
+// 		return s.repo.UpdateNotificationByID(c, q, not, userID, &userID)
+// 	})
+// }
+
+func (s *userService) GetHashedString(str string) (string, error) {
+	return utils.HashPassword(str)
 }

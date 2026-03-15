@@ -22,6 +22,14 @@ func TimePointer(timeP *pgtype.Timestamptz) *time.Time {
 	return nil
 }
 
+func StringToUUID(s string) *uuid.UUID {
+	uuid, err := uuid.Parse(s)
+	if err != nil {
+		return nil
+	}
+	return &uuid
+}
+
 func UUIDPtr(u *uuid.UUID) *string {
 	if u == nil {
 		return nil

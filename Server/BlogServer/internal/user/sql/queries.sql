@@ -66,25 +66,33 @@ WHERE
 -- name: UpdateLastLogout :exec
 UPDATE users.users
     SET last_logout = NOW(),
-    token_version = token_version + 1
-    WHERE user_id = $1;
+    token_version = token_version + 1,
+    updated_at = NOW(),
+    updated_by = user_id
+WHERE user_id = $1;
 
 -- name: UpdateUserData :one
 UPDATE users.users
     SET first_name = $1, 
-    last_name = $2
-WHERE user_id = $3
+    last_name = $2,
+    updated_at = NOW(),
+    updated_by = $3
+WHERE user_id = $4
 RETURNING user_id;
 
 -- name: UpdateUserPassword :one
 UPDATE users.users
-    SET password = $1
+    SET password = $1,
+    updated_at = NOW(),
+    updated_by = $3
 WHERE user_id = $2
 RETURNING user_id;
 
 -- name: UpdateUserEmail :one
 UPDATE users.users
-    SET email = $1
+    SET email = $1,
+    updated_at = NOW(),
+    updated_by = $3
 WHERE user_id = $2
 RETURNING user_id;
 
@@ -92,3 +100,33 @@ RETURNING user_id;
 DELETE FROM users.users
 WHERE user_id = $1
 RETURNING user_id;
+
+-- name: GetUserNotiticationsByID :many
+SELECT n.*
+FROM users.users u
+JOIN users.notifications n ON n.user_id = u.user_id
+WHERE n.deleted_at IS NULL;
+
+-- name: CreateNotification :one
+INSERT INTO users.notifications (
+    user_id,
+    content,
+    created_by,
+    updated_by
+)
+VALUES ($1, $2, $3, $3)
+RETURNING *;
+
+-- name: UpdateNotification :exec
+UPDATE users.notifications 
+    SET is_read = $2,
+    updated_at = NOW(),
+    updated_by = $3
+WHERE notification_id = $1;
+
+-- name: UpdateNotificationStatus :exec
+UPDATE users.notifications
+    SET is_read = $1,
+    updated_at = NOW(),
+    updated_by = $2
+WHERE notification_id = ANY(sqlc.arg(ids)::int[]);
