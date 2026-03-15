@@ -36,6 +36,7 @@ type UsersUser struct {
 	Username     string
 	Email        pgtype.Text
 	Password     string
+	Nickname     string
 	FirstName    string
 	LastName     string
 	Role         string

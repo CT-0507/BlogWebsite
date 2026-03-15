@@ -19,6 +19,10 @@ func NewGetBlogUseCases(txManager *database.TxManager, repo domain.BlogRepositor
 	}
 }
 
-func (s *GetBlogUseCases) GetBlog(ctx context.Context, id int64) (*domain.Blog, error) {
+func (s *GetBlogUseCases) GetBlog(ctx context.Context, id int64) (*domain.BlogWithAuthorData, error) {
 	return s.repo.FindByID(ctx, id)
+}
+
+func (s *GetBlogUseCases) GetBlogByUrlSlug(ctx context.Context, slug string) (*domain.BlogWithAuthorData, error) {
+	return s.repo.FindByUrlSlug(ctx, slug)
 }

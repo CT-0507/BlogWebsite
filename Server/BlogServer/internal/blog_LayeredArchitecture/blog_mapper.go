@@ -1,7 +1,7 @@
 package blog
 
 import (
-	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/db"
+	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog_LayeredArchitecture/db"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 )

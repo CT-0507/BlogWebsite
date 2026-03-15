@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/db"
+	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog_LayeredArchitecture/db"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"

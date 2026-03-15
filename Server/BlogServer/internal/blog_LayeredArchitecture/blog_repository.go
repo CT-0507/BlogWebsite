@@ -3,7 +3,7 @@ package blog
 import (
 	"context"
 
-	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/db"
+	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog_LayeredArchitecture/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )

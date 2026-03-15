@@ -7,8 +7,9 @@ import (
 
 type Blog struct {
 	BlogID   int64     `json:"id"`
-	AuthorID uuid.UUID `json:"author_id"`
+	AuthorID uuid.UUID `json:"authorID"`
 	Title    string    `json:"title"`
+	URLSlug  string    `json:"urlSlug"`
 	Content  string    `json:"content"`
 	Active   string    `json:"active"`
 	// Tags    []Tag  `json:"tags"`
@@ -17,8 +18,9 @@ type Blog struct {
 }
 
 type BlogWithAuthorData struct {
-	BlogID  int64      `json:"blog_id"`
+	BlogID  int64      `json:"blogID"`
 	Author  AuthorData `json:"author"`
+	URLSlug string     `json:"urlSlug"`
 	Title   string     `json:"title"`
 	Content string     `json:"content"`
 	Active  string     `json:"active"`
@@ -26,7 +28,8 @@ type BlogWithAuthorData struct {
 }
 
 type AuthorData struct {
-	AuthorID string `json:"author_id"`
-	FullName string `json:"full_name"`
+	AuthorID string `json:"authorID"`
+	Nickname string `json:"nickname"`
+	FullName string `json:"fullName"`
 	Email    string `json:"email"`
 }

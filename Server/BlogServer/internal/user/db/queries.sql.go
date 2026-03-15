@@ -71,7 +71,7 @@ INSERT INTO users.users(
 ) VALUES (
     $1, $2, $3, $4, 'normal', $5
 )
-RETURNING user_id, username, email, password, first_name, last_name, role, active, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING user_id, username, email, password, nickname, first_name, last_name, role, active, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateUserParams struct {
@@ -96,6 +96,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (UsersUs
 		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.Nickname,
 		&i.FirstName,
 		&i.LastName,
 		&i.Role,
@@ -178,7 +179,7 @@ func (q *Queries) GetDeletedUserByID(ctx context.Context, userID uuid.UUID) (Get
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT 
-    user_id, username, email, password, first_name, last_name, role, active, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+    user_id, username, email, password, nickname, first_name, last_name, role, active, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 FROM users.users 
 WHERE user_id = $1 AND deleted_at IS NULL
 `
@@ -191,6 +192,7 @@ func (q *Queries) GetUserByID(ctx context.Context, userID uuid.UUID) (UsersUser,
 		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.Nickname,
 		&i.FirstName,
 		&i.LastName,
 		&i.Role,
@@ -209,7 +211,7 @@ func (q *Queries) GetUserByID(ctx context.Context, userID uuid.UUID) (UsersUser,
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT user_id, username, email, password, first_name, last_name, role, active, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+SELECT user_id, username, email, password, nickname, first_name, last_name, role, active, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 FROM users.users u
 WHERE
     u.username = $1
@@ -225,6 +227,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (Users
 		&i.Username,
 		&i.Email,
 		&i.Password,
+		&i.Nickname,
 		&i.FirstName,
 		&i.LastName,
 		&i.Role,

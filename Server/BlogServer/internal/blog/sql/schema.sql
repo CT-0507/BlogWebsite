@@ -4,6 +4,7 @@ CREATE SCHEMA IF NOT EXISTS blogs;
 CREATE TABLE blogs.blogs (
     blog_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     author_id UUID NOT NULL REFERENCES users.users(user_id),
+    url_slug VARCHAR(400) NOT NULL UNIQUE,
     title TEXT NOT NULL,
     content TEXT,
     active VARCHAR(10) NOT NULL DEFAULT 'true',
@@ -44,4 +45,5 @@ CREATE TABLE blogs.blog_tags (
 );
 
 CREATE INDEX ON blogs.blogs (title);
+CREATE INDEX ON blogs.blogs (url_slug);
 CREATE INDEX ON blogs.blog_tags (tag_id);
