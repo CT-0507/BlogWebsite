@@ -8,7 +8,7 @@ export default function GoToTopButton() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setShow(window.scrollY > 300);
+      setShow(window.scrollY > 200);
     };
 
     window.addEventListener("scroll", handleScroll);

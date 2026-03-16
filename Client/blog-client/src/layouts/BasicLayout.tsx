@@ -114,7 +114,7 @@ export default function BasicLayout() {
                   <NotificationMenu />
                   <Button
                     component={Link}
-                    to="/blog/publish"
+                    to="/blogs/publish"
                     size="large"
                     aria-label="account of current user"
                     aria-haspopup="true"

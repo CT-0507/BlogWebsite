@@ -11,6 +11,7 @@ import PublishPage from "@/pages/blog/publish/Publish";
 import NotFound from "@/pages/NotFound/NotFound";
 import ErrorBoundary from "@/pages/error/ErrorBoundary";
 import ViewBlog from "@/pages/blog/viewBlog/ViewBlog";
+import AuthorBlog from "@/pages/blog/authorBlog/authorBlog";
 
 export default function AppRoutes() {
   return (
@@ -33,7 +34,7 @@ export default function AppRoutes() {
             <Route path="profile" element={<Profile />} />
           </Route>
           <Route
-            path="blog"
+            path="blogs"
             element={<RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.USER]} />}
           >
             <Route path="publish" element={<PublishPage />} />
@@ -41,6 +42,9 @@ export default function AppRoutes() {
           <Route path="blogs">
             <Route index element={<Home />} />
             <Route path=":id" element={<ViewBlog />} />
+            <Route path="author">
+              <Route path=":id" element={<AuthorBlog />} />
+            </Route>
           </Route>
         </Route>
         {/* Fallback */}
