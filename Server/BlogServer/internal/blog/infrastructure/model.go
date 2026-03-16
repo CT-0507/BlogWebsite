@@ -11,6 +11,7 @@ func BlogDTOToBlog(blogDTO *blogdb.BlogsBlog) *domain.Blog {
 	return &domain.Blog{
 		BlogID:  blogDTO.BlogID,
 		Title:   blogDTO.Title,
+		URLSlug: blogDTO.UrlSlug,
 		Content: blogDTO.Content.String,
 		Active:  blogDTO.Active,
 		Audit: model.Audit{
@@ -28,10 +29,96 @@ func ListBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsRow) *domain.BlogWithAuthorD
 	return &domain.BlogWithAuthorData{
 		BlogID:  blogDTO.BlogID,
 		Title:   blogDTO.Title,
+		URLSlug: blogDTO.UrlSlug,
 		Content: blogDTO.Content.String,
 		Active:  blogDTO.Active,
 		Author: domain.AuthorData{
 			AuthorID: blogDTO.AuthorID.String(),
+			Nickname: blogDTO.Nickname,
+			FullName: blogDTO.AuthorName.(string),
+		},
+		Audit: model.Audit{
+			CreatedAt: blogDTO.CreatedAt.Time,
+			CreatedBy: utils.UUIDPtr(blogDTO.CreatedBy),
+			UpdatedAt: blogDTO.UpdatedAt.Time,
+			UpdatedBy: utils.UUIDPtr(blogDTO.UpdatedBy),
+		},
+	}
+}
+
+func ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorRow) *domain.BlogWithAuthorData {
+	return &domain.BlogWithAuthorData{
+		BlogID:  blogDTO.BlogID,
+		Title:   blogDTO.Title,
+		URLSlug: blogDTO.UrlSlug,
+		Content: blogDTO.Content.String,
+		Active:  blogDTO.Active,
+		Author: domain.AuthorData{
+			AuthorID: blogDTO.AuthorID.String(),
+			Nickname: blogDTO.Nickname,
+			FullName: blogDTO.AuthorName.(string),
+		},
+		Audit: model.Audit{
+			CreatedAt: blogDTO.CreatedAt.Time,
+			CreatedBy: utils.UUIDPtr(blogDTO.CreatedBy),
+			UpdatedAt: blogDTO.UpdatedAt.Time,
+			UpdatedBy: utils.UUIDPtr(blogDTO.UpdatedBy),
+		},
+	}
+}
+
+func ListAuthorBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorNicknameRow) *domain.BlogWithAuthorData {
+	return &domain.BlogWithAuthorData{
+		BlogID:  blogDTO.BlogID,
+		Title:   blogDTO.Title,
+		URLSlug: blogDTO.UrlSlug,
+		Content: blogDTO.Content.String,
+		Active:  blogDTO.Active,
+		Author: domain.AuthorData{
+			AuthorID: blogDTO.AuthorID.String(),
+			Nickname: blogDTO.Nickname,
+			FullName: blogDTO.AuthorName.(string),
+		},
+		Audit: model.Audit{
+			CreatedAt: blogDTO.CreatedAt.Time,
+			CreatedBy: utils.UUIDPtr(blogDTO.CreatedBy),
+			UpdatedAt: blogDTO.UpdatedAt.Time,
+			UpdatedBy: utils.UUIDPtr(blogDTO.UpdatedBy),
+		},
+	}
+}
+
+func GetBlogRowDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlogRow) *domain.BlogWithAuthorData {
+	return &domain.BlogWithAuthorData{
+		BlogID:  blogDTO.BlogID,
+		Title:   blogDTO.Title,
+		URLSlug: blogDTO.UrlSlug,
+		Content: blogDTO.Content.String,
+		Active:  blogDTO.Active,
+		Author: domain.AuthorData{
+			AuthorID: blogDTO.AuthorID.String(),
+			Nickname: blogDTO.Nickname,
+			FullName: blogDTO.AuthorName.(string),
+		},
+		Audit: model.Audit{
+			CreatedAt: blogDTO.CreatedAt.Time,
+			CreatedBy: utils.UUIDPtr(blogDTO.CreatedBy),
+			UpdatedAt: blogDTO.UpdatedAt.Time,
+			UpdatedBy: utils.UUIDPtr(blogDTO.UpdatedBy),
+		},
+	}
+}
+
+func GetBlogRowByUrlSlugDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlogByUrlSlugRow) *domain.BlogWithAuthorData {
+	return &domain.BlogWithAuthorData{
+		BlogID:  blogDTO.BlogID,
+		Title:   blogDTO.Title,
+		URLSlug: blogDTO.UrlSlug,
+		Content: blogDTO.Content.String,
+		Active:  blogDTO.Active,
+		Author: domain.AuthorData{
+			AuthorID: blogDTO.AuthorID.String(),
+			Nickname: blogDTO.Nickname,
 			FullName: blogDTO.AuthorName.(string),
 		},
 		Audit: model.Audit{

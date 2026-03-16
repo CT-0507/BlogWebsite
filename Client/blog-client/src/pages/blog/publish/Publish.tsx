@@ -11,7 +11,7 @@ import Button from "@mui/material/Button";
 import PublishIcon from "@mui/icons-material/Publish";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -23,6 +23,7 @@ import ListItemText from "@mui/material/ListItemText";
 import { ClockBanner } from "@/components/banner/Clock";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { publishBlogRequest } from "@/api/blogApi";
+import slugify from "slugify";
 
 function getFieldName(fieldName: string) {
   switch (fieldName) {
@@ -41,15 +42,33 @@ export default function PublishPage() {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<PublishBlogFormValues>({
     resolver: zodResolver(publishBlogSchema),
     defaultValues: {
       title: "",
+      urlSlug: "",
       content: "",
     },
     mode: "all",
   });
+
+  const title = watch("title");
+
+  useEffect(() => {
+    if (title) {
+      setValue(
+        "urlSlug",
+        slugify(title, {
+          lower: true,
+          strict: true,
+          trim: true,
+        })
+      );
+    }
+  }, [title, setValue]);
 
   const { mutate, isPending } = useMutation({
     mutationFn: publishBlogRequest,
@@ -59,7 +78,9 @@ export default function PublishPage() {
       queryClient.invalidateQueries({ queryKey: ["blogs"] });
     },
     onError: (error) => {
-      console.log(error.message);
+      if (error.message.includes("500")) {
+        alert("blog url is already existed");
+      }
     },
   });
 
@@ -117,6 +138,23 @@ export default function PublishPage() {
               fullWidth
               error={!!errors.title}
               helperText={errors.title?.message || " "}
+            />
+          </Box>
+        </Box>
+        <Box id="blog-url-section">
+          <Box sx={{ width: "45%", p: 1 }}>
+            <InputLabel htmlFor="blog-url" sx={{ mb: 1 }}>
+              Your blog url is:
+            </InputLabel>
+            <TextField
+              id="blog-url"
+              placeholder="url"
+              {...register("urlSlug")}
+              size="small"
+              focused
+              fullWidth
+              error={!!errors.urlSlug}
+              helperText={errors.urlSlug?.message || " "}
             />
           </Box>
         </Box>

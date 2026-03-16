@@ -17,6 +17,7 @@ import { useAuthSSE } from "@/hooks/useSSECacheBridge";
 import NotificationMenu from "./NotificationMenu";
 import MobileMenu from "./MobileMenu";
 import BigScreenMenu from "./BigScreenMenu";
+import GoToTopButton from "@/components/Goto/Goto";
 
 export default function BasicLayout() {
   const { isAuthenticated } = useAuth();
@@ -113,7 +114,7 @@ export default function BasicLayout() {
                   <NotificationMenu />
                   <Button
                     component={Link}
-                    to="/blog/publish"
+                    to="/blogs/publish"
                     size="large"
                     aria-label="account of current user"
                     aria-haspopup="true"
@@ -203,6 +204,7 @@ export default function BasicLayout() {
           © {new Date().getFullYear()} My App. All rights reserved.
         </Typography>
       </Box>
+      <GoToTopButton />
     </Box>
   );
 }

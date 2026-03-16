@@ -2,8 +2,10 @@
 SELECT 
     b.blog_id, 
     b.title,
+    b.url_slug,
     b.author_id,
     CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.nickname,
     u.email,
     b.content,
     b.active,
@@ -15,7 +17,64 @@ FROM blogs.blogs b
 JOIN users.users u ON u.user_id = b.author_id
 WHERE b.blog_id = $1 AND b.deleted_at IS NULL;
 
--- name: ListAllBlogsBlogs :many
+-- name: GetBlogByUrlSlug :one
+SELECT 
+    b.blog_id, 
+    b.title,
+    b.url_slug,
+    b.author_id,
+    CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.nickname,
+    u.email,
+    b.content,
+    b.active,
+    b.created_at, 
+    b.created_by, 
+    b.updated_at, 
+    b.updated_by 
+FROM blogs.blogs b
+JOIN users.users u ON u.user_id = b.author_id
+WHERE b.url_slug = $1 AND b.deleted_at IS NULL;
+
+-- name: ListBlogsByAuthor :many
+SELECT
+    b.blog_id, 
+    b.title,
+    b.url_slug,
+    b.author_id,
+    u.nickname,
+    CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.email,
+    b.content,
+    b.active,
+    b.created_at, 
+    b.created_by, 
+    b.updated_at, 
+    b.updated_by 
+FROM blogs.blogs b
+JOIN users.users u ON u.user_id = b.author_id
+WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.active = $2;
+
+-- name: ListBlogsByAuthorNickname :many
+SELECT
+    b.blog_id, 
+    b.title,
+    b.url_slug,
+    b.author_id,
+    u.nickname,
+    CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.email,
+    b.content,
+    b.active,
+    b.created_at, 
+    b.created_by, 
+    b.updated_at, 
+    b.updated_by 
+FROM blogs.blogs b
+JOIN users.users u ON u.user_id = b.author_id
+WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.active = $2;
+
+-- name: ListAllBlogs :many
 SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs;
 
 -- name: ListBlogs :many
@@ -23,7 +82,9 @@ SELECT
     b.blog_id,
     u.user_id as author_id,
     u.first_name || u.last_name as author_name,
+    u.nickname,
     b.title, 
+    b.url_slug,
     b.content, 
     b.active,
     b.created_at, 
@@ -38,11 +99,12 @@ WHERE b.deleted_at IS NULL;
 INSERT INTO blogs.blogs(
     author_id,
     title,
+    url_slug,
     content,
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
 RETURNING *;
 

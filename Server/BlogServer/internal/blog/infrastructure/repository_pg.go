@@ -30,6 +30,7 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 	newBlog, err := q.CreateBlog(c, blogdb.CreateBlogParams{
 		AuthorID: blog.AuthorID,
 		Title:    blog.Title,
+		UrlSlug:  blog.URLSlug,
 		Content: pgtype.Text{
 			String: blog.Content,
 			Valid:  true,
@@ -64,7 +65,51 @@ func (r *BlogRepository) FindAll(c context.Context) ([]domain.BlogWithAuthorData
 	return blogs, nil
 }
 
-func (r *BlogRepository) FindByID(c context.Context, id int64) (*domain.Blog, error) {
+func (r *BlogRepository) ListAuthorBlogsByAuthorID(c context.Context, authorID uuid.UUID) ([]domain.BlogWithAuthorData, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	rows, err := q.ListBlogsByAuthor(c, blogdb.ListBlogsByAuthorParams{
+		AuthorID: authorID,
+		Active:   "true",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var blogs []domain.BlogWithAuthorData
+	for _, value := range rows {
+		v := value
+		blogs = append(blogs, *ListAuthorBlogsByAuthorIDRowDTOToBlog(&v))
+	}
+	return blogs, nil
+}
+
+func (r *BlogRepository) ListAuthorBlogsByNickname(c context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	rows, err := q.ListBlogsByAuthorNickname(c, blogdb.ListBlogsByAuthorNicknameParams{
+		Nickname: nickname,
+		Active:   "true",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var blogs []domain.BlogWithAuthorData
+	for _, value := range rows {
+		v := value
+		blogs = append(blogs, *ListAuthorBlogsRowDTOToBlog(&v))
+	}
+	return blogs, nil
+}
+
+func (r *BlogRepository) FindByID(c context.Context, id int64) (*domain.BlogWithAuthorData, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
@@ -74,7 +119,20 @@ func (r *BlogRepository) FindByID(c context.Context, id int64) (*domain.Blog, er
 	if err != nil {
 		return nil, err
 	}
-	return GetBlogRowDTOToBlog(&row), nil
+	return GetBlogRowDTOToBlogWithAuthorData(&row), nil
+}
+
+func (r *BlogRepository) FindByUrlSlug(c context.Context, slug string) (*domain.BlogWithAuthorData, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	row, err := q.GetBlogByUrlSlug(c, slug)
+	if err != nil {
+		return nil, err
+	}
+	return GetBlogRowByUrlSlugDTOToBlogWithAuthorData(&row), nil
 }
 
 // func (r *blogRepository) Update(blog *Blog, q *blogdb.Queries) error {

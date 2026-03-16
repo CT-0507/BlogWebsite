@@ -1,12 +1,25 @@
-import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
+import BlogList from "./BlogList";
+import Typography from "@mui/material/Typography";
 
-const Home = () => {
+export default function Home() {
   return (
     <>
-      <h1>This is home page</h1>
-      <Button variant="contained">Contained</Button>
+      <Box>
+        <Box
+          id="home-header"
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            mt: 1,
+          }}
+        >
+          <Typography variant="h3" display="inline">
+            This is home page
+          </Typography>
+        </Box>
+        <BlogList />
+      </Box>
     </>
   );
-};
-
-export default Home;
+}

@@ -16,18 +16,20 @@ const createBlog = `-- name: CreateBlog :one
 INSERT INTO blogs.blogs(
     author_id,
     title,
+    url_slug,
     content,
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
-RETURNING blog_id, author_id, title, content, active, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING blog_id, author_id, url_slug, title, content, active, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateBlogParams struct {
 	AuthorID  uuid.UUID
 	Title     string
+	UrlSlug   string
 	Content   pgtype.Text
 	CreatedBy *uuid.UUID
 	UpdatedBy *uuid.UUID
@@ -37,6 +39,7 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 	row := q.db.QueryRow(ctx, createBlog,
 		arg.AuthorID,
 		arg.Title,
+		arg.UrlSlug,
 		arg.Content,
 		arg.CreatedBy,
 		arg.UpdatedBy,
@@ -45,6 +48,7 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 	err := row.Scan(
 		&i.BlogID,
 		&i.AuthorID,
+		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
 		&i.Active,
@@ -82,8 +86,10 @@ const getBlog = `-- name: GetBlog :one
 SELECT 
     b.blog_id, 
     b.title,
+    b.url_slug,
     b.author_id,
     CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.nickname,
     u.email,
     b.content,
     b.active,
@@ -99,8 +105,10 @@ WHERE b.blog_id = $1 AND b.deleted_at IS NULL
 type GetBlogRow struct {
 	BlogID     int64
 	Title      string
+	UrlSlug    string
 	AuthorID   uuid.UUID
 	AuthorName interface{}
+	Nickname   string
 	Email      pgtype.Text
 	Content    pgtype.Text
 	Active     string
@@ -116,8 +124,67 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 	err := row.Scan(
 		&i.BlogID,
 		&i.Title,
+		&i.UrlSlug,
 		&i.AuthorID,
 		&i.AuthorName,
+		&i.Nickname,
+		&i.Email,
+		&i.Content,
+		&i.Active,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+	)
+	return i, err
+}
+
+const getBlogByUrlSlug = `-- name: GetBlogByUrlSlug :one
+SELECT 
+    b.blog_id, 
+    b.title,
+    b.url_slug,
+    b.author_id,
+    CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.nickname,
+    u.email,
+    b.content,
+    b.active,
+    b.created_at, 
+    b.created_by, 
+    b.updated_at, 
+    b.updated_by 
+FROM blogs.blogs b
+JOIN users.users u ON u.user_id = b.author_id
+WHERE b.url_slug = $1 AND b.deleted_at IS NULL
+`
+
+type GetBlogByUrlSlugRow struct {
+	BlogID     int64
+	Title      string
+	UrlSlug    string
+	AuthorID   uuid.UUID
+	AuthorName interface{}
+	Nickname   string
+	Email      pgtype.Text
+	Content    pgtype.Text
+	Active     string
+	CreatedAt  pgtype.Timestamptz
+	CreatedBy  *uuid.UUID
+	UpdatedAt  pgtype.Timestamptz
+	UpdatedBy  *uuid.UUID
+}
+
+func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlogByUrlSlugRow, error) {
+	row := q.db.QueryRow(ctx, getBlogByUrlSlug, urlSlug)
+	var i GetBlogByUrlSlugRow
+	err := row.Scan(
+		&i.BlogID,
+		&i.Title,
+		&i.UrlSlug,
+		&i.AuthorID,
+		&i.AuthorName,
+		&i.Nickname,
 		&i.Email,
 		&i.Content,
 		&i.Active,
@@ -142,11 +209,11 @@ func (q *Queries) HardDeleteBlog(ctx context.Context, blogID int64) (int64, erro
 	return blog_id, err
 }
 
-const listAllBlogsBlogs = `-- name: ListAllBlogsBlogs :many
+const listAllBlogs = `-- name: ListAllBlogs :many
 SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs
 `
 
-type ListAllBlogsBlogsRow struct {
+type ListAllBlogsRow struct {
 	BlogID    int64
 	Title     string
 	Content   pgtype.Text
@@ -158,15 +225,15 @@ type ListAllBlogsBlogsRow struct {
 	DeletedBy *uuid.UUID
 }
 
-func (q *Queries) ListAllBlogsBlogs(ctx context.Context) ([]ListAllBlogsBlogsRow, error) {
-	rows, err := q.db.Query(ctx, listAllBlogsBlogs)
+func (q *Queries) ListAllBlogs(ctx context.Context) ([]ListAllBlogsRow, error) {
+	rows, err := q.db.Query(ctx, listAllBlogs)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListAllBlogsBlogsRow
+	var items []ListAllBlogsRow
 	for rows.Next() {
-		var i ListAllBlogsBlogsRow
+		var i ListAllBlogsRow
 		if err := rows.Scan(
 			&i.BlogID,
 			&i.Title,
@@ -193,7 +260,9 @@ SELECT
     b.blog_id,
     u.user_id as author_id,
     u.first_name || u.last_name as author_name,
+    u.nickname,
     b.title, 
+    b.url_slug,
     b.content, 
     b.active,
     b.created_at, 
@@ -209,7 +278,9 @@ type ListBlogsRow struct {
 	BlogID     int64
 	AuthorID   uuid.UUID
 	AuthorName interface{}
+	Nickname   string
 	Title      string
+	UrlSlug    string
 	Content    pgtype.Text
 	Active     string
 	CreatedAt  pgtype.Timestamptz
@@ -231,7 +302,159 @@ func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
 			&i.BlogID,
 			&i.AuthorID,
 			&i.AuthorName,
+			&i.Nickname,
 			&i.Title,
+			&i.UrlSlug,
+			&i.Content,
+			&i.Active,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBlogsByAuthor = `-- name: ListBlogsByAuthor :many
+SELECT
+    b.blog_id, 
+    b.title,
+    b.url_slug,
+    b.author_id,
+    u.nickname,
+    CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.email,
+    b.content,
+    b.active,
+    b.created_at, 
+    b.created_by, 
+    b.updated_at, 
+    b.updated_by 
+FROM blogs.blogs b
+JOIN users.users u ON u.user_id = b.author_id
+WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.active = $2
+`
+
+type ListBlogsByAuthorParams struct {
+	AuthorID uuid.UUID
+	Active   string
+}
+
+type ListBlogsByAuthorRow struct {
+	BlogID     int64
+	Title      string
+	UrlSlug    string
+	AuthorID   uuid.UUID
+	Nickname   string
+	AuthorName interface{}
+	Email      pgtype.Text
+	Content    pgtype.Text
+	Active     string
+	CreatedAt  pgtype.Timestamptz
+	CreatedBy  *uuid.UUID
+	UpdatedAt  pgtype.Timestamptz
+	UpdatedBy  *uuid.UUID
+}
+
+func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorParams) ([]ListBlogsByAuthorRow, error) {
+	rows, err := q.db.Query(ctx, listBlogsByAuthor, arg.AuthorID, arg.Active)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBlogsByAuthorRow
+	for rows.Next() {
+		var i ListBlogsByAuthorRow
+		if err := rows.Scan(
+			&i.BlogID,
+			&i.Title,
+			&i.UrlSlug,
+			&i.AuthorID,
+			&i.Nickname,
+			&i.AuthorName,
+			&i.Email,
+			&i.Content,
+			&i.Active,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.UpdatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBlogsByAuthorNickname = `-- name: ListBlogsByAuthorNickname :many
+SELECT
+    b.blog_id, 
+    b.title,
+    b.url_slug,
+    b.author_id,
+    u.nickname,
+    CONCAT(u.first_name, ' ', u.last_name) as author_name,
+    u.email,
+    b.content,
+    b.active,
+    b.created_at, 
+    b.created_by, 
+    b.updated_at, 
+    b.updated_by 
+FROM blogs.blogs b
+JOIN users.users u ON u.user_id = b.author_id
+WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.active = $2
+`
+
+type ListBlogsByAuthorNicknameParams struct {
+	Nickname string
+	Active   string
+}
+
+type ListBlogsByAuthorNicknameRow struct {
+	BlogID     int64
+	Title      string
+	UrlSlug    string
+	AuthorID   uuid.UUID
+	Nickname   string
+	AuthorName interface{}
+	Email      pgtype.Text
+	Content    pgtype.Text
+	Active     string
+	CreatedAt  pgtype.Timestamptz
+	CreatedBy  *uuid.UUID
+	UpdatedAt  pgtype.Timestamptz
+	UpdatedBy  *uuid.UUID
+}
+
+func (q *Queries) ListBlogsByAuthorNickname(ctx context.Context, arg ListBlogsByAuthorNicknameParams) ([]ListBlogsByAuthorNicknameRow, error) {
+	rows, err := q.db.Query(ctx, listBlogsByAuthorNickname, arg.Nickname, arg.Active)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBlogsByAuthorNicknameRow
+	for rows.Next() {
+		var i ListBlogsByAuthorNicknameRow
+		if err := rows.Scan(
+			&i.BlogID,
+			&i.Title,
+			&i.UrlSlug,
+			&i.AuthorID,
+			&i.Nickname,
+			&i.AuthorName,
+			&i.Email,
 			&i.Content,
 			&i.Active,
 			&i.CreatedAt,

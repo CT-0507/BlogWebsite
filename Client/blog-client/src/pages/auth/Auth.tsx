@@ -6,9 +6,10 @@ import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
+import { useSearchParams } from "react-router-dom";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -61,9 +62,31 @@ function FormHeader() {
 
 const tabs = ["Login", "Register"];
 export default function Login() {
-  const [currentTab, setCurrentTab] = useState<number>(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const action = useMemo(() => {
+    const query = searchParams.get("action");
+    switch (query) {
+      case "register":
+        return 1;
+      default:
+        return 0;
+    }
+  }, [searchParams]);
+
+  const [currentTab, setCurrentTab] = useState<number>(action);
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
+    let action: string;
+    switch (newValue) {
+      case 0:
+        action = "login";
+        break;
+      default:
+        action = "register";
+        break;
+    }
+    setSearchParams({ action });
   };
   return (
     <Box

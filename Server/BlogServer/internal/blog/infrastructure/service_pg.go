@@ -48,10 +48,22 @@ func (s *BlogService) GetAll(ctx context.Context) ([]domain.BlogWithAuthorData, 
 	return s.listBlogs.ListBlogs(ctx)
 }
 
-func (s *BlogService) GetBlog(ctx context.Context, id int64) (*domain.Blog, error) {
+func (s *BlogService) GetBlog(ctx context.Context, id int64) (*domain.BlogWithAuthorData, error) {
 	return s.getBlog.GetBlog(ctx, id)
+}
+
+func (s *BlogService) GetBlogByUrlSlug(ctx context.Context, slug string) (*domain.BlogWithAuthorData, error) {
+	return s.getBlog.GetBlogByUrlSlug(ctx, slug)
 }
 
 func (s *BlogService) DeleteBlog(ctx context.Context, id int64, userID uuid.UUID) (*int64, error) {
 	return s.deleteBlog.DeleteBlog(ctx, id, userID)
+}
+
+func (s *BlogService) ListAuthorBlogsByAuthorID(ctx context.Context, authorID uuid.UUID) ([]domain.BlogWithAuthorData, error) {
+	return s.listBlogs.ListAuthorBlogsByAuthorID(ctx, authorID)
+}
+
+func (s *BlogService) ListAuthorBlogsByNickname(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
+	return s.listBlogs.ListAuthorBlogsByNickname(ctx, nickname)
 }
