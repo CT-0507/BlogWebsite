@@ -1,5 +1,6 @@
 import axios from "axios";
 import { tokenStore } from "./store/tokenStore";
+import { isLocalMode } from ".";
 
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -56,6 +57,7 @@ axiosAuth.interceptors.request.use(
 axiosAuth.interceptors.response.use(
   (res) => res,
   async (error) => {
+    if (isLocalMode) return;
     const originalRequest = error.config;
 
     if (
