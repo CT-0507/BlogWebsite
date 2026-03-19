@@ -6,7 +6,6 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	authordb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/infrastructure/db"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -21,14 +20,14 @@ func NewAuthorProfileRepository(pool *pgxpool.Pool) domain.AuthorProfileReposito
 	}
 }
 
-func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author *domain.AuthorProfile, userID uuid.UUID, createdBy uuid.UUID) error {
+func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author *domain.AuthorProfile, userID string, createdBy string) error {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
 
 	return q.CreateAuthorProfile(c, authordb.CreateAuthorProfileParams{
 		AuthorID:    author.AuthorID,
-		UserID:      &userID,
+		UserID:      userID,
 		DisplayName: author.DisplayName,
 		Bio: pgtype.Text{
 			String: author.DisplayName,
@@ -48,8 +47,44 @@ func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author 
 			String: author.Email,
 			Valid:  author.Email != "",
 		},
-		UpdatedBy: &createdBy,
+		UpdatedBy: createdBy,
 	})
+}
+
+func (r *AuthorProfileRepository) GetAuthorProfileByID(c context.Context, authorID string, status string) (*domain.AuthorProfile, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	author, err := q.GetAuthorProfileByID(c, authordb.GetAuthorProfileByIDParams{
+		AuthorID: authorID,
+		Status:   status,
+		Column3:  "check_not_null",
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return MapAuthorsAuthorToAuthorProfile(&author), err
+}
+
+func (r *AuthorProfileRepository) GetAuthorProfileBySlug(c context.Context, slug string, status string) (*domain.AuthorProfile, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	author, err := q.GetAuthorProfileBySlug(c, authordb.GetAuthorProfileBySlugParams{
+		Slug:    slug,
+		Status:  status,
+		Column3: "check_not_null",
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return MapAuthorsAuthorToAuthorProfile(&author), err
 }
 
 func (r *AuthorProfileRepository) ListAuthorProfies(c context.Context, status string, deletedCheckMode string) ([]domain.AuthorProfile, error) {
@@ -69,8 +104,136 @@ func (r *AuthorProfileRepository) ListAuthorProfies(c context.Context, status st
 	var authorProfiles []domain.AuthorProfile
 	for _, value := range rows {
 		v := value
-		authorProfiles = append(authorProfiles, *MapAuthorsAuthorToAuthorProfileList(&v))
+		authorProfiles = append(authorProfiles, *MapAuthorsAuthorToAuthorProfile(&v))
 	}
 
 	return authorProfiles, nil
+}
+
+func (r *AuthorProfileRepository) DeleteAuthorProfile(c context.Context, authorID string, userID string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.UpdateAuthorProfileDeleteAt(c, authordb.UpdateAuthorProfileDeleteAtParams{
+		Status:    "deleted",
+		UpdatedBy: userID,
+		AuthorID:  authorID,
+	})
+}
+
+func (r *AuthorProfileRepository) UpdateAuthorStatus(c context.Context, authorID string, status string, userID string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.UpdateAuthorStatus(c, authordb.UpdateAuthorStatusParams{
+		Status:    status,
+		UpdatedBy: userID,
+		AuthorID:  authorID,
+	})
+}
+
+func (r *AuthorProfileRepository) HardDeleteAuthorProfile(c context.Context, authorID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.DeleteAuthorProfile(c, authorID)
+}
+
+func (r *AuthorProfileRepository) UpdateAuthorSlug(c context.Context, authorID string, slug string, updatedBy string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.UpdateAuthorSlug(c, authordb.UpdateAuthorSlugParams{
+		AuthorID:  authorID,
+		Slug:      slug,
+		UpdatedBy: updatedBy,
+	})
+}
+
+func (r *AuthorProfileRepository) CreateAuthorFollower(c context.Context, authorID string, userID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.CreateAuthorFollower(c, authordb.CreateAuthorFollowerParams{
+		AuthorID: authorID,
+		UserID:   userID,
+	})
+}
+
+func (r *AuthorProfileRepository) DeleteAuthorFollower(c context.Context, authorID string, userID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.DeleteAuthorFollower(c, authordb.DeleteAuthorFollowerParams{
+		AuthorID: authorID,
+		UserID:   userID,
+	})
+}
+
+func (r *AuthorProfileRepository) GetAuthorFollowers(c context.Context, authorID string, userID string) ([]string, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.GetAuthorFollowers(c, authorID)
+}
+
+func (r *AuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string) ([]string, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.GetFollowedAuthors(c, userID)
+}
+
+func (r *AuthorProfileRepository) CreateAuthorFeatureBlogs(c context.Context, authorID string, blogIds []string) (int64, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	var params []authordb.CreateAuthorFeatureBlogsParams
+	for _, value := range blogIds {
+		v := value
+		params = append(params, authordb.CreateAuthorFeatureBlogsParams{
+			AuthorID: authorID,
+			BlogID:   v,
+		})
+	}
+
+	return q.CreateAuthorFeatureBlogs(c, params)
+}
+
+func (r *AuthorProfileRepository) GetAuthorFeaturedBlogIDs(c context.Context, authorID string) ([]string, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.GetAuthorFeatureBlogIDs(c, authordb.GetAuthorFeatureBlogIDsParams{
+		AuthorID: authorID,
+		Status:   "active",
+	})
+}
+
+func (r *AuthorProfileRepository) UpdateAuthorBlogCount(c context.Context, authorID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.UpdateAuthorBlogCount(c)
+}
+
+func (r *AuthorProfileRepository) UpdateAuthorFollowerCount(c context.Context, authorID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.UpdateAuthorFollowerCount(c)
 }

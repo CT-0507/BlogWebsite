@@ -13,26 +13,31 @@
 ### **🧱 1. authors Table (Core Aggregate)**
 
 ```sql
-CREATE TABLE authors (
-    id              VARCHAR(50) PRIMARY KEY,
-    user_id         VARCHAR(50) NOT NULL,
+CREATE TABLE authors.authors (
+    author_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL, -- external reference (NO FK)
+    display_name VARCHAR(100) NOT NULL,
 
-    slug            VARCHAR(150) UNIQUE NOT NULL,
+    bio TEXT,
 
-    display_name    VARCHAR(150) NOT NULL,
-    bio             TEXT,
-    avatar_url      TEXT,
+    avatar TEXT,
+    slug VARCHAR(150) NOT NULL UNIQUE,
+    social_link TEXT,
+
+    status VARCHAR(50) NOT NULL DEFAULT 'active', -- active, suspended, deleted
+
+    email TEXT,
 
     -- denormalized counters
-    follower_count  INT DEFAULT 0,
-    post_count      INT DEFAULT 0,
+    follower_count INT DEFAULT 0,
+    blog_count INT DEFAULT 0,
 
-    -- status
-    status          VARCHAR(20) DEFAULT 'active', -- active, suspended, deleted
-
-    created_at      TIMESTAMP NOT NULL,
-    updated_at      TIMESTAMP NOT NULL,
-    deleted_at      TIMESTAMP NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_by TEXT REFERENCES NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by TEXT NOT NULL,
+    deleted_at TIMESTAMPTZ,
+    deleted_by TEXT NOT NULL
 );
 ```
 
@@ -47,15 +52,20 @@ CREATE TABLE authors (
 ### **🧱 2. author_profiles Table (Optional Split)**
 
 ```sql
-CREATE TABLE author_profiles (
-    author_id      VARCHAR(50) PRIMARY KEY,
+CREATE TABLE authors.author_profiles (
+    author_id      TEXT PRIMARY KEY,
 
     twitter_url    TEXT,
     github_url     TEXT,
     website_url    TEXT,
 
-    created_at     TIMESTAMP NOT NULL,
-    updated_at     TIMESTAMP NOT NULL
+    created_at     TIMESTAMPTZ NOT NULL,
+    updated_at     TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT fk_author_profiles_author
+        FOREIGN KEY (author_id)
+        REFERENCES authors.authors(author_id)
+        ON DELETE CASCADE
 );
 ```
 
@@ -64,14 +74,18 @@ CREATE TABLE author_profiles (
 ### **🧱 3. author_followers Table**
 
 ```sql
-CREATE TABLE author_followers (
+CREATE TABLE authors.authors.author_followers (
     id              VARCHAR(50) PRIMARY KEY,
 
     author_id       VARCHAR(50) NOT NULL,
     user_id         VARCHAR(50) NOT NULL,
 
-    created_at      TIMESTAMP NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL,
 
+    CONSTRAINT fk_followers_author
+        FOREIGN KEY (author_id)
+        REFERENCES authors(id)
+        ON DELETE CASCADE,
     UNIQUE(author_id, user_id)
 );
 ```
@@ -86,15 +100,20 @@ ALTER TABLE author_followers ADD COLUMN user_avatar_url TEXT;
 ### **🧱 3. author_featured_blogs**
 
 ```sql
-CREATE TABLE author_featured_blogs (
-    id              VARCHAR(50) PRIMARY KEY,
+CREATE TABLE authors.author_featured_blogs (
+    id              int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-    author_id       VARCHAR(50) NOT NULL,
-    blog_id         VARCHAR(50) NOT NULL,
+    author_id       TEXT NOT NULL,
+    blog_id         TEXT NOT NULL,  -- external (NO FK)
 
     position        INT NOT NULL, -- ordering
 
     created_at      TIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_featured_author
+        FOREIGN KEY (author_id)
+        REFERENCES authors.authors(author_id)
+        ON DELETE CASCADE,
 
     UNIQUE(author_id, blog_id),
     UNIQUE(author_id, position)
@@ -147,7 +166,7 @@ CREATE INDEX idx_featured_author_id ON author_featured_posts(author_id);
 
 ### **🔄 7. Event-Driven Sync (Future)**
 
-Since you're planning eventual consistency:
+Eventual consistency:
 
 Events Author Module SHOULD CONSUME
 From Post Module

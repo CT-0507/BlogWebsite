@@ -8,9 +8,33 @@ package authordb
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type CreateAuthorFeatureBlogsParams struct {
+	AuthorID string
+	BlogID   string
+	Position int32
+}
+
+const createAuthorFollower = `-- name: CreateAuthorFollower :exec
+INSERT INTO authors.author_followers (
+    author_id,
+    user_id
+) VALUES (
+    $1, $2
+)
+`
+
+type CreateAuthorFollowerParams struct {
+	AuthorID string
+	UserID   string
+}
+
+func (q *Queries) CreateAuthorFollower(ctx context.Context, arg CreateAuthorFollowerParams) error {
+	_, err := q.db.Exec(ctx, createAuthorFollower, arg.AuthorID, arg.UserID)
+	return err
+}
 
 const createAuthorProfile = `-- name: CreateAuthorProfile :exec
 INSERT INTO authors.authors (
@@ -24,18 +48,16 @@ INSERT INTO authors.authors (
     status,
     email,
 
-    created_at,
     created_by,
-    updated_at,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $9, NOW(), $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10
 )
 `
 
 type CreateAuthorProfileParams struct {
 	AuthorID    string
-	UserID      *uuid.UUID
+	UserID      string
 	DisplayName string
 	Bio         pgtype.Text
 	Avatar      pgtype.Text
@@ -43,7 +65,7 @@ type CreateAuthorProfileParams struct {
 	SocialLink  pgtype.Text
 	Status      string
 	Email       pgtype.Text
-	UpdatedBy   *uuid.UUID
+	UpdatedBy   string
 }
 
 func (q *Queries) CreateAuthorProfile(ctx context.Context, arg CreateAuthorProfileParams) error {
@@ -62,6 +84,21 @@ func (q *Queries) CreateAuthorProfile(ctx context.Context, arg CreateAuthorProfi
 	return err
 }
 
+const deleteAuthorFollower = `-- name: DeleteAuthorFollower :exec
+DELETE FROM authors.author_followers
+WHERE author_id = $1 AND  user_id = $2
+`
+
+type DeleteAuthorFollowerParams struct {
+	AuthorID string
+	UserID   string
+}
+
+func (q *Queries) DeleteAuthorFollower(ctx context.Context, arg DeleteAuthorFollowerParams) error {
+	_, err := q.db.Exec(ctx, deleteAuthorFollower, arg.AuthorID, arg.UserID)
+	return err
+}
+
 const deleteAuthorProfile = `-- name: DeleteAuthorProfile :exec
 DELETE FROM authors.authors
 WHERE author_id = $1
@@ -72,23 +109,82 @@ func (q *Queries) DeleteAuthorProfile(ctx context.Context, authorID string) erro
 	return err
 }
 
-const findAuthorProfileBySlug = `-- name: FindAuthorProfileBySlug :one
-SELECT author_id, user_id, display_name, bio, avatar, slug, social_link, status, email, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+const getAuthorFeatureBlogIDs = `-- name: GetAuthorFeatureBlogIDs :many
+SELECT blog_id
+FROM authors.author_featured_blogs f
+JOIN authors.authors a ON author_id
+WHERE f.author_id = $1 AND a.status = $2
+`
+
+type GetAuthorFeatureBlogIDsParams struct {
+	AuthorID string
+	Status   string
+}
+
+func (q *Queries) GetAuthorFeatureBlogIDs(ctx context.Context, arg GetAuthorFeatureBlogIDsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, getAuthorFeatureBlogIDs, arg.AuthorID, arg.Status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var blog_id string
+		if err := rows.Scan(&blog_id); err != nil {
+			return nil, err
+		}
+		items = append(items, blog_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAuthorFollowers = `-- name: GetAuthorFollowers :many
+SELECT user_id
+FROM authors.author_followers
+WHERE author_id = $1
+ORDER BY created_at
+`
+
+func (q *Queries) GetAuthorFollowers(ctx context.Context, authorID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, getAuthorFollowers, authorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAuthorProfileByID = `-- name: GetAuthorProfileByID :one
+SELECT author_id, user_id, display_name, bio, avatar, slug, social_link, status, email, follower_count, blog_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 FROM authors.authors a
-WHERE a.slug = $1 
+WHERE a.author_id = $1 
     AND a.status = $2 
     AND ($3 = 'check_null' AND deleted_at IS NULL)
     OR ($3 = 'check_not_null' AND deleted_at IS NOT NULL)
 `
 
-type FindAuthorProfileBySlugParams struct {
-	Slug    string
-	Status  string
-	Column3 interface{}
+type GetAuthorProfileByIDParams struct {
+	AuthorID string
+	Status   string
+	Column3  interface{}
 }
 
-func (q *Queries) FindAuthorProfileBySlug(ctx context.Context, arg FindAuthorProfileBySlugParams) (AuthorsAuthor, error) {
-	row := q.db.QueryRow(ctx, findAuthorProfileBySlug, arg.Slug, arg.Status, arg.Column3)
+func (q *Queries) GetAuthorProfileByID(ctx context.Context, arg GetAuthorProfileByIDParams) (AuthorsAuthor, error) {
+	row := q.db.QueryRow(ctx, getAuthorProfileByID, arg.AuthorID, arg.Status, arg.Column3)
 	var i AuthorsAuthor
 	err := row.Scan(
 		&i.AuthorID,
@@ -100,6 +196,8 @@ func (q *Queries) FindAuthorProfileBySlug(ctx context.Context, arg FindAuthorPro
 		&i.SocialLink,
 		&i.Status,
 		&i.Email,
+		&i.FollowerCount,
+		&i.BlogCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -110,8 +208,75 @@ func (q *Queries) FindAuthorProfileBySlug(ctx context.Context, arg FindAuthorPro
 	return i, err
 }
 
+const getAuthorProfileBySlug = `-- name: GetAuthorProfileBySlug :one
+SELECT author_id, user_id, display_name, bio, avatar, slug, social_link, status, email, follower_count, blog_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+FROM authors.authors a
+WHERE a.slug = $1 
+    AND a.status = $2 
+    AND ($3 = 'check_null' AND deleted_at IS NULL)
+    OR ($3 = 'check_not_null' AND deleted_at IS NOT NULL)
+`
+
+type GetAuthorProfileBySlugParams struct {
+	Slug    string
+	Status  string
+	Column3 interface{}
+}
+
+func (q *Queries) GetAuthorProfileBySlug(ctx context.Context, arg GetAuthorProfileBySlugParams) (AuthorsAuthor, error) {
+	row := q.db.QueryRow(ctx, getAuthorProfileBySlug, arg.Slug, arg.Status, arg.Column3)
+	var i AuthorsAuthor
+	err := row.Scan(
+		&i.AuthorID,
+		&i.UserID,
+		&i.DisplayName,
+		&i.Bio,
+		&i.Avatar,
+		&i.Slug,
+		&i.SocialLink,
+		&i.Status,
+		&i.Email,
+		&i.FollowerCount,
+		&i.BlogCount,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+		&i.DeletedAt,
+		&i.DeletedBy,
+	)
+	return i, err
+}
+
+const getFollowedAuthors = `-- name: GetFollowedAuthors :many
+SELECT author_id
+FROM authors.author_followers
+WHERE user_id = $1
+ORDER BY created_at
+`
+
+func (q *Queries) GetFollowedAuthors(ctx context.Context, userID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, getFollowedAuthors, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var author_id string
+		if err := rows.Scan(&author_id); err != nil {
+			return nil, err
+		}
+		items = append(items, author_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAuthorProfies = `-- name: ListAuthorProfies :many
-SELECT author_id, user_id, display_name, bio, avatar, slug, social_link, status, email, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+SELECT author_id, user_id, display_name, bio, avatar, slug, social_link, status, email, follower_count, blog_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 FROM authors.authors a
 WHERE a.status = $1
     AND ($2 = 'check_null' AND deleted_at IS NULL)
@@ -142,6 +307,8 @@ func (q *Queries) ListAuthorProfies(ctx context.Context, arg ListAuthorProfiesPa
 			&i.SocialLink,
 			&i.Status,
 			&i.Email,
+			&i.FollowerCount,
+			&i.BlogCount,
 			&i.CreatedAt,
 			&i.CreatedBy,
 			&i.UpdatedAt,
@@ -157,6 +324,26 @@ func (q *Queries) ListAuthorProfies(ctx context.Context, arg ListAuthorProfiesPa
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateAuthorBlogCount = `-- name: UpdateAuthorBlogCount :exec
+UPDATE authors.authors
+SET blog_count = blog_count + 1
+`
+
+func (q *Queries) UpdateAuthorBlogCount(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, updateAuthorBlogCount)
+	return err
+}
+
+const updateAuthorFollowerCount = `-- name: UpdateAuthorFollowerCount :exec
+UPDATE authors.authors
+SET follower_count = follower_count + 1
+`
+
+func (q *Queries) UpdateAuthorFollowerCount(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, updateAuthorFollowerCount)
+	return err
 }
 
 const updateAuthorProfileBasic = `-- name: UpdateAuthorProfileBasic :exec
@@ -175,7 +362,7 @@ type UpdateAuthorProfileBasicParams struct {
 	Bio         pgtype.Text
 	Avatar      pgtype.Text
 	SocialLink  pgtype.Text
-	UpdatedBy   *uuid.UUID
+	UpdatedBy   string
 	AuthorID    string
 }
 
@@ -203,7 +390,7 @@ WHERE author_id = $3
 
 type UpdateAuthorProfileDeleteAtParams struct {
 	Status    string
-	UpdatedBy *uuid.UUID
+	UpdatedBy string
 	AuthorID  string
 }
 
@@ -222,12 +409,31 @@ WHERE author_id = $3
 
 type UpdateAuthorProfileEmailParams struct {
 	Email     pgtype.Text
-	UpdatedBy *uuid.UUID
+	UpdatedBy string
 	AuthorID  string
 }
 
 func (q *Queries) UpdateAuthorProfileEmail(ctx context.Context, arg UpdateAuthorProfileEmailParams) error {
 	_, err := q.db.Exec(ctx, updateAuthorProfileEmail, arg.Email, arg.UpdatedBy, arg.AuthorID)
+	return err
+}
+
+const updateAuthorSlug = `-- name: UpdateAuthorSlug :exec
+UPDATE authors.authors
+SET slug = $1,
+updated_at = NOW(),
+updated_by = $2
+WHERE author_id = $3
+`
+
+type UpdateAuthorSlugParams struct {
+	Slug      string
+	UpdatedBy string
+	AuthorID  string
+}
+
+func (q *Queries) UpdateAuthorSlug(ctx context.Context, arg UpdateAuthorSlugParams) error {
+	_, err := q.db.Exec(ctx, updateAuthorSlug, arg.Slug, arg.UpdatedBy, arg.AuthorID)
 	return err
 }
 
@@ -241,7 +447,7 @@ WHERE author_id = $3
 
 type UpdateAuthorStatusParams struct {
 	Status    string
-	UpdatedBy *uuid.UUID
+	UpdatedBy string
 	AuthorID  string
 }
 

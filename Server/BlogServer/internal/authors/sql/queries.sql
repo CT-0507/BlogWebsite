@@ -10,12 +10,10 @@ INSERT INTO authors.authors (
     status,
     email,
 
-    created_at,
     created_by,
-    updated_at,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $9, NOW(), $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10
 );
 
 -- name: ListAuthorProfies :many
@@ -25,10 +23,18 @@ WHERE a.status = $1
     AND ($2 = 'check_null' AND deleted_at IS NULL)
     OR ($2 = 'check_not_null' AND deleted_at IS NOT NULL);
 
--- name: FindAuthorProfileBySlug :one
+-- name: GetAuthorProfileBySlug :one
 SELECT *
 FROM authors.authors a
 WHERE a.slug = $1 
+    AND a.status = $2 
+    AND ($3 = 'check_null' AND deleted_at IS NULL)
+    OR ($3 = 'check_not_null' AND deleted_at IS NOT NULL);
+
+-- name: GetAuthorProfileByID :one
+SELECT *
+FROM authors.authors a
+WHERE a.author_id = $1 
     AND a.status = $2 
     AND ($3 = 'check_null' AND deleted_at IS NULL)
     OR ($3 = 'check_not_null' AND deleted_at IS NOT NULL);
@@ -66,6 +72,60 @@ UPDATE authors.authors
     deleted_by = $2
 WHERE author_id = $3;
 
+-- name: UpdateAuthorSlug :exec
+UPDATE authors.authors
+SET slug = $1,
+updated_at = NOW(),
+updated_by = $2
+WHERE author_id = $3;
+
 -- name: DeleteAuthorProfile :exec
 DELETE FROM authors.authors
 WHERE author_id = $1;
+
+-- name: CreateAuthorFollower :exec
+INSERT INTO authors.author_followers (
+    author_id,
+    user_id
+) VALUES (
+    $1, $2
+);
+
+-- name: DeleteAuthorFollower :exec
+DELETE FROM authors.author_followers
+WHERE author_id = $1 AND  user_id = $2;
+
+-- name: GetAuthorFollowers :many
+SELECT user_id
+FROM authors.author_followers
+WHERE author_id = $1
+ORDER BY created_at;
+
+-- name: GetFollowedAuthors :many
+SELECT author_id
+FROM authors.author_followers
+WHERE user_id = $1
+ORDER BY created_at;
+
+-- name: CreateAuthorFeatureBlogs :copyfrom
+INSERT INTO authors.author_featured_blogs (
+    author_id,
+    blog_id,
+    position
+) VALUES (
+    $1, $2, $3
+);
+
+-- name: GetAuthorFeatureBlogIDs :many
+SELECT blog_id
+FROM authors.author_featured_blogs f
+JOIN authors.authors a ON author_id
+WHERE f.author_id = $1 AND a.status = $2;
+
+-- name: UpdateAuthorBlogCount :exec
+UPDATE authors.authors
+SET blog_count = blog_count + 1;
+
+-- name: UpdateAuthorFollowerCount :exec
+UPDATE authors.authors
+SET follower_count = follower_count + 1;

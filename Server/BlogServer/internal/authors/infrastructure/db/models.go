@@ -10,21 +10,47 @@ import (
 )
 
 type AuthorsAuthor struct {
-	AuthorID    string
-	UserID      *uuid.UUID
-	DisplayName string
-	Bio         pgtype.Text
-	Avatar      pgtype.Text
-	Slug        string
-	SocialLink  pgtype.Text
-	Status      string
-	Email       pgtype.Text
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   *uuid.UUID
-	UpdatedAt   pgtype.Timestamptz
-	UpdatedBy   *uuid.UUID
-	DeletedAt   pgtype.Timestamptz
-	DeletedBy   *uuid.UUID
+	AuthorID      string
+	UserID        string
+	DisplayName   string
+	Bio           pgtype.Text
+	Avatar        pgtype.Text
+	Slug          string
+	SocialLink    pgtype.Text
+	Status        string
+	Email         pgtype.Text
+	FollowerCount pgtype.Int4
+	BlogCount     pgtype.Int4
+	CreatedAt     pgtype.Timestamptz
+	CreatedBy     string
+	UpdatedAt     pgtype.Timestamptz
+	UpdatedBy     string
+	DeletedAt     pgtype.Timestamptz
+	DeletedBy     string
+}
+
+type AuthorsAuthorFeaturedBlog struct {
+	ID        int64
+	AuthorID  string
+	BlogID    string
+	Position  int32
+	CreatedAt pgtype.Timestamp
+}
+
+type AuthorsAuthorFollower struct {
+	ID        int64
+	AuthorID  string
+	UserID    string
+	CreatedAt pgtype.Timestamptz
+}
+
+type AuthorsAuthorProfile struct {
+	AuthorID   string
+	TwitterUrl pgtype.Text
+	GithubUrl  pgtype.Text
+	WebsiteUrl pgtype.Text
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type UsersNotification struct {
