@@ -12,6 +12,9 @@ type AuthorProfile struct {
 	SocialLink  string
 	Status      string
 	Email       string
+	// Derived data
+	FollowerCount int32
+	BlogCount     int32
 	model.Audit
 }
 
@@ -40,12 +43,12 @@ type AuthorCreatedEvent struct {
 }
 
 func (e AuthorCreatedEvent) EventName() string {
-	return "authorProfile.created"
+	return "authorIdentity.profileCreated"
 }
 
 type AuthorFollowedEvent struct {
-	AuthorID string
-	UserID   string
+	Slug   string
+	UserID string
 }
 
 func (e AuthorFollowedEvent) EventName() string {
@@ -61,11 +64,30 @@ func (e AuthorUnfollowedEvent) EventName() string {
 	return "authorFollower.deleted"
 }
 
-type UpdateAuthorFollowCountEvent struct {
-	AuthorID string
-	UserID   string
+type FollowCountChangedEvent struct {
+	AuthorID    string
+	UserID      string
+	IsIncrement bool
 }
 
-func (e UpdateAuthorFollowCountEvent) EventName() string {
-	return "authorFollower.deleted"
+func (e FollowCountChangedEvent) EventName() string {
+	eventType := "Increased"
+	if !e.IsIncrement {
+		eventType = "Decreased"
+	}
+	return "authorFollower.followerCount" + eventType
+}
+
+type BlogCountChangedEvent struct {
+	BlogID      string
+	AuthorID    string
+	IsIncrement bool
+}
+
+func (e BlogCountChangedEvent) EventName() string {
+	eventType := "Increased"
+	if !e.IsIncrement {
+		eventType = "Decreased"
+	}
+	return "authorIdentity.blogCount" + eventType
 }

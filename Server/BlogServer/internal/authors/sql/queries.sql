@@ -13,7 +13,8 @@ INSERT INTO authors.authors (
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, 
+    $10, $10
 );
 
 -- name: ListAuthorProfies :many
@@ -96,10 +97,11 @@ DELETE FROM authors.author_followers
 WHERE author_id = $1 AND  user_id = $2;
 
 -- name: GetAuthorFollowers :many
-SELECT user_id
-FROM authors.author_followers
-WHERE author_id = $1
-ORDER BY created_at;
+SELECT f.user_id
+FROM authors.author_followers f
+JOIN authors.authors a ON a.author_id = f.author_id
+WHERE a.slug = $1
+ORDER BY a.created_at;
 
 -- name: GetFollowedAuthors :many
 SELECT author_id
@@ -120,12 +122,12 @@ INSERT INTO authors.author_featured_blogs (
 SELECT blog_id
 FROM authors.author_featured_blogs f
 JOIN authors.authors a ON author_id
-WHERE f.author_id = $1 AND a.status = $2;
+WHERE a.slug = $1 AND a.status = $2;
 
 -- name: UpdateAuthorBlogCount :exec
 UPDATE authors.authors
-SET blog_count = blog_count + 1;
+SET blog_count = blog_count + $1;
 
 -- name: UpdateAuthorFollowerCount :exec
 UPDATE authors.authors
-SET follower_count = follower_count + 1;
+SET follower_count = follower_count + $1;

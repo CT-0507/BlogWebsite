@@ -87,6 +87,8 @@ func (w *OutboxWorker) handleEvent(topic string, payload []byte) error {
 	switch topic {
 
 	case "blog.created":
+	case "authorFollower.created":
+	case "authorFollower.deleted":
 
 		// var evt BlogCreatedEvent
 		// json.Unmarshal(payload, &evt)

@@ -47,7 +47,7 @@ func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author 
 			String: author.Email,
 			Valid:  author.Email != "",
 		},
-		UpdatedBy: createdBy,
+		CreatedBy: createdBy,
 	})
 }
 
@@ -59,7 +59,7 @@ func (r *AuthorProfileRepository) GetAuthorProfileByID(c context.Context, author
 	author, err := q.GetAuthorProfileByID(c, authordb.GetAuthorProfileByIDParams{
 		AuthorID: authorID,
 		Status:   status,
-		Column3:  "check_not_null",
+		Column3:  "check_null",
 	})
 
 	if err != nil {
@@ -77,7 +77,7 @@ func (r *AuthorProfileRepository) GetAuthorProfileBySlug(c context.Context, slug
 	author, err := q.GetAuthorProfileBySlug(c, authordb.GetAuthorProfileBySlugParams{
 		Slug:    slug,
 		Status:  status,
-		Column3: "check_not_null",
+		Column3: "check_null",
 	})
 
 	if err != nil {
@@ -87,14 +87,14 @@ func (r *AuthorProfileRepository) GetAuthorProfileBySlug(c context.Context, slug
 	return MapAuthorsAuthorToAuthorProfile(&author), err
 }
 
-func (r *AuthorProfileRepository) ListAuthorProfies(c context.Context, status string, deletedCheckMode string) ([]domain.AuthorProfile, error) {
+func (r *AuthorProfileRepository) ListAuthorProfies(c context.Context, status string, deletedCheckMode string, page int64, limit int64) ([]domain.AuthorProfile, error) {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
 
 	rows, err := q.ListAuthorProfies(c, authordb.ListAuthorProfiesParams{
 		Status:  "active",
-		Column2: "check_not_null",
+		Column2: "check_null",
 	})
 
 	if err != nil {
@@ -178,15 +178,15 @@ func (r *AuthorProfileRepository) DeleteAuthorFollower(c context.Context, author
 	})
 }
 
-func (r *AuthorProfileRepository) GetAuthorFollowers(c context.Context, authorID string, userID string) ([]string, error) {
+func (r *AuthorProfileRepository) GetAuthorFollowers(c context.Context, slug string, page int64, limit int64) ([]string, error) {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
 
-	return q.GetAuthorFollowers(c, authorID)
+	return q.GetAuthorFollowers(c, slug)
 }
 
-func (r *AuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string) ([]string, error) {
+func (r *AuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string, page, limit int64) ([]string, error) {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
@@ -211,29 +211,45 @@ func (r *AuthorProfileRepository) CreateAuthorFeatureBlogs(c context.Context, au
 	return q.CreateAuthorFeatureBlogs(c, params)
 }
 
-func (r *AuthorProfileRepository) GetAuthorFeaturedBlogIDs(c context.Context, authorID string) ([]string, error) {
+func (r *AuthorProfileRepository) GetAuthorFeaturedBlogIDs(c context.Context, slug string) ([]string, error) {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
 
 	return q.GetAuthorFeatureBlogIDs(c, authordb.GetAuthorFeatureBlogIDsParams{
-		AuthorID: authorID,
-		Status:   "active",
+		Slug:   slug,
+		Status: "active",
 	})
 }
 
-func (r *AuthorProfileRepository) UpdateAuthorBlogCount(c context.Context, authorID string) error {
+func (r *AuthorProfileRepository) UpdateAuthorBlogCount(c context.Context, authorID string, isIncrement bool) error {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
 
-	return q.UpdateAuthorBlogCount(c)
+	var value int32 = 1
+	if !isIncrement {
+		value = -1
+	}
+
+	return q.UpdateAuthorBlogCount(c, pgtype.Int4{
+		Valid: true,
+		Int32: value,
+	})
 }
 
-func (r *AuthorProfileRepository) UpdateAuthorFollowerCount(c context.Context, authorID string) error {
+func (r *AuthorProfileRepository) UpdateAuthorFollowerCount(c context.Context, authorID string, isIncrement bool) error {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
 
-	return q.UpdateAuthorFollowerCount(c)
+	var value int32 = 1
+	if !isIncrement {
+		value = -1
+	}
+
+	return q.UpdateAuthorFollowerCount(c, pgtype.Int4{
+		Valid: true,
+		Int32: value,
+	})
 }

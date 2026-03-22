@@ -29,6 +29,6 @@ func (u *AuthorSocialUsecases) SetFeatureBlogs(ctx context.Context, authorID str
 	})
 }
 
-func (u *AuthorSocialUsecases) GetFeatureBlogsByAuthorID(ctx context.Context, authorID string) ([]string, error) {
-	return u.repo.GetAuthorFeaturedBlogIDs(ctx, authorID)
+func (u *AuthorSocialUsecases) GetFeatureBlogsByAuthorID(ctx context.Context, slug string) ([]string, error) {
+	return u.repo.GetAuthorFeaturedBlogIDs(ctx, slug)
 }

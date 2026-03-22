@@ -26,7 +26,7 @@ type AuthorsAuthor struct {
 	UpdatedAt     pgtype.Timestamptz
 	UpdatedBy     string
 	DeletedAt     pgtype.Timestamptz
-	DeletedBy     string
+	DeletedBy     pgtype.Text
 }
 
 type AuthorsAuthorFeaturedBlog struct {

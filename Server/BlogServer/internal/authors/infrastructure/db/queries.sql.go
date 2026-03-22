@@ -51,7 +51,8 @@ INSERT INTO authors.authors (
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, 
+    $10, $10
 )
 `
 
@@ -65,7 +66,7 @@ type CreateAuthorProfileParams struct {
 	SocialLink  pgtype.Text
 	Status      string
 	Email       pgtype.Text
-	UpdatedBy   string
+	CreatedBy   string
 }
 
 func (q *Queries) CreateAuthorProfile(ctx context.Context, arg CreateAuthorProfileParams) error {
@@ -79,7 +80,7 @@ func (q *Queries) CreateAuthorProfile(ctx context.Context, arg CreateAuthorProfi
 		arg.SocialLink,
 		arg.Status,
 		arg.Email,
-		arg.UpdatedBy,
+		arg.CreatedBy,
 	)
 	return err
 }
@@ -113,16 +114,16 @@ const getAuthorFeatureBlogIDs = `-- name: GetAuthorFeatureBlogIDs :many
 SELECT blog_id
 FROM authors.author_featured_blogs f
 JOIN authors.authors a ON author_id
-WHERE f.author_id = $1 AND a.status = $2
+WHERE a.slug = $1 AND a.status = $2
 `
 
 type GetAuthorFeatureBlogIDsParams struct {
-	AuthorID string
-	Status   string
+	Slug   string
+	Status string
 }
 
 func (q *Queries) GetAuthorFeatureBlogIDs(ctx context.Context, arg GetAuthorFeatureBlogIDsParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, getAuthorFeatureBlogIDs, arg.AuthorID, arg.Status)
+	rows, err := q.db.Query(ctx, getAuthorFeatureBlogIDs, arg.Slug, arg.Status)
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +143,15 @@ func (q *Queries) GetAuthorFeatureBlogIDs(ctx context.Context, arg GetAuthorFeat
 }
 
 const getAuthorFollowers = `-- name: GetAuthorFollowers :many
-SELECT user_id
-FROM authors.author_followers
-WHERE author_id = $1
-ORDER BY created_at
+SELECT f.user_id
+FROM authors.author_followers f
+JOIN authors.authors a ON a.author_id = f.author_id
+WHERE a.slug = $1
+ORDER BY a.created_at
 `
 
-func (q *Queries) GetAuthorFollowers(ctx context.Context, authorID string) ([]string, error) {
-	rows, err := q.db.Query(ctx, getAuthorFollowers, authorID)
+func (q *Queries) GetAuthorFollowers(ctx context.Context, slug string) ([]string, error) {
+	rows, err := q.db.Query(ctx, getAuthorFollowers, slug)
 	if err != nil {
 		return nil, err
 	}
@@ -328,21 +330,21 @@ func (q *Queries) ListAuthorProfies(ctx context.Context, arg ListAuthorProfiesPa
 
 const updateAuthorBlogCount = `-- name: UpdateAuthorBlogCount :exec
 UPDATE authors.authors
-SET blog_count = blog_count + 1
+SET blog_count = blog_count + $1
 `
 
-func (q *Queries) UpdateAuthorBlogCount(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, updateAuthorBlogCount)
+func (q *Queries) UpdateAuthorBlogCount(ctx context.Context, blogCount pgtype.Int4) error {
+	_, err := q.db.Exec(ctx, updateAuthorBlogCount, blogCount)
 	return err
 }
 
 const updateAuthorFollowerCount = `-- name: UpdateAuthorFollowerCount :exec
 UPDATE authors.authors
-SET follower_count = follower_count + 1
+SET follower_count = follower_count + $1
 `
 
-func (q *Queries) UpdateAuthorFollowerCount(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, updateAuthorFollowerCount)
+func (q *Queries) UpdateAuthorFollowerCount(ctx context.Context, followerCount pgtype.Int4) error {
+	_, err := q.db.Exec(ctx, updateAuthorFollowerCount, followerCount)
 	return err
 }
 

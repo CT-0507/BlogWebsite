@@ -25,7 +25,7 @@ CREATE TABLE authors.authors (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_by TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
-    deleted_by TEXT NOT NULL
+    deleted_by TEXT
 );
 
 -- 2. author_profiles Table 
@@ -47,8 +47,8 @@ CREATE TABLE authors.author_profiles (
 );
 
 -- 3. author_followers Table
-CREATE TABLE authors.authors.author_followers (
-    id              BIGSERIAL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+CREATE TABLE authors.author_followers (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     author_id       VARCHAR(50) NOT NULL,
     user_id         VARCHAR(50) NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE authors.authors.author_followers (
 
     CONSTRAINT fk_followers_author
         FOREIGN KEY (author_id)
-        REFERENCES authors(id)
+        REFERENCES authors.authors(author_id)
         ON DELETE CASCADE,
     UNIQUE(author_id, user_id)
 );
@@ -65,7 +65,7 @@ CREATE TABLE authors.authors.author_followers (
 -- 4. author_featured_blogs
 
 CREATE TABLE authors.author_featured_blogs (
-    id              BIGSERIAL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
     author_id       TEXT NOT NULL,
     blog_id         TEXT NOT NULL,  -- external (NO FK)

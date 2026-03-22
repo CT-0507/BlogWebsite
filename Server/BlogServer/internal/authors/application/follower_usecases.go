@@ -24,17 +24,17 @@ func NewFollowerUsecases(txManager *database.TxManager, repo domain.AuthorProfil
 	}
 }
 
-func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, authorID string) error {
+func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, slug string) error {
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
-		err := u.repo.CreateAuthorFollower(ctx, authorID, userID)
+		err := u.repo.CreateAuthorFollower(ctx, slug, userID)
 		if err != nil {
 			log.Println(err)
 			return &domain.ErrFailedToFollowAuthor{}
 		}
 
 		event := &domain.AuthorFollowedEvent{
-			AuthorID: authorID,
-			UserID:   userID,
+			Slug:   slug,
+			UserID: userID,
 		}
 
 		payload, err := json.Marshal(event)
@@ -68,29 +68,29 @@ func (u *FollowerUsecases) UnfollowAuthor(ctx context.Context, userID string, au
 	})
 }
 
-func (u *FollowerUsecases) GetAuthorFollowers(ctx context.Context, userID string, authorID string) ([]string, error) {
-	return u.repo.GetAuthorFollowers(ctx, authorID, userID)
+func (u *FollowerUsecases) GetAuthorFollowers(ctx context.Context, authorID string, page int64, limit int64) ([]string, error) {
+	return u.repo.GetAuthorFollowers(ctx, authorID, page, limit)
 }
 
-func (u *FollowerUsecases) GetFollowedAuthors(ctx context.Context, userID string) ([]string, error) {
-	return u.repo.GetFollowedAuthors(ctx, userID)
+func (u *FollowerUsecases) GetFollowedAuthors(ctx context.Context, userID string, page int64, limit int64) ([]string, error) {
+	return u.repo.GetFollowedAuthors(ctx, userID, page, limit)
 }
 
-func (u *FollowerUsecases) OnAuthorFollowed(ctx context.Context, payload []byte) error {
+func (u *FollowerUsecases) OnAuthorFollowerCountChanged(ctx context.Context, payload []byte) error {
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		var evt domain.AuthorFollowedEvent
+		var evt domain.FollowCountChangedEvent
 		err := json.Unmarshal(payload, &evt)
 		if err != nil {
 			return err
 		}
 
-		err = u.repo.UpdateAuthorFollowerCount(ctx, evt.AuthorID)
+		err = u.repo.UpdateAuthorFollowerCount(ctx, evt.AuthorID, evt.IsIncrement)
 		if err != nil {
 			return err
 		}
 
-		newEvt := &domain.UpdateAuthorFollowCountEvent{
+		newEvt := &domain.FollowCountChangedEvent{
 			AuthorID: evt.AuthorID,
 			UserID:   evt.UserID,
 		}
@@ -104,16 +104,22 @@ func (u *FollowerUsecases) OnAuthorFollowed(ctx context.Context, payload []byte)
 	})
 }
 
-func (u *FollowerUsecases) OnAuthorUnfollowed(ctx context.Context, payload []byte) error {
-	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+// func (u *FollowerUsecases) OnAuthorUnfollowed(ctx context.Context, payload []byte) error {
+// 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		var evt domain.AuthorUnfollowedEvent
-		err := json.Unmarshal(payload, &evt)
-		if err != nil {
-			return err
-		}
+// 		var evt domain.AuthorUnfollowedEvent
+// 		err := json.Unmarshal(payload, &evt)
+// 		if err != nil {
+// 			log.Println(err)
+// 			return err
+// 		}
 
-		return u.repo.DeleteAuthorFollower(ctx, evt.AuthorID, evt.UserID)
+// 		err = u.repo.DeleteAuthorFollower(ctx, evt.AuthorID, evt.UserID)
+// 		if err != nil {
+// 			log.Println(err)
+// 			return err
+// 		}
 
-	})
-}
+// 		return u.repo.UpdateAuthorFollowerCount(ctx, evt.AuthorID, false)
+// 	})
+// }
