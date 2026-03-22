@@ -8,11 +8,11 @@ import (
 )
 
 type GetBlogUseCases struct {
-	txManager *database.TxManager
+	txManager database.TxManager
 	repo      domain.BlogRepository
 }
 
-func NewGetBlogUseCases(txManager *database.TxManager, repo domain.BlogRepository) *GetBlogUseCases {
+func NewGetBlogUseCases(txManager database.TxManager, repo domain.BlogRepository) *GetBlogUseCases {
 	return &GetBlogUseCases{
 		txManager: txManager,
 		repo:      repo,

@@ -9,11 +9,11 @@ import (
 )
 
 type DeleteBlogUseCase struct {
-	txManager *database.TxManager
+	txManager database.TxManager
 	repo      domain.BlogRepository
 }
 
-func NewDeleteBlogUseCases(txManager *database.TxManager, repo domain.BlogRepository) *DeleteBlogUseCase {
+func NewDeleteBlogUseCases(txManager database.TxManager, repo domain.BlogRepository) *DeleteBlogUseCase {
 	return &DeleteBlogUseCase{
 		txManager: txManager,
 		repo:      repo,

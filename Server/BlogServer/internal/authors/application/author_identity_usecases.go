@@ -12,12 +12,12 @@ import (
 )
 
 type AuthorIdentityUsecases struct {
-	txManager  *database.TxManager
+	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
 	outboxRepo outbox.OutboxRepository
 }
 
-func NewAuthorIdentityUsecases(txManager *database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *AuthorIdentityUsecases {
+func NewAuthorIdentityUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *AuthorIdentityUsecases {
 	return &AuthorIdentityUsecases{
 		txManager:  txManager,
 		repo:       repo,
@@ -30,8 +30,9 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domai
 		author.AuthorID = ulid.Make().String()
 		err := u.repo.CreateAuthorProfile(ctx, author, userID, createdBy)
 		if err != nil {
-			log.Println(err)
-			return &domain.ErrFailedToCreateAuthorProfile{}
+			return &domain.ErrFailedToCreateAuthorProfile{
+				Message: err.Error(),
+			}
 		}
 
 		event := &domain.AuthorCreatedEvent{
@@ -55,13 +56,9 @@ func (u *AuthorIdentityUsecases) GetAuthorProfileBySlug(ctx context.Context, slu
 	return u.repo.GetAuthorProfileBySlug(ctx, slug, "active")
 }
 
-func (u *AuthorIdentityUsecases) ListAuthorProfies(ctx context.Context, page int64, limit int64) (*[]domain.AuthorProfile, error) {
+func (u *AuthorIdentityUsecases) ListAuthorProfiles(ctx context.Context, page int64, limit int64) (*[]domain.AuthorProfile, error) {
 
-	list, err := u.repo.ListAuthorProfies(ctx, "active", "check_null", page, limit)
-	if err != nil {
-		return nil, err
-	}
-	return &list, err
+	return u.repo.ListAuthorProfiles(ctx, "active", "check_null", page, limit)
 }
 
 func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, authorID string, deletedBy string) error {

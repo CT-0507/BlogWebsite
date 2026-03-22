@@ -14,13 +14,13 @@ import (
 )
 
 type CreateBlogUseCases struct {
-	txManager   *database.TxManager
+	txManager   database.TxManager
 	repo        domain.BlogRepository
 	userService user.UserService
 	outboxRepo  outbox.OutboxRepository
 }
 
-func NewCreateBlogUseCases(txManager *database.TxManager, repo domain.BlogRepository, userService user.UserService, outboxRepo outbox.OutboxRepository) *CreateBlogUseCases {
+func NewCreateBlogUseCases(txManager database.TxManager, repo domain.BlogRepository, userService user.UserService, outboxRepo outbox.OutboxRepository) *CreateBlogUseCases {
 	return &CreateBlogUseCases{
 		txManager:   txManager,
 		repo:        repo,

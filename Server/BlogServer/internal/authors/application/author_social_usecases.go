@@ -9,12 +9,12 @@ import (
 )
 
 type AuthorSocialUsecases struct {
-	txManager  *database.TxManager
+	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
 	outboxRepo outbox.OutboxRepository
 }
 
-func NewAuthorSocialUsecases(txManager *database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *AuthorSocialUsecases {
+func NewAuthorSocialUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *AuthorSocialUsecases {
 	return &AuthorSocialUsecases{
 		txManager:  txManager,
 		repo:       repo,

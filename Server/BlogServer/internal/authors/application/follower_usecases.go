@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
@@ -11,12 +10,12 @@ import (
 )
 
 type FollowerUsecases struct {
-	txManager  *database.TxManager
+	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
 	outboxRepo outbox.OutboxRepository
 }
 
-func NewFollowerUsecases(txManager *database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *FollowerUsecases {
+func NewFollowerUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *FollowerUsecases {
 	return &FollowerUsecases{
 		txManager:  txManager,
 		repo:       repo,
@@ -28,8 +27,9 @@ func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, auth
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 		err := u.repo.CreateAuthorFollower(ctx, authorID, userID)
 		if err != nil {
-			log.Println(err)
-			return &domain.ErrFailedToFollowAuthor{}
+			return &domain.ErrFailedToFollowAuthor{
+				Message: err.Error(),
+			}
 		}
 
 		event := &domain.AuthorFollowedEvent{
@@ -51,8 +51,9 @@ func (u *FollowerUsecases) UnfollowAuthor(ctx context.Context, userID string, au
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 		err := u.repo.DeleteAuthorFollower(ctx, authorID, userID)
 		if err != nil {
-			log.Println(err)
-			return &domain.ErrFailedToUnfollowAuthor{}
+			return &domain.ErrFailedToUnfollowAuthor{
+				Message: err.Error(),
+			}
 		}
 
 		event := &domain.AuthorUnfollowedEvent{

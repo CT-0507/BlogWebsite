@@ -10,11 +10,11 @@ import (
 
 // List blog related use cases like list all, list with filter, etc
 type ListBlogsUseCases struct {
-	txManager *database.TxManager
+	txManager database.TxManager
 	repo      domain.BlogRepository
 }
 
-func NewListBlogsUseCases(txManager *database.TxManager, repo domain.BlogRepository) *ListBlogsUseCases {
+func NewListBlogsUseCases(txManager database.TxManager, repo domain.BlogRepository) *ListBlogsUseCases {
 	return &ListBlogsUseCases{
 		txManager: txManager,
 		repo:      repo,

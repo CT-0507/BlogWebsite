@@ -21,7 +21,7 @@ type AuthorIdentityUsecases interface {
 	CreateAuthor(ctx context.Context, author *domain.AuthorProfile, userID string, createdBy string) error
 	GetAuthorProfileByID(ctx context.Context, authorID string) (*domain.AuthorProfile, error)
 	GetAuthorProfileBySlug(ctx context.Context, slug string) (*domain.AuthorProfile, error)
-	ListAuthorProfies(ctx context.Context, page int64, limit int64) (*[]domain.AuthorProfile, error)
+	ListAuthorProfiles(ctx context.Context, page int64, limit int64) (*[]domain.AuthorProfile, error)
 	DeleteAuthorProfile(ctx context.Context, authorID string, deletedBy string) error
 	HardDeleteAuthorProfile(ctx context.Context, authorID string) error
 	UpdateAuthorSlug(ctx context.Context, authorID string, slug string, updatedBy string) error
@@ -179,7 +179,7 @@ func (h *AuthorProfileHandler) listAuthorProfiles(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, time.Second)
 	defer cancel()
 
-	authorProfiles, err := h.authorIdentityUsecases.ListAuthorProfies(ctx, page, limit)
+	authorProfiles, err := h.authorIdentityUsecases.ListAuthorProfiles(ctx, page, limit)
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{

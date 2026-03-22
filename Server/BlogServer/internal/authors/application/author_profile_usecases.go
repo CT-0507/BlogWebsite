@@ -7,12 +7,12 @@ import (
 )
 
 type AuthorProfileUsecases struct {
-	txManager  *database.TxManager
+	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
 	outboxRepo outbox.OutboxRepository
 }
 
-func NewAuthorProfileUsecases(txManager *database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *AuthorProfileUsecases {
+func NewAuthorProfileUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *AuthorProfileUsecases {
 	return &AuthorProfileUsecases{
 		txManager:  txManager,
 		repo:       repo,

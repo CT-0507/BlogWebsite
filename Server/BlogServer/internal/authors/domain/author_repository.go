@@ -10,7 +10,7 @@ type AuthorProfileRepository interface {
 	CreateAuthorProfile(c context.Context, author *AuthorProfile, userID string, createdBy string) error
 	GetAuthorProfileByID(c context.Context, authorID string, status string) (*AuthorProfile, error)
 	GetAuthorProfileBySlug(c context.Context, slug string, status string) (*AuthorProfile, error)
-	ListAuthorProfies(c context.Context, status string, deletedCheckMode string, page int64, limit int64) ([]AuthorProfile, error)
+	ListAuthorProfiles(c context.Context, status string, deletedCheckMode string, page int64, limit int64) (*[]AuthorProfile, error)
 	// UpdateAuthorProfile(c context.Context, author *AuthorProfile, userID string) error
 
 	// Author Slug & Identity Management

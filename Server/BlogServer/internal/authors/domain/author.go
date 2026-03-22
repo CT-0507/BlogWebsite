@@ -19,19 +19,25 @@ type AuthorProfile struct {
 }
 
 // Error models
-type ErrFailedToCreateAuthorProfile struct{}
+type ErrFailedToCreateAuthorProfile struct {
+	Message string
+}
 
 func (e *ErrFailedToCreateAuthorProfile) Error() string {
 	return "Failed to create author profile"
 }
 
-type ErrFailedToFollowAuthor struct{}
+type ErrFailedToFollowAuthor struct {
+	Message string
+}
 
 func (e *ErrFailedToFollowAuthor) Error() string {
 	return "Failed to follow author"
 }
 
-type ErrFailedToUnfollowAuthor struct{}
+type ErrFailedToUnfollowAuthor struct {
+	Message string
+}
 
 func (e *ErrFailedToUnfollowAuthor) Error() string {
 	return "Failed to follow author"

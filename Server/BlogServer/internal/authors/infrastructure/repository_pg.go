@@ -87,7 +87,7 @@ func (r *AuthorProfileRepository) GetAuthorProfileBySlug(c context.Context, slug
 	return MapAuthorsAuthorToAuthorProfile(&author), err
 }
 
-func (r *AuthorProfileRepository) ListAuthorProfies(c context.Context, status string, deletedCheckMode string, page int64, limit int64) ([]domain.AuthorProfile, error) {
+func (r *AuthorProfileRepository) ListAuthorProfiles(c context.Context, status string, deletedCheckMode string, page int64, limit int64) (*[]domain.AuthorProfile, error) {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
@@ -107,7 +107,7 @@ func (r *AuthorProfileRepository) ListAuthorProfies(c context.Context, status st
 		authorProfiles = append(authorProfiles, *MapAuthorsAuthorToAuthorProfile(&v))
 	}
 
-	return authorProfiles, nil
+	return &authorProfiles, nil
 }
 
 func (r *AuthorProfileRepository) DeleteAuthorProfile(c context.Context, authorID string, userID string) error {
