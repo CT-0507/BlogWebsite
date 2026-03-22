@@ -331,20 +331,32 @@ func (q *Queries) ListAuthorProfies(ctx context.Context, arg ListAuthorProfiesPa
 const updateAuthorBlogCount = `-- name: UpdateAuthorBlogCount :exec
 UPDATE authors.authors
 SET blog_count = blog_count + $1
+WHERE author_id = $2
 `
 
-func (q *Queries) UpdateAuthorBlogCount(ctx context.Context, blogCount pgtype.Int4) error {
-	_, err := q.db.Exec(ctx, updateAuthorBlogCount, blogCount)
+type UpdateAuthorBlogCountParams struct {
+	BlogCount pgtype.Int4
+	AuthorID  string
+}
+
+func (q *Queries) UpdateAuthorBlogCount(ctx context.Context, arg UpdateAuthorBlogCountParams) error {
+	_, err := q.db.Exec(ctx, updateAuthorBlogCount, arg.BlogCount, arg.AuthorID)
 	return err
 }
 
 const updateAuthorFollowerCount = `-- name: UpdateAuthorFollowerCount :exec
 UPDATE authors.authors
 SET follower_count = follower_count + $1
+WHERE author_id = $2
 `
 
-func (q *Queries) UpdateAuthorFollowerCount(ctx context.Context, followerCount pgtype.Int4) error {
-	_, err := q.db.Exec(ctx, updateAuthorFollowerCount, followerCount)
+type UpdateAuthorFollowerCountParams struct {
+	FollowerCount pgtype.Int4
+	AuthorID      string
+}
+
+func (q *Queries) UpdateAuthorFollowerCount(ctx context.Context, arg UpdateAuthorFollowerCountParams) error {
+	_, err := q.db.Exec(ctx, updateAuthorFollowerCount, arg.FollowerCount, arg.AuthorID)
 	return err
 }
 

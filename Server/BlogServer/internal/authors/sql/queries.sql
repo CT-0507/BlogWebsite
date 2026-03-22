@@ -126,8 +126,10 @@ WHERE a.slug = $1 AND a.status = $2;
 
 -- name: UpdateAuthorBlogCount :exec
 UPDATE authors.authors
-SET blog_count = blog_count + $1;
+SET blog_count = blog_count + $1
+WHERE author_id = $2;
 
 -- name: UpdateAuthorFollowerCount :exec
 UPDATE authors.authors
-SET follower_count = follower_count + $1;
+SET follower_count = follower_count + $1
+WHERE author_id = $2;

@@ -232,9 +232,12 @@ func (r *AuthorProfileRepository) UpdateAuthorBlogCount(c context.Context, autho
 		value = -1
 	}
 
-	return q.UpdateAuthorBlogCount(c, pgtype.Int4{
-		Valid: true,
-		Int32: value,
+	return q.UpdateAuthorBlogCount(c, authordb.UpdateAuthorBlogCountParams{
+		AuthorID: authorID,
+		BlogCount: pgtype.Int4{
+			Valid: true,
+			Int32: value,
+		},
 	})
 }
 
@@ -248,8 +251,11 @@ func (r *AuthorProfileRepository) UpdateAuthorFollowerCount(c context.Context, a
 		value = -1
 	}
 
-	return q.UpdateAuthorFollowerCount(c, pgtype.Int4{
-		Valid: true,
-		Int32: value,
+	return q.UpdateAuthorFollowerCount(c, authordb.UpdateAuthorFollowerCountParams{
+		AuthorID: authorID,
+		FollowerCount: pgtype.Int4{
+			Valid: true,
+			Int32: value,
+		},
 	})
 }

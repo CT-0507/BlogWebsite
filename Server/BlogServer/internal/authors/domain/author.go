@@ -47,8 +47,9 @@ func (e AuthorCreatedEvent) EventName() string {
 }
 
 type AuthorFollowedEvent struct {
-	Slug   string
-	UserID string
+	AuthorID    string
+	UserID      string
+	IsIncrement bool
 }
 
 func (e AuthorFollowedEvent) EventName() string {
@@ -56,8 +57,9 @@ func (e AuthorFollowedEvent) EventName() string {
 }
 
 type AuthorUnfollowedEvent struct {
-	AuthorID string
-	UserID   string
+	AuthorID    string
+	UserID      string
+	IsIncrement bool
 }
 
 func (e AuthorUnfollowedEvent) EventName() string {
@@ -65,6 +67,7 @@ func (e AuthorUnfollowedEvent) EventName() string {
 }
 
 type FollowCountChangedEvent struct {
+	Slug        string
 	AuthorID    string
 	UserID      string
 	IsIncrement bool

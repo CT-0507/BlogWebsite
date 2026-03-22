@@ -24,17 +24,18 @@ func NewFollowerUsecases(txManager *database.TxManager, repo domain.AuthorProfil
 	}
 }
 
-func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, slug string) error {
+func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, authorID string) error {
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
-		err := u.repo.CreateAuthorFollower(ctx, slug, userID)
+		err := u.repo.CreateAuthorFollower(ctx, authorID, userID)
 		if err != nil {
 			log.Println(err)
 			return &domain.ErrFailedToFollowAuthor{}
 		}
 
 		event := &domain.AuthorFollowedEvent{
-			Slug:   slug,
-			UserID: userID,
+			AuthorID:    authorID,
+			UserID:      userID,
+			IsIncrement: true,
 		}
 
 		payload, err := json.Marshal(event)
@@ -55,8 +56,9 @@ func (u *FollowerUsecases) UnfollowAuthor(ctx context.Context, userID string, au
 		}
 
 		event := &domain.AuthorUnfollowedEvent{
-			AuthorID: authorID,
-			UserID:   userID,
+			AuthorID:    authorID,
+			UserID:      userID,
+			IsIncrement: false,
 		}
 
 		payload, err := json.Marshal(event)
@@ -91,8 +93,9 @@ func (u *FollowerUsecases) OnAuthorFollowerCountChanged(ctx context.Context, pay
 		}
 
 		newEvt := &domain.FollowCountChangedEvent{
-			AuthorID: evt.AuthorID,
-			UserID:   evt.UserID,
+			AuthorID:    evt.AuthorID,
+			UserID:      evt.UserID,
+			IsIncrement: evt.IsIncrement,
 		}
 
 		newEventPayload, err := json.Marshal(newEvt)

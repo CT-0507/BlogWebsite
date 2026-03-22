@@ -84,12 +84,13 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 
 func (w *OutboxWorker) handleEvent(topic string, payload []byte) error {
 
+	log.Print("Proccess topic: ")
+	log.Println(topic)
+
 	switch topic {
 
 	case "blog.created":
-	case "authorFollower.created":
-	case "authorFollower.deleted":
-
+	case "authorFollower.created", "authorFollower.deleted":
 		// var evt BlogCreatedEvent
 		// json.Unmarshal(payload, &evt)
 
