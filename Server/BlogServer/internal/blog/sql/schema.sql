@@ -3,18 +3,18 @@ CREATE SCHEMA IF NOT EXISTS blogs;
 
 CREATE TABLE blogs.blogs (
     blog_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    author_id UUID NOT NULL REFERENCES users.users(user_id),
+    author_id TEXT NOT NULL UNIQUE,
     url_slug VARCHAR(400) NOT NULL UNIQUE,
     title TEXT NOT NULL,
     content TEXT,
-    active VARCHAR(10) NOT NULL DEFAULT 'true',
+    status VARCHAR(10) NOT NULL DEFAULT 'active',
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_by UUID REFERENCES users.users(user_id),
+    created_by TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_by UUID REFERENCES users.users(user_id),
+    updated_by TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
-    deleted_by UUID REFERENCES users.users(user_id)
+    deleted_by TEXT
 );
 
 CREATE TABLE blogs.tags (
@@ -23,11 +23,11 @@ CREATE TABLE blogs.tags (
     slug TEXT NOT NULL UNIQUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_by UUID REFERENCES users.users(user_id),
+    created_by TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_by UUID REFERENCES users.users(user_id),
+    updated_by TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
-    deleted_by UUID REFERENCES users.users(user_id)
+    deleted_by TEXT
 );
 
 CREATE TABLE blogs.blog_tags (
@@ -35,13 +35,22 @@ CREATE TABLE blogs.blog_tags (
     blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_by UUID REFERENCES users.users(user_id),
+    created_by TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_by UUID REFERENCES users.users(user_id),
+    updated_by TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
-    deleted_by UUID REFERENCES users.users(user_id),
+    deleted_by TEXT,
 
     PRIMARY KEY (blog_id, tag_id)
+);
+
+CREATE TABLE blogs.idx_user_author_profile (
+    user_id TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE(user_id, author_id)
 );
 
 CREATE INDEX ON blogs.blogs (title);

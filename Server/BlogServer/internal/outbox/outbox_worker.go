@@ -90,12 +90,14 @@ func (w *OutboxWorker) handleEvent(topic string, payload []byte) error {
 	switch topic {
 
 	case "blog.created":
-	case "authorFollower.created", "authorFollower.deleted":
+	case "authorFollower.created", "authorFollower.deleted", "authorIdentity.created":
 		// var evt BlogCreatedEvent
 		// json.Unmarshal(payload, &evt)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+
+		log.Println("Here")
 
 		return w.bus.Publish(ctx, topic, payload)
 

@@ -8,7 +8,6 @@ package blogdb
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -23,16 +22,16 @@ INSERT INTO blogs.blogs(
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
-RETURNING blog_id, author_id, url_slug, title, content, active, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING blog_id, author_id, url_slug, title, content, status, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateBlogParams struct {
-	AuthorID  uuid.UUID
+	AuthorID  string
 	Title     string
 	UrlSlug   string
 	Content   pgtype.Text
-	CreatedBy *uuid.UUID
-	UpdatedBy *uuid.UUID
+	CreatedBy string
+	UpdatedBy string
 }
 
 func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBlog, error) {
@@ -51,7 +50,7 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
-		&i.Active,
+		&i.Status,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -60,6 +59,25 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.DeletedBy,
 	)
 	return i, err
+}
+
+const createUserAuthorProfileIDCacheRecord = `-- name: CreateUserAuthorProfileIDCacheRecord :exec
+INSERT INTO blogs.idx_user_author_profile (
+    user_id,
+    author_id
+) VALUES (
+    $1, $2
+)
+`
+
+type CreateUserAuthorProfileIDCacheRecordParams struct {
+	UserID   string
+	AuthorID string
+}
+
+func (q *Queries) CreateUserAuthorProfileIDCacheRecord(ctx context.Context, arg CreateUserAuthorProfileIDCacheRecordParams) error {
+	_, err := q.db.Exec(ctx, createUserAuthorProfileIDCacheRecord, arg.UserID, arg.AuthorID)
+	return err
 }
 
 const deleteBlog = `-- name: DeleteBlog :one
@@ -71,7 +89,7 @@ RETURNING blog_id
 `
 
 type DeleteBlogParams struct {
-	DeletedBy *uuid.UUID
+	DeletedBy pgtype.Text
 	BlogID    int64
 }
 
@@ -92,7 +110,7 @@ SELECT
     u.nickname,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
@@ -106,16 +124,16 @@ type GetBlogRow struct {
 	BlogID     int64
 	Title      string
 	UrlSlug    string
-	AuthorID   uuid.UUID
+	AuthorID   string
 	AuthorName interface{}
 	Nickname   string
 	Email      pgtype.Text
 	Content    pgtype.Text
-	Active     string
+	Status     string
 	CreatedAt  pgtype.Timestamptz
-	CreatedBy  *uuid.UUID
+	CreatedBy  string
 	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  *uuid.UUID
+	UpdatedBy  string
 }
 
 func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error) {
@@ -130,7 +148,7 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 		&i.Nickname,
 		&i.Email,
 		&i.Content,
-		&i.Active,
+		&i.Status,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -149,7 +167,7 @@ SELECT
     u.nickname,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
@@ -163,16 +181,16 @@ type GetBlogByUrlSlugRow struct {
 	BlogID     int64
 	Title      string
 	UrlSlug    string
-	AuthorID   uuid.UUID
+	AuthorID   string
 	AuthorName interface{}
 	Nickname   string
 	Email      pgtype.Text
 	Content    pgtype.Text
-	Active     string
+	Status     string
 	CreatedAt  pgtype.Timestamptz
-	CreatedBy  *uuid.UUID
+	CreatedBy  string
 	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  *uuid.UUID
+	UpdatedBy  string
 }
 
 func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlogByUrlSlugRow, error) {
@@ -187,7 +205,7 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.Nickname,
 		&i.Email,
 		&i.Content,
-		&i.Active,
+		&i.Status,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -218,11 +236,11 @@ type ListAllBlogsRow struct {
 	Title     string
 	Content   pgtype.Text
 	CreatedAt pgtype.Timestamptz
-	CreatedBy *uuid.UUID
+	CreatedBy string
 	UpdatedAt pgtype.Timestamptz
-	UpdatedBy *uuid.UUID
+	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy *uuid.UUID
+	DeletedBy pgtype.Text
 }
 
 func (q *Queries) ListAllBlogs(ctx context.Context) ([]ListAllBlogsRow, error) {
@@ -258,35 +276,30 @@ func (q *Queries) ListAllBlogs(ctx context.Context) ([]ListAllBlogsRow, error) {
 const listBlogs = `-- name: ListBlogs :many
 SELECT 
     b.blog_id,
-    u.user_id as author_id,
-    u.first_name || u.last_name as author_name,
-    u.nickname,
+    b.author_id,
     b.title, 
     b.url_slug,
     b.content, 
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
     b.updated_by 
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
 WHERE b.deleted_at IS NULL
 `
 
 type ListBlogsRow struct {
-	BlogID     int64
-	AuthorID   uuid.UUID
-	AuthorName interface{}
-	Nickname   string
-	Title      string
-	UrlSlug    string
-	Content    pgtype.Text
-	Active     string
-	CreatedAt  pgtype.Timestamptz
-	CreatedBy  *uuid.UUID
-	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  *uuid.UUID
+	BlogID    int64
+	AuthorID  string
+	Title     string
+	UrlSlug   string
+	Content   pgtype.Text
+	Status    string
+	CreatedAt pgtype.Timestamptz
+	CreatedBy string
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy string
 }
 
 func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
@@ -301,12 +314,10 @@ func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
 		if err := rows.Scan(
 			&i.BlogID,
 			&i.AuthorID,
-			&i.AuthorName,
-			&i.Nickname,
 			&i.Title,
 			&i.UrlSlug,
 			&i.Content,
-			&i.Active,
+			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
 			&i.UpdatedAt,
@@ -332,39 +343,39 @@ SELECT
     CONCAT(u.first_name, ' ', u.last_name) as author_name,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
     b.updated_by 
 FROM blogs.blogs b
 JOIN users.users u ON u.user_id = b.author_id
-WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.active = $2
+WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.status = $2
 `
 
 type ListBlogsByAuthorParams struct {
-	AuthorID uuid.UUID
-	Active   string
+	AuthorID string
+	Status   string
 }
 
 type ListBlogsByAuthorRow struct {
 	BlogID     int64
 	Title      string
 	UrlSlug    string
-	AuthorID   uuid.UUID
+	AuthorID   string
 	Nickname   string
 	AuthorName interface{}
 	Email      pgtype.Text
 	Content    pgtype.Text
-	Active     string
+	Status     string
 	CreatedAt  pgtype.Timestamptz
-	CreatedBy  *uuid.UUID
+	CreatedBy  string
 	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  *uuid.UUID
+	UpdatedBy  string
 }
 
 func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorParams) ([]ListBlogsByAuthorRow, error) {
-	rows, err := q.db.Query(ctx, listBlogsByAuthor, arg.AuthorID, arg.Active)
+	rows, err := q.db.Query(ctx, listBlogsByAuthor, arg.AuthorID, arg.Status)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +392,7 @@ func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorPa
 			&i.AuthorName,
 			&i.Email,
 			&i.Content,
-			&i.Active,
+			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
 			&i.UpdatedAt,
@@ -407,39 +418,39 @@ SELECT
     CONCAT(u.first_name, ' ', u.last_name) as author_name,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
     b.updated_by 
 FROM blogs.blogs b
 JOIN users.users u ON u.user_id = b.author_id
-WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.active = $2
+WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.status = $2
 `
 
 type ListBlogsByAuthorNicknameParams struct {
 	Nickname string
-	Active   string
+	Status   string
 }
 
 type ListBlogsByAuthorNicknameRow struct {
 	BlogID     int64
 	Title      string
 	UrlSlug    string
-	AuthorID   uuid.UUID
+	AuthorID   string
 	Nickname   string
 	AuthorName interface{}
 	Email      pgtype.Text
 	Content    pgtype.Text
-	Active     string
+	Status     string
 	CreatedAt  pgtype.Timestamptz
-	CreatedBy  *uuid.UUID
+	CreatedBy  string
 	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  *uuid.UUID
+	UpdatedBy  string
 }
 
 func (q *Queries) ListBlogsByAuthorNickname(ctx context.Context, arg ListBlogsByAuthorNicknameParams) ([]ListBlogsByAuthorNicknameRow, error) {
-	rows, err := q.db.Query(ctx, listBlogsByAuthorNickname, arg.Nickname, arg.Active)
+	rows, err := q.db.Query(ctx, listBlogsByAuthorNickname, arg.Nickname, arg.Status)
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +467,7 @@ func (q *Queries) ListBlogsByAuthorNickname(ctx context.Context, arg ListBlogsBy
 			&i.AuthorName,
 			&i.Email,
 			&i.Content,
-			&i.Active,
+			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
 			&i.UpdatedAt,
@@ -491,4 +502,17 @@ func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (int64, 
 	var blog_id int64
 	err := row.Scan(&blog_id)
 	return blog_id, err
+}
+
+const verifyAuthorIDByUserID = `-- name: VerifyAuthorIDByUserID :one
+SELECT author_id
+FROM blogs.idx_user_author_profile
+WHERE user_id = $1
+`
+
+func (q *Queries) VerifyAuthorIDByUserID(ctx context.Context, userID string) (string, error) {
+	row := q.db.QueryRow(ctx, verifyAuthorIDByUserID, userID)
+	var author_id string
+	err := row.Scan(&author_id)
+	return author_id, err
 }

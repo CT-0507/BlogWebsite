@@ -24,7 +24,7 @@ type ErrFailedToCreateAuthorProfile struct {
 }
 
 func (e *ErrFailedToCreateAuthorProfile) Error() string {
-	return "Failed to create author profile"
+	return e.Message
 }
 
 type ErrFailedToFollowAuthor struct {
@@ -46,10 +46,11 @@ func (e *ErrFailedToUnfollowAuthor) Error() string {
 // Event models
 type AuthorCreatedEvent struct {
 	AuthorID string
+	UserID   string
 }
 
 func (e AuthorCreatedEvent) EventName() string {
-	return "authorIdentity.profileCreated"
+	return "authorIdentity.created"
 }
 
 type AuthorFollowedEvent struct {

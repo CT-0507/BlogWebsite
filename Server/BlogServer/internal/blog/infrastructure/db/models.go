@@ -11,28 +11,34 @@ import (
 
 type BlogsBlog struct {
 	BlogID    int64
-	AuthorID  uuid.UUID
+	AuthorID  string
 	UrlSlug   string
 	Title     string
 	Content   pgtype.Text
-	Active    string
+	Status    string
 	CreatedAt pgtype.Timestamptz
-	CreatedBy *uuid.UUID
+	CreatedBy string
 	UpdatedAt pgtype.Timestamptz
-	UpdatedBy *uuid.UUID
+	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy *uuid.UUID
+	DeletedBy pgtype.Text
 }
 
 type BlogsBlogTag struct {
 	TagID     int64
 	BlogID    int64
 	CreatedAt pgtype.Timestamptz
-	CreatedBy *uuid.UUID
+	CreatedBy string
 	UpdatedAt pgtype.Timestamptz
-	UpdatedBy *uuid.UUID
+	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy *uuid.UUID
+	DeletedBy pgtype.Text
+}
+
+type BlogsIdxUserAuthorProfile struct {
+	UserID    string
+	AuthorID  string
+	CreatedAt pgtype.Timestamptz
 }
 
 type BlogsTag struct {
@@ -40,11 +46,11 @@ type BlogsTag struct {
 	Name      string
 	Slug      string
 	CreatedAt pgtype.Timestamptz
-	CreatedBy *uuid.UUID
+	CreatedBy string
 	UpdatedAt pgtype.Timestamptz
-	UpdatedBy *uuid.UUID
+	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy *uuid.UUID
+	DeletedBy pgtype.Text
 }
 
 type UsersNotification struct {

@@ -6,7 +6,6 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/infrastructure/db"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -35,8 +34,8 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 			String: blog.Content,
 			Valid:  true,
 		},
-		CreatedBy: &blog.AuthorID,
-		UpdatedBy: &blog.AuthorID,
+		CreatedBy: blog.AuthorID,
+		UpdatedBy: blog.AuthorID,
 	})
 
 	if err != nil {
@@ -65,7 +64,7 @@ func (r *BlogRepository) FindAll(c context.Context) ([]domain.BlogWithAuthorData
 	return blogs, nil
 }
 
-func (r *BlogRepository) ListAuthorBlogsByAuthorID(c context.Context, authorID uuid.UUID) ([]domain.BlogWithAuthorData, error) {
+func (r *BlogRepository) ListAuthorBlogsByAuthorID(c context.Context, authorID string) ([]domain.BlogWithAuthorData, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
@@ -73,7 +72,7 @@ func (r *BlogRepository) ListAuthorBlogsByAuthorID(c context.Context, authorID u
 
 	rows, err := q.ListBlogsByAuthor(c, blogdb.ListBlogsByAuthorParams{
 		AuthorID: authorID,
-		Active:   "true",
+		Status:   "true",
 	})
 	if err != nil {
 		return nil, err
@@ -95,7 +94,7 @@ func (r *BlogRepository) ListAuthorBlogsByNickname(c context.Context, nickname s
 
 	rows, err := q.ListBlogsByAuthorNickname(c, blogdb.ListBlogsByAuthorNicknameParams{
 		Nickname: nickname,
-		Active:   "true",
+		Status:   "true",
 	})
 	if err != nil {
 		return nil, err
@@ -141,18 +140,41 @@ func (r *BlogRepository) FindByUrlSlug(c context.Context, slug string) (*domain.
 // 	return err
 // }
 
-func (r *BlogRepository) Delete(c context.Context, id int64, userId uuid.UUID) (*int64, error) {
+func (r *BlogRepository) Delete(c context.Context, id int64, userID string) (*int64, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
 	q := blogdb.New(db)
 
 	deletedId, err := q.DeleteBlog(c, blogdb.DeleteBlogParams{
-		DeletedBy: &userId,
-		BlogID:    id,
+		DeletedBy: pgtype.Text{
+			String: userID,
+			Valid:  true,
+		},
+		BlogID: id,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &deletedId, nil
+}
+
+func (r *BlogRepository) CreateUserIDAuthorProfileIDCacheRecord(c context.Context, userID string, authorID string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.CreateUserAuthorProfileIDCacheRecord(c, blogdb.CreateUserAuthorProfileIDCacheRecordParams{
+		UserID:   userID,
+		AuthorID: authorID,
+	})
+}
+
+func (r *BlogRepository) VerifyAuthorIDByUserID(c context.Context, userID string) (string, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.VerifyAuthorIDByUserID(c, userID)
 }

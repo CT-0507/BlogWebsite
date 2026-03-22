@@ -41,7 +41,7 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
-	uuid, err := utils.GetUserIDFromContext(c)
+	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, &gin.H{
 			"message": "userId not found",
@@ -50,11 +50,10 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 	}
 
 	if err := h.service.CreateWithOutBox(ctx, &domain.Blog{
-		AuthorID: uuid,
-		Title:    blog.Title,
-		URLSlug:  blog.URLSlug,
-		Content:  blog.Content,
-	}); err != nil {
+		Title:   blog.Title,
+		URLSlug: blog.URLSlug,
+		Content: blog.Content,
+	}, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -169,7 +168,7 @@ func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 		return
 	}
 
-	userID, error := utils.GetUserIDFromContext(c)
+	userID, error := utils.GetUserIDStringFromContext(c)
 	if error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "userID not found",

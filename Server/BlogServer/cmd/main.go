@@ -110,6 +110,7 @@ func main() {
 
 	bus.Subscribe("blog.created", blogModule.Service.OnBlogPosted)
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
+	bus.Subscribe("authorIdentity.created", blogModule.Service.OnAuthorCreated)
 	bus.Subscribe("authorFollower.created", event.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
 	bus.Subscribe("authorFollower.deleted", event.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
 

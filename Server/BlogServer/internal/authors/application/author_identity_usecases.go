@@ -37,6 +37,7 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domai
 
 		event := &domain.AuthorCreatedEvent{
 			AuthorID: author.AuthorID,
+			UserID:   userID,
 		}
 
 		payload, err := json.Marshal(event)
