@@ -3,15 +3,15 @@ package domain
 import "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 
 type AuthorProfile struct {
-	AuthorID    string
-	UserID      string
-	DisplayName string
-	Bio         string
-	Avatar      string
-	Slug        string
-	SocialLink  string
-	Status      string
-	Email       string
+	AuthorID    string `json:"authorID"`
+	UserID      string `json:"userID"`
+	DisplayName string `json:"displayName"`
+	Bio         string `json:"bio"`
+	Avatar      string `json:"avatar"`
+	Slug        string `json:"slug"`
+	SocialLink  string `json:"socialLink"`
+	Status      string `json:"status"`
+	Email       string `json:"email"`
 	// Derived data
 	FollowerCount int32
 	BlogCount     int32

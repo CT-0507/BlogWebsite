@@ -4,6 +4,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	authordb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/infrastructure/db"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 )
 
 func MapAuthorsAuthorToAuthorProfile(row *authordb.AuthorsAuthor) *domain.AuthorProfile {
@@ -24,7 +25,7 @@ func MapAuthorsAuthorToAuthorProfile(row *authordb.AuthorsAuthor) *domain.Author
 			CreatedBy: &row.CreatedBy,
 			UpdatedAt: row.UpdatedAt.Time,
 			UpdatedBy: &row.UpdatedBy,
-			DeletedAt: &row.DeletedAt.Time,
+			DeletedAt: utils.TimePointer(&row.DeletedAt),
 			DeletedBy: &row.DeletedBy.String,
 		},
 	}
