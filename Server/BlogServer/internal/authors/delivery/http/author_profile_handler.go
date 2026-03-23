@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -126,6 +127,7 @@ func (h *AuthorProfileHandler) getAuthorProfileByID(c *gin.Context) {
 
 	authorProfile, err := h.authorIdentityUsecases.GetAuthorProfileByID(ctx, authorProfileID)
 	if err != nil {
+		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Author profile not found",
 		})
@@ -150,6 +152,7 @@ func (h *AuthorProfileHandler) getAuthorProfileBySlug(c *gin.Context) {
 
 	authorProfile, err := h.authorIdentityUsecases.GetAuthorProfileBySlug(ctx, slug)
 	if err != nil {
+		log.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Author profile not found",
 		})
@@ -173,8 +176,6 @@ func (h *AuthorProfileHandler) listAuthorProfiles(c *gin.Context) {
 			limit = limitInt
 		}
 	}
-	log.Println(page)
-	log.Println(limit)
 
 	ctx, cancel := context.WithTimeout(c, time.Second)
 	defer cancel()
@@ -213,7 +214,14 @@ func (h *AuthorProfileHandler) deleteAuthorProfile(c *gin.Context) {
 	defer cancel()
 	err = h.authorIdentityUsecases.DeleteAuthorProfile(ctx, authorProfileID, userID)
 	if err != nil {
-		log.Println(err)
+		log.Println(err.Error())
+		var authorNotFoundErr *domain.ErrAuthorNotFound
+		if errors.As(err, &authorNotFoundErr) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed to delete author",
 		})
@@ -238,7 +246,14 @@ func (h *AuthorProfileHandler) hardDeleteAuthorProfile(c *gin.Context) {
 	defer cancel()
 	err := h.authorIdentityUsecases.HardDeleteAuthorProfile(ctx, authorProfileID)
 	if err != nil {
-		log.Println(err)
+		log.Println(err.Error())
+		var authorNotFoundErr *domain.ErrAuthorNotFound
+		if errors.As(err, &authorNotFoundErr) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": err.Error(),
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed to hard delete author",
 		})

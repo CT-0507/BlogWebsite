@@ -16,4 +16,8 @@ type BlogRepository interface {
 	// Cache table
 	CreateUserIDAuthorProfileIDCacheRecord(c context.Context, userID string, authorID string) error
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
+	// Author deleted event
+	UpdateBlogStatusForDeletedAuthor(c context.Context, authorID string) error
+	DeleteAuthorHardDeletedBlogs(c context.Context, authorID string) error
+	DeleteAuthorCache(c context.Context, authorID string) error
 }

@@ -178,3 +178,30 @@ func (r *BlogRepository) VerifyAuthorIDByUserID(c context.Context, userID string
 
 	return q.VerifyAuthorIDByUserID(c, userID)
 }
+
+func (r *BlogRepository) UpdateBlogStatusForDeletedAuthor(c context.Context, authorID string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.UpdateBlogStatusForDeletedAuthor(c, authorID)
+}
+
+func (r *BlogRepository) DeleteAuthorHardDeletedBlogs(c context.Context, authorID string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.DeleteAuthorHardDeletedBlogs(c, authorID)
+}
+
+func (r *BlogRepository) DeleteAuthorCache(c context.Context, authorID string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.DeleteAuthorCache(c, authorID)
+}

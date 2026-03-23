@@ -51,7 +51,7 @@ func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author 
 	})
 }
 
-func (r *AuthorProfileRepository) GetAuthorProfileByID(c context.Context, authorID string, status string) (*domain.AuthorProfile, error) {
+func (r *AuthorProfileRepository) GetAuthorProfileByID(c context.Context, authorID string, status string, deletedAtCheck string) (*domain.AuthorProfile, error) {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
@@ -59,7 +59,7 @@ func (r *AuthorProfileRepository) GetAuthorProfileByID(c context.Context, author
 	author, err := q.GetAuthorProfileByID(c, authordb.GetAuthorProfileByIDParams{
 		AuthorID: authorID,
 		Status:   status,
-		Column3:  "check_null",
+		Column3:  deletedAtCheck,
 	})
 
 	if err != nil {

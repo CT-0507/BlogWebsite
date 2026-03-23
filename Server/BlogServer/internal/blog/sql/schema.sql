@@ -7,7 +7,7 @@ CREATE TABLE blogs.blogs (
     url_slug VARCHAR(400) NOT NULL UNIQUE,
     title TEXT NOT NULL,
     content TEXT,
-    status VARCHAR(10) NOT NULL DEFAULT 'active',
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by TEXT NOT NULL,
@@ -50,6 +50,7 @@ CREATE TABLE blogs.idx_user_author_profile (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
+    UNIQUE(user_id),
     UNIQUE(user_id, author_id)
 );
 

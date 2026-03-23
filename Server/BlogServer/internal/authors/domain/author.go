@@ -43,6 +43,14 @@ func (e *ErrFailedToUnfollowAuthor) Error() string {
 	return "Failed to follow author"
 }
 
+type ErrAuthorNotFound struct {
+	Message string
+}
+
+func (e *ErrAuthorNotFound) Error() string {
+	return e.Message
+}
+
 // Event models
 type AuthorCreatedEvent struct {
 	AuthorID string
@@ -51,6 +59,22 @@ type AuthorCreatedEvent struct {
 
 func (e AuthorCreatedEvent) EventName() string {
 	return "authorIdentity.created"
+}
+
+type AuthorDeletedEvent struct {
+	AuthorID string
+}
+
+func (e AuthorDeletedEvent) EventName() string {
+	return "authorIdentity.deleted"
+}
+
+type AuthorHardDeletedEvent struct {
+	AuthorID string
+}
+
+func (e AuthorHardDeletedEvent) EventName() string {
+	return "authorIdentity.hardDeleted"
 }
 
 type AuthorFollowedEvent struct {

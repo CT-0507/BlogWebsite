@@ -80,6 +80,26 @@ func (q *Queries) CreateUserAuthorProfileIDCacheRecord(ctx context.Context, arg 
 	return err
 }
 
+const deleteAuthorCache = `-- name: DeleteAuthorCache :exec
+DELETE FROM blogs.idx_user_author_profile
+WHERE author_id = $1
+`
+
+func (q *Queries) DeleteAuthorCache(ctx context.Context, authorID string) error {
+	_, err := q.db.Exec(ctx, deleteAuthorCache, authorID)
+	return err
+}
+
+const deleteAuthorHardDeletedBlogs = `-- name: DeleteAuthorHardDeletedBlogs :exec
+DELETE FROM blogs.blogs
+WHERE author_id = $1
+`
+
+func (q *Queries) DeleteAuthorHardDeletedBlogs(ctx context.Context, authorID string) error {
+	_, err := q.db.Exec(ctx, deleteAuthorHardDeletedBlogs, authorID)
+	return err
+}
+
 const deleteBlog = `-- name: DeleteBlog :one
 UPDATE blogs.blogs
     SET deleted_by = $1,
@@ -502,6 +522,17 @@ func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (int64, 
 	var blog_id int64
 	err := row.Scan(&blog_id)
 	return blog_id, err
+}
+
+const updateBlogStatusForDeletedAuthor = `-- name: UpdateBlogStatusForDeletedAuthor :exec
+UPDATE blogs.blogs
+SET status = 'author_deleted'
+WHERE blogs.author_id = $1
+`
+
+func (q *Queries) UpdateBlogStatusForDeletedAuthor(ctx context.Context, authorID string) error {
+	_, err := q.db.Exec(ctx, updateBlogStatusForDeletedAuthor, authorID)
+	return err
 }
 
 const verifyAuthorIDByUserID = `-- name: VerifyAuthorIDByUserID :one

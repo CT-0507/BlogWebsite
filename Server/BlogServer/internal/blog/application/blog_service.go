@@ -15,6 +15,9 @@ type BlogService interface {
 	GetBlog(ctx context.Context, id int64) (*domain.BlogWithAuthorData, error)
 	GetBlogByUrlSlug(ctx context.Context, slug string) (*domain.BlogWithAuthorData, error)
 	DeleteBlog(ctx context.Context, id int64, userID string) (*int64, error)
-	OnAuthorCreated(c context.Context, payload []byte) error
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
+	// Event handler
+	OnAuthorCreated(c context.Context, payload []byte) error
+	OnAuthorDeleted(c context.Context, payload []byte) error
+	OnAuthorHardDeleted(c context.Context, payload []byte) error
 }

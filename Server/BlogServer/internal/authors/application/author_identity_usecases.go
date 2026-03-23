@@ -28,6 +28,7 @@ func NewAuthorIdentityUsecases(txManager database.TxManager, repo domain.AuthorP
 func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domain.AuthorProfile, userID string, createdBy string) error {
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 		author.AuthorID = ulid.Make().String()
+		author.Status = "active"
 		err := u.repo.CreateAuthorProfile(ctx, author, userID, createdBy)
 		if err != nil {
 			return &domain.ErrFailedToCreateAuthorProfile{
@@ -50,7 +51,7 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domai
 }
 
 func (u *AuthorIdentityUsecases) GetAuthorProfileByID(ctx context.Context, authorID string) (*domain.AuthorProfile, error) {
-	return u.repo.GetAuthorProfileByID(ctx, authorID, "active")
+	return u.repo.GetAuthorProfileByID(ctx, authorID, "active", "check_null")
 }
 
 func (u *AuthorIdentityUsecases) GetAuthorProfileBySlug(ctx context.Context, slug string) (*domain.AuthorProfile, error) {
@@ -63,11 +64,71 @@ func (u *AuthorIdentityUsecases) ListAuthorProfiles(ctx context.Context, page in
 }
 
 func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, authorID string, deletedBy string) error {
-	return u.repo.DeleteAuthorProfile(ctx, authorID, deletedBy)
+	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+
+		author, err := u.repo.GetAuthorProfileByID(ctx, authorID, "active", "check_null")
+		if err != nil {
+			return &domain.ErrAuthorNotFound{
+				Message: err.Error(),
+			}
+		}
+
+		if author == nil {
+			return &domain.ErrAuthorNotFound{
+				Message: "Author not found",
+			}
+		}
+
+		err = u.repo.DeleteAuthorProfile(ctx, authorID, deletedBy)
+		if err != nil {
+			return err
+		}
+
+		event := &domain.AuthorDeletedEvent{
+			AuthorID: authorID,
+		}
+
+		payload, err := json.Marshal(event)
+		if err != nil {
+			return err
+		}
+
+		return u.outboxRepo.Insert(ctx, event.EventName(), payload)
+	})
 }
 
 func (u *AuthorIdentityUsecases) HardDeleteAuthorProfile(ctx context.Context, authorID string) error {
-	return u.repo.HardDeleteAuthorProfile(ctx, authorID)
+	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+
+		author, err := u.repo.GetAuthorProfileByID(ctx, authorID, "deleted", "check_not_null")
+		if err != nil {
+			return &domain.ErrAuthorNotFound{
+				Message: err.Error(),
+			}
+		}
+
+		if author == nil {
+			return &domain.ErrAuthorNotFound{
+				Message: "Author not found",
+			}
+		}
+
+		err = u.repo.HardDeleteAuthorProfile(ctx, authorID)
+		if err != nil {
+			return err
+		}
+
+		event := &domain.AuthorHardDeletedEvent{
+			AuthorID: authorID,
+		}
+
+		payload, err := json.Marshal(event)
+		if err != nil {
+			return err
+		}
+
+		return u.outboxRepo.Insert(ctx, event.EventName(), payload)
+	})
 }
 
 func (u *AuthorIdentityUsecases) UpdateAuthorSlug(ctx context.Context, authorID string, slug string, updatedBy string) error {

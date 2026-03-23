@@ -14,5 +14,5 @@ type UpdateAuthorSlugRequest struct {
 }
 
 type UpdateAuthorStatusRequest struct {
-	Status string `json:"slug" validate:"required,max=15"`
+	Status string `json:"status" validate:"required,max=15"`
 }

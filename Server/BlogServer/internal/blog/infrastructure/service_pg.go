@@ -76,3 +76,11 @@ func (s *BlogService) OnAuthorCreated(c context.Context, payload []byte) error {
 func (s *BlogService) VerifyAuthorIDByUserID(c context.Context, userID string) (string, error) {
 	return s.createBlog.VerifyAuthorIDByUserID(c, userID)
 }
+
+func (s *BlogService) OnAuthorDeleted(c context.Context, payload []byte) error {
+	return s.eventHandlerUsecases.OnAuthorDeleted(c, payload)
+}
+
+func (s *BlogService) OnAuthorHardDeleted(c context.Context, payload []byte) error {
+	return s.eventHandlerUsecases.OnAuthorHardDeleted(c, payload)
+}

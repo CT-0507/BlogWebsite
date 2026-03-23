@@ -37,3 +37,7 @@ type AuthorCreatedEvent struct {
 	AuthorID string
 	UserID   string
 }
+
+type AuthorDeletedEvent struct {
+	AuthorID string
+}

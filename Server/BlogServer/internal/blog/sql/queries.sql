@@ -136,3 +136,16 @@ INSERT INTO blogs.idx_user_author_profile (
 SELECT author_id
 FROM blogs.idx_user_author_profile
 WHERE user_id = $1;
+
+-- name: UpdateBlogStatusForDeletedAuthor :exec
+UPDATE blogs.blogs
+SET status = 'author_deleted'
+WHERE blogs.author_id = $1;
+
+-- name: DeleteAuthorHardDeletedBlogs :exec
+DELETE FROM blogs.blogs
+WHERE author_id = $1;
+
+-- name: DeleteAuthorCache :exec
+DELETE FROM blogs.idx_user_author_profile
+WHERE author_id = $1;

@@ -21,6 +21,7 @@ func (m *MockAuthorProfileRepository) GetAuthorProfileByID(
 	ctx context.Context,
 	authorID string,
 	status string,
+	deletedAtCheck string,
 ) (*domain.AuthorProfile, error) {
 
 	args := m.Called(ctx, authorID, status)
