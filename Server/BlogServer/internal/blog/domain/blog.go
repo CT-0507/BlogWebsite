@@ -27,15 +27,16 @@ type BlogWithAuthorData struct {
 }
 
 type AuthorData struct {
-	AuthorID string `json:"authorID"`
-	Nickname string `json:"nickname"`
-	FullName string `json:"fullName"`
-	Email    string `json:"email"`
+	AuthorID    string `json:"authorID"`
+	Slug        string `json:"slug"`
+	DisplayName string `json:"displayName"`
 }
 
 type AuthorCreatedEvent struct {
-	AuthorID string
-	UserID   string
+	AuthorID    string
+	UserID      string
+	Slug        string
+	DisplayName string
 }
 
 type AuthorDeletedEvent struct {

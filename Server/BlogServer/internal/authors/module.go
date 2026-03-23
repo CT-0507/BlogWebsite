@@ -15,7 +15,7 @@ type EventHandler func(ctx context.Context, payload []byte) error
 
 type EventHandlers struct {
 	OnAuthorFollowerCountChanged EventHandler
-	OnBlogCountChanged           EventHandler
+	OnBlogCreated                EventHandler
 }
 
 type AuthorsModule struct {
@@ -40,7 +40,7 @@ func NewAuthorsModule(pool *pgxpool.Pool, outboxRepo outbox.OutboxRepository) *A
 		Handler: handler,
 		EventHandlers: &EventHandlers{
 			OnAuthorFollowerCountChanged: authorFollowerUsecases.OnAuthorFollowerCountChanged,
-			OnBlogCountChanged:           authorIdentityUsecases.OnBlogCountChanged,
+			OnBlogCreated:                authorIdentityUsecases.OnBlogCreated,
 		},
 	}
 }

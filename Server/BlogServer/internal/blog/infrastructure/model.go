@@ -33,7 +33,9 @@ func ListBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsRow) *domain.BlogWithAuthorD
 		Content: blogDTO.Content.String,
 		Status:  blogDTO.Status,
 		Author: domain.AuthorData{
-			AuthorID: blogDTO.AuthorID,
+			AuthorID:    blogDTO.AuthorID,
+			Slug:        blogDTO.Slug,
+			DisplayName: blogDTO.DisplayName,
 		},
 		Audit: model.Audit{
 			CreatedAt: blogDTO.CreatedAt.Time,
@@ -52,9 +54,9 @@ func ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorRow)
 		Content: blogDTO.Content.String,
 		Status:  blogDTO.Status,
 		Author: domain.AuthorData{
-			AuthorID: blogDTO.AuthorID,
-			Nickname: blogDTO.Nickname,
-			FullName: blogDTO.AuthorName.(string),
+			AuthorID:    blogDTO.AuthorID,
+			Slug:        blogDTO.Slug,
+			DisplayName: blogDTO.DisplayName,
 		},
 		Audit: model.Audit{
 			CreatedAt: blogDTO.CreatedAt.Time,
@@ -65,7 +67,7 @@ func ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorRow)
 	}
 }
 
-func ListAuthorBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorNicknameRow) *domain.BlogWithAuthorData {
+func ListAuthorBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorSlugRow) *domain.BlogWithAuthorData {
 	return &domain.BlogWithAuthorData{
 		BlogID:  blogDTO.BlogID,
 		Title:   blogDTO.Title,
@@ -73,9 +75,9 @@ func ListAuthorBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorNicknameRow) *
 		Content: blogDTO.Content.String,
 		Status:  blogDTO.Status,
 		Author: domain.AuthorData{
-			AuthorID: blogDTO.AuthorID,
-			Nickname: blogDTO.Nickname,
-			FullName: blogDTO.AuthorName.(string),
+			AuthorID:    blogDTO.AuthorID,
+			Slug:        blogDTO.Slug,
+			DisplayName: blogDTO.DisplayName,
 		},
 		Audit: model.Audit{
 			CreatedAt: blogDTO.CreatedAt.Time,
@@ -94,9 +96,9 @@ func GetBlogRowDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlogRow) *domain.BlogW
 		Content: blogDTO.Content.String,
 		Status:  blogDTO.Status,
 		Author: domain.AuthorData{
-			AuthorID: blogDTO.AuthorID,
-			Nickname: blogDTO.Nickname,
-			FullName: blogDTO.AuthorName.(string),
+			AuthorID:    blogDTO.AuthorID,
+			Slug:        blogDTO.Slug,
+			DisplayName: blogDTO.DisplayName,
 		},
 		Audit: model.Audit{
 			CreatedAt: blogDTO.CreatedAt.Time,
@@ -115,9 +117,9 @@ func GetBlogRowByUrlSlugDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlogByUrlSlug
 		Content: blogDTO.Content.String,
 		Status:  blogDTO.Status,
 		Author: domain.AuthorData{
-			AuthorID: blogDTO.AuthorID,
-			Nickname: blogDTO.Nickname,
-			FullName: blogDTO.AuthorName.(string),
+			AuthorID:    blogDTO.AuthorID,
+			Slug:        blogDTO.Slug,
+			DisplayName: blogDTO.DisplayName,
 		},
 		Audit: model.Audit{
 			CreatedAt: blogDTO.CreatedAt.Time,

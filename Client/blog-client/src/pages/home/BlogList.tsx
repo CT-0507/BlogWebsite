@@ -20,9 +20,8 @@ export interface Blog {
   blogID: string;
   author: {
     authorID: string;
-    nickname?: string;
-    fullName?: string;
-    email?: string;
+    slug: string;
+    displayName: string;
   };
   title: string;
   urlSlug: string;
@@ -100,13 +99,13 @@ export default function BlogList() {
                   <Link
                     href={
                       "/blogs/author/" +
-                      (blog.author.nickname
-                        ? blog.author.nickname
+                      (blog.author.slug
+                        ? blog.author.slug
                         : `id/${blog.author.authorID}`)
                     }
                     underline="hover"
                   >
-                    {blog.author.fullName}
+                    {blog.author.displayName}
                   </Link>{" "}
                   •{" "}
                   <Typography

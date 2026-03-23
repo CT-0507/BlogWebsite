@@ -36,9 +36,11 @@ type BlogsBlogTag struct {
 }
 
 type BlogsIdxUserAuthorProfile struct {
-	UserID    string
-	AuthorID  string
-	CreatedAt pgtype.Timestamptz
+	UserID      string
+	AuthorID    string
+	Slug        string
+	DisplayName string
+	CreatedAt   pgtype.Timestamptz
 }
 
 type BlogsTag struct {

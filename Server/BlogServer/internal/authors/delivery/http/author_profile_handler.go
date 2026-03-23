@@ -27,7 +27,7 @@ type AuthorIdentityUsecases interface {
 	HardDeleteAuthorProfile(ctx context.Context, authorID string) error
 	UpdateAuthorSlug(ctx context.Context, authorID string, slug string, updatedBy string) error
 	UpdateAuthorStatus(ctx context.Context, authorID string, status string, updatedBy string) error
-	OnBlogCountChanged(ctx context.Context, payload []byte) error
+	OnBlogCreated(ctx context.Context, payload []byte) error
 }
 
 type AuthorSocialUsecases interface {

@@ -73,10 +73,10 @@ export default function BlogSection({ id }: BlogSectionProps) {
             By{" "}
             <Link
               component={RouterLink}
-              to={`/authors/${blog.author.authorID}`}
+              to={`/blogs/author/${blog.author.slug}`}
               underline="hover"
             >
-              {blog.author.fullName}
+              {blog.author.displayName}
             </Link>{" "}
             • {new Date(blog.createdAt).toLocaleDateString()}
           </Typography>

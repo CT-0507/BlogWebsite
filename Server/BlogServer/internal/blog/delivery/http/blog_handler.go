@@ -83,6 +83,35 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 	c.JSON(http.StatusOK, blogs)
 }
 
+// Description: get all blogs
+//   - @route GET /blogs/author/:slug
+//   - @access Public
+func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
+	slug, valid := c.Params.Get("slug")
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "slug"),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	blogs, err := h.service.ListAuthorBlogsBySlug(ctx, slug)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(blogs) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "success with no data",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, blogs)
+}
+
 // Description: get blog by id
 //   - @route GET /blogs/id/:id
 //   - @access Puclic

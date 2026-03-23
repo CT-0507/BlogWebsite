@@ -48,6 +48,7 @@ func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Bl
 		// Save event to outbox table
 		event := &BlogCreatedEvent{
 			BlogID:    insertedBlog.BlogID,
+			AuthorID:  authorID,
 			BlogTitle: insertedBlog.Title,
 		}
 

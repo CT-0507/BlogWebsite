@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
@@ -37,8 +36,10 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domai
 		}
 
 		event := &domain.AuthorCreatedEvent{
-			AuthorID: author.AuthorID,
-			UserID:   userID,
+			AuthorID:    author.AuthorID,
+			UserID:      userID,
+			Slug:        author.Slug,
+			DisplayName: author.DisplayName,
 		}
 
 		payload, err := json.Marshal(event)
@@ -141,16 +142,15 @@ func (u *AuthorIdentityUsecases) UpdateAuthorStatus(ctx context.Context, authorI
 
 // Event Handler
 
-func (u *AuthorIdentityUsecases) OnBlogCountChanged(ctx context.Context, payload []byte) error {
+func (u *AuthorIdentityUsecases) OnBlogCreated(ctx context.Context, payload []byte) error {
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
 		var evt domain.BlogCountChangedEvent
 		err := json.Unmarshal(payload, &evt)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 
-		return u.repo.UpdateAuthorBlogCount(ctx, evt.AuthorID, evt.IsIncrement)
+		return u.repo.UpdateAuthorBlogCount(ctx, evt.AuthorID, true)
 	})
 }

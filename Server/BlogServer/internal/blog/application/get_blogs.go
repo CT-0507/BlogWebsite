@@ -28,6 +28,6 @@ func (s *ListBlogsUseCases) ListAuthorBlogsByAuthorID(ctx context.Context, autho
 	return s.repo.ListAuthorBlogsByAuthorID(ctx, authorID)
 }
 
-func (s *ListBlogsUseCases) ListAuthorBlogsByNickname(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
-	return s.repo.ListAuthorBlogsByNickname(ctx, nickname)
+func (s *ListBlogsUseCases) ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
+	return s.repo.ListAuthorBlogsBySlug(ctx, nickname)
 }
