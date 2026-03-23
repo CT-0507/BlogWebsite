@@ -14,13 +14,13 @@ import (
 )
 
 type CreateBlogUseCases struct {
-	txManager   *database.TxManager
+	txManager   database.TxManager
 	repo        domain.BlogRepository
 	userService user.UserService
 	outboxRepo  outbox.OutboxRepository
 }
 
-func NewCreateBlogUseCases(txManager *database.TxManager, repo domain.BlogRepository, userService user.UserService, outboxRepo outbox.OutboxRepository) *CreateBlogUseCases {
+func NewCreateBlogUseCases(txManager database.TxManager, repo domain.BlogRepository, userService user.UserService, outboxRepo outbox.OutboxRepository) *CreateBlogUseCases {
 	return &CreateBlogUseCases{
 		txManager:   txManager,
 		repo:        repo,
@@ -30,8 +30,15 @@ func NewCreateBlogUseCases(txManager *database.TxManager, repo domain.BlogReposi
 }
 
 // Save a box to database and Create an Event to outbox_events table
-func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Blog) error {
+func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Blog, userID string) error {
+
+	authorID, err := s.repo.VerifyAuthorIDByUserID(c, userID)
+	if err != nil {
+		return err
+	}
 	return s.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		blog.AuthorID = authorID
 
 		insertedBlog, err := s.repo.Create(c, blog)
 		if err != nil {
@@ -56,6 +63,10 @@ func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Bl
 
 		return nil
 	})
+}
+
+func (s *CreateBlogUseCases) VerifyAuthorIDByUserID(c context.Context, userID string) (string, error) {
+	return s.repo.VerifyAuthorIDByUserID(c, userID)
 }
 
 // Handle blog posted event for event bus

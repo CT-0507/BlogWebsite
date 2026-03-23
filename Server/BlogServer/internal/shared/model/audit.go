@@ -9,6 +9,6 @@ type Audit struct {
 	CreatedBy *string    `json:"createdBy,omitempty"`
 	UpdatedAt time.Time  `json:"updatedAt"`
 	UpdatedBy *string    `json:"updatedBy,omitempty"`
-	DeletedAt *time.Time `json:"deletedAt"`
+	DeletedAt *time.Time `json:"deletedAt,omitempty"`
 	DeletedBy *string    `json:"deletedBy,omitempty"`
 }

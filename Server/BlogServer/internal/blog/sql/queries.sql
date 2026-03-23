@@ -8,7 +8,7 @@ SELECT
     u.nickname,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
@@ -27,7 +27,7 @@ SELECT
     u.nickname,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
@@ -46,14 +46,14 @@ SELECT
     CONCAT(u.first_name, ' ', u.last_name) as author_name,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
     b.updated_by 
 FROM blogs.blogs b
 JOIN users.users u ON u.user_id = b.author_id
-WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.active = $2;
+WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.status = $2;
 
 -- name: ListBlogsByAuthorNickname :many
 SELECT
@@ -65,14 +65,14 @@ SELECT
     CONCAT(u.first_name, ' ', u.last_name) as author_name,
     u.email,
     b.content,
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
     b.updated_by 
 FROM blogs.blogs b
 JOIN users.users u ON u.user_id = b.author_id
-WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.active = $2;
+WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.status = $2;
 
 -- name: ListAllBlogs :many
 SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs;
@@ -80,19 +80,16 @@ SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, 
 -- name: ListBlogs :many
 SELECT 
     b.blog_id,
-    u.user_id as author_id,
-    u.first_name || u.last_name as author_name,
-    u.nickname,
+    b.author_id,
     b.title, 
     b.url_slug,
     b.content, 
-    b.active,
+    b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
     b.updated_by 
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
 WHERE b.deleted_at IS NULL;
 
 -- name: CreateBlog :one
@@ -126,3 +123,29 @@ UPDATE blogs.blogs
     deleted_at = NOW()
 WHERE blog_id = $2
 RETURNING blog_id;
+
+-- name: CreateUserAuthorProfileIDCacheRecord :exec
+INSERT INTO blogs.idx_user_author_profile (
+    user_id,
+    author_id
+) VALUES (
+    $1, $2
+);
+
+-- name: VerifyAuthorIDByUserID :one
+SELECT author_id
+FROM blogs.idx_user_author_profile
+WHERE user_id = $1;
+
+-- name: UpdateBlogStatusForDeletedAuthor :exec
+UPDATE blogs.blogs
+SET status = 'author_deleted'
+WHERE blogs.author_id = $1;
+
+-- name: DeleteAuthorHardDeletedBlogs :exec
+DELETE FROM blogs.blogs
+WHERE author_id = $1;
+
+-- name: DeleteAuthorCache :exec
+DELETE FROM blogs.idx_user_author_profile
+WHERE author_id = $1;

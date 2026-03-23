@@ -8,16 +8,16 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Capsule all blog service
 type BlogService struct {
-	createBlog *application.CreateBlogUseCases
-	getBlog    *application.GetBlogUseCases
-	listBlogs  *application.ListBlogsUseCases
-	deleteBlog *application.DeleteBlogUseCase
+	createBlog           *application.CreateBlogUseCases
+	getBlog              *application.GetBlogUseCases
+	listBlogs            *application.ListBlogsUseCases
+	deleteBlog           *application.DeleteBlogUseCase
+	eventHandlerUsecases *application.EventHandlerUsecases
 }
 
 func NewBlogService(
@@ -29,15 +29,16 @@ func NewBlogService(
 	txManager := database.NewTxManager(pool)
 
 	return &BlogService{
-		createBlog: application.NewCreateBlogUseCases(txManager, repo, userService, outboxRepo),
-		getBlog:    application.NewGetBlogUseCases(txManager, repo),
-		listBlogs:  application.NewListBlogsUseCases(txManager, repo),
-		deleteBlog: application.NewDeleteBlogUseCases(txManager, repo),
+		createBlog:           application.NewCreateBlogUseCases(txManager, repo, userService, outboxRepo),
+		getBlog:              application.NewGetBlogUseCases(txManager, repo),
+		listBlogs:            application.NewListBlogsUseCases(txManager, repo),
+		deleteBlog:           application.NewDeleteBlogUseCases(txManager, repo),
+		eventHandlerUsecases: application.NewEventHandlerUsecases(txManager, repo),
 	}
 }
 
-func (s *BlogService) CreateWithOutBox(c context.Context, blog *domain.Blog) error {
-	return s.createBlog.CreateWithOutBox(c, blog)
+func (s *BlogService) CreateWithOutBox(c context.Context, blog *domain.Blog, userID string) error {
+	return s.createBlog.CreateWithOutBox(c, blog, userID)
 }
 
 func (s *BlogService) OnBlogPosted(c context.Context, payload []byte) error {
@@ -56,14 +57,30 @@ func (s *BlogService) GetBlogByUrlSlug(ctx context.Context, slug string) (*domai
 	return s.getBlog.GetBlogByUrlSlug(ctx, slug)
 }
 
-func (s *BlogService) DeleteBlog(ctx context.Context, id int64, userID uuid.UUID) (*int64, error) {
+func (s *BlogService) DeleteBlog(ctx context.Context, id int64, userID string) (*int64, error) {
 	return s.deleteBlog.DeleteBlog(ctx, id, userID)
 }
 
-func (s *BlogService) ListAuthorBlogsByAuthorID(ctx context.Context, authorID uuid.UUID) ([]domain.BlogWithAuthorData, error) {
+func (s *BlogService) ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error) {
 	return s.listBlogs.ListAuthorBlogsByAuthorID(ctx, authorID)
 }
 
 func (s *BlogService) ListAuthorBlogsByNickname(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
 	return s.listBlogs.ListAuthorBlogsByNickname(ctx, nickname)
+}
+
+func (s *BlogService) OnAuthorCreated(c context.Context, payload []byte) error {
+	return s.eventHandlerUsecases.OnAuthorCreated(c, payload)
+}
+
+func (s *BlogService) VerifyAuthorIDByUserID(c context.Context, userID string) (string, error) {
+	return s.createBlog.VerifyAuthorIDByUserID(c, userID)
+}
+
+func (s *BlogService) OnAuthorDeleted(c context.Context, payload []byte) error {
+	return s.eventHandlerUsecases.OnAuthorDeleted(c, payload)
+}
+
+func (s *BlogService) OnAuthorHardDeleted(c context.Context, payload []byte) error {
+	return s.eventHandlerUsecases.OnAuthorHardDeleted(c, payload)
 }

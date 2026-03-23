@@ -5,16 +5,15 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
-	"github.com/google/uuid"
 )
 
 // List blog related use cases like list all, list with filter, etc
 type ListBlogsUseCases struct {
-	txManager *database.TxManager
+	txManager database.TxManager
 	repo      domain.BlogRepository
 }
 
-func NewListBlogsUseCases(txManager *database.TxManager, repo domain.BlogRepository) *ListBlogsUseCases {
+func NewListBlogsUseCases(txManager database.TxManager, repo domain.BlogRepository) *ListBlogsUseCases {
 	return &ListBlogsUseCases{
 		txManager: txManager,
 		repo:      repo,
@@ -25,7 +24,7 @@ func (s *ListBlogsUseCases) ListBlogs(ctx context.Context) ([]domain.BlogWithAut
 	return s.repo.FindAll(ctx)
 }
 
-func (s *ListBlogsUseCases) ListAuthorBlogsByAuthorID(ctx context.Context, authorID uuid.UUID) ([]domain.BlogWithAuthorData, error) {
+func (s *ListBlogsUseCases) ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error) {
 	return s.repo.ListAuthorBlogsByAuthorID(ctx, authorID)
 }
 

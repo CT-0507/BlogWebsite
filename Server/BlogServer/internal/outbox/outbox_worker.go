@@ -26,8 +26,6 @@ func NewOutboxWorker(db *pgxpool.Pool, bus *event.Bus, outboxRepo OutboxReposito
 
 func (w *OutboxWorker) Start(ctx context.Context) {
 
-	log.Println("Worker started")
-
 	ticker := time.NewTicker(time.Second)
 
 	for {
@@ -60,6 +58,7 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 
 		err = w.handleEvent(row.Topic, row.Payload)
 		if err != nil {
+			log.Println(err)
 			continue
 		}
 
@@ -84,10 +83,13 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 
 func (w *OutboxWorker) handleEvent(topic string, payload []byte) error {
 
+	log.Print("Proccess topic: ")
+	log.Println(topic)
+
 	switch topic {
 
 	case "blog.created":
-
+	case "authorFollower.created", "authorFollower.deleted", "authorIdentity.created", "authorIdentity.deleted", "authorIdentity.hardDeleted":
 		// var evt BlogCreatedEvent
 		// json.Unmarshal(payload, &evt)
 

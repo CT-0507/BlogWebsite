@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event"
@@ -56,6 +57,9 @@ func main() {
 	userService := user.NewUserService(pool, userRepo)
 	userHandler := user.NewUserHandler(userService)
 
+	// Author Module
+	authorModule := authors.NewAuthorsModule(pool, outboxRepo)
+
 	// Blog Feature block
 	// blogRepo := blog.NewBlogRepository()
 	// blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
@@ -99,13 +103,19 @@ func main() {
 	}))
 	router.Use(gin.Logger())
 
-	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userHandler, dashboardHanlder, sseHandler)
-	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userHandler, dashboardHanlder, sseHandler)
+	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userHandler, dashboardHanlder, sseHandler, authorModule.Handler)
+	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userHandler, dashboardHanlder, sseHandler, authorModule.Handler)
 
 	bus := event.NewBus()
 
 	bus.Subscribe("blog.created", blogModule.Service.OnBlogPosted)
+	bus.Subscribe("blog.created", event.HandlerFunc(authorModule.EventHandlers.OnBlogCountChanged))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
+	bus.Subscribe("authorIdentity.created", blogModule.Service.OnAuthorCreated)
+	bus.Subscribe("authorIdentity.deleted", blogModule.Service.OnAuthorDeleted)
+	bus.Subscribe("authorIdentity.hardDeleted", blogModule.Service.OnAuthorHardDeleted)
+	bus.Subscribe("authorFollower.created", event.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
+	bus.Subscribe("authorFollower.deleted", event.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
 
 	worker := outbox.NewOutboxWorker(pool, bus, outboxRepo)
 

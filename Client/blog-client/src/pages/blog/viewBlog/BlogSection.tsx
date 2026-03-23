@@ -1,4 +1,4 @@
-import { getBlogByID } from "@/api/blogApi";
+import { getBlogBySlug } from "@/api/blogApi";
 import type { Blog } from "@/pages/home/BlogList";
 import Link from "@mui/material/Link";
 import { Link as RouterLink } from "react-router-dom";
@@ -14,7 +14,7 @@ export default function BlogSection({ id }: BlogSectionProps) {
   const queryClient = useQueryClient();
   const { data: blog, isLoading } = useQuery({
     queryKey: ["blog", id],
-    queryFn: () => getBlogByID(id),
+    queryFn: () => getBlogBySlug(id),
     staleTime: Infinity,
     initialData: () => {
       // When using pagination

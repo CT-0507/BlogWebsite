@@ -54,6 +54,17 @@ func GetUserIDFromContext(c *gin.Context) (uuid.UUID, error) {
 
 }
 
+func GetUserIDStringFromContext(c *gin.Context) (string, error) {
+	userID, exists := c.Get("userID")
+
+	if !exists {
+		return "", errors.New("userID does not exists in this context")
+	}
+
+	return userID.(string), nil
+
+}
+
 func GetRoleFromContext(c *gin.Context) (string, error) {
 	role, exists := c.Get("role")
 

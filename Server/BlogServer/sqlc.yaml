@@ -52,3 +52,15 @@ sql:
         out: "internal/outbox/db"
         sql_package: "pgx/v5"
         overrides: *common_overrides
+
+  - engine: "postgresql"
+    queries: "internal/authors/sql"
+    schema:
+      - "internal/authors/sql"
+      - "internal/user/sql"
+    gen:
+      go:
+        package: "authordb"
+        out: "internal/authors/infrastructure/db"
+        sql_package: "pgx/v5"
+        overrides: *common_overrides

@@ -33,7 +33,7 @@ export default function NotificationMenu() {
     queryKey: ["notifications"],
     queryFn: getNotifications,
     retry: false,
-    refetchInterval: 30 * 60 * 1000,
+    // refetchInterval: 30 * 60 * 1000,
   });
 
   const defaultShowNotificationNumber = 6;
