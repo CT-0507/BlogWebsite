@@ -4,17 +4,16 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.nickname,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
 WHERE b.blog_id = $1 AND b.deleted_at IS NULL;
 
 -- name: GetBlogByUrlSlug :one
@@ -23,17 +22,16 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.nickname,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
 WHERE b.url_slug = $1 AND b.deleted_at IS NULL;
 
 -- name: ListBlogsByAuthor :many
@@ -42,37 +40,35 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    u.nickname,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
-WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.status = $2;
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
+WHERE i.author_id = $1 AND b.deleted_at IS NULL AND b.status = $2;
 
--- name: ListBlogsByAuthorNickname :many
+-- name: ListBlogsByAuthorSlug :many
 SELECT
     b.blog_id, 
     b.title,
     b.url_slug,
     b.author_id,
-    u.nickname,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
-WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.status = $2;
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
+WHERE i.slug = $1 AND b.deleted_at IS NULL AND b.status = $2;
 
 -- name: ListAllBlogs :many
 SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs;
@@ -88,8 +84,11 @@ SELECT
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
 WHERE b.deleted_at IS NULL;
 
 -- name: CreateBlog :one
@@ -127,9 +126,11 @@ RETURNING blog_id;
 -- name: CreateUserAuthorProfileIDCacheRecord :exec
 INSERT INTO blogs.idx_user_author_profile (
     user_id,
-    author_id
+    author_id,
+    slug,
+    display_name
 ) VALUES (
-    $1, $2
+    $1, $2, $3, $4
 );
 
 -- name: VerifyAuthorIDByUserID :one

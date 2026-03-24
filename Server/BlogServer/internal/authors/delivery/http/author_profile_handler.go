@@ -27,7 +27,7 @@ type AuthorIdentityUsecases interface {
 	HardDeleteAuthorProfile(ctx context.Context, authorID string) error
 	UpdateAuthorSlug(ctx context.Context, authorID string, slug string, updatedBy string) error
 	UpdateAuthorStatus(ctx context.Context, authorID string, status string, updatedBy string) error
-	OnBlogCountChanged(ctx context.Context, payload []byte) error
+	OnBlogCreated(ctx context.Context, payload []byte) error
 }
 
 type AuthorSocialUsecases interface {
@@ -500,7 +500,20 @@ func (h *AuthorProfileHandler) getFollowedAuthors(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, authors)
+	if len(authors) == 0 {
+		c.JSON(http.StatusOK, &gin.H{
+			"message": "Ok",
+			"length":  0,
+			"authors": []string{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, &gin.H{
+		"message": "Ok",
+		"length":  len(authors),
+		"authors": authors,
+	})
 }
 
 // Author Profile Presentation

@@ -65,8 +65,8 @@ func (s *BlogService) ListAuthorBlogsByAuthorID(ctx context.Context, authorID st
 	return s.listBlogs.ListAuthorBlogsByAuthorID(ctx, authorID)
 }
 
-func (s *BlogService) ListAuthorBlogsByNickname(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
-	return s.listBlogs.ListAuthorBlogsByNickname(ctx, nickname)
+func (s *BlogService) ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
+	return s.listBlogs.ListAuthorBlogsBySlug(ctx, nickname)
 }
 
 func (s *BlogService) OnAuthorCreated(c context.Context, payload []byte) error {

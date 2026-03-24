@@ -28,7 +28,7 @@ func (u *EventHandlerUsecases) OnAuthorCreated(c context.Context, payload []byte
 			return err
 		}
 
-		return u.repo.CreateUserIDAuthorProfileIDCacheRecord(c, evt.UserID, evt.AuthorID)
+		return u.repo.CreateUserIDAuthorProfileIDCacheRecord(c, evt.UserID, evt.AuthorID, evt.Slug, evt.DisplayName)
 	})
 }
 

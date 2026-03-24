@@ -13,8 +13,8 @@ type AuthorProfile struct {
 	Status      string `json:"status"`
 	Email       string `json:"email"`
 	// Derived data
-	FollowerCount int32
-	BlogCount     int32
+	FollowerCount int32 `json:"followerCount"`
+	BlogCount     int32 `json:"blogCount"`
 	model.Audit
 }
 
@@ -53,8 +53,10 @@ func (e *ErrAuthorNotFound) Error() string {
 
 // Event models
 type AuthorCreatedEvent struct {
-	AuthorID string
-	UserID   string
+	AuthorID    string
+	UserID      string
+	Slug        string
+	DisplayName string
 }
 
 func (e AuthorCreatedEvent) EventName() string {
@@ -113,15 +115,10 @@ func (e FollowCountChangedEvent) EventName() string {
 }
 
 type BlogCountChangedEvent struct {
-	BlogID      string
-	AuthorID    string
-	IsIncrement bool
+	BlogID   int64
+	AuthorID string
 }
 
 func (e BlogCountChangedEvent) EventName() string {
-	eventType := "Increased"
-	if !e.IsIncrement {
-		eventType = "Decreased"
-	}
-	return "authorIdentity.blogCount" + eventType
+	return "authorIdentity.blogCountIncreased"
 }

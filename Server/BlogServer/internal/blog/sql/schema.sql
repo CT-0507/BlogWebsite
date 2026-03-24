@@ -3,7 +3,7 @@ CREATE SCHEMA IF NOT EXISTS blogs;
 
 CREATE TABLE blogs.blogs (
     blog_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    author_id TEXT NOT NULL UNIQUE,
+    author_id TEXT NOT NULL,
     url_slug VARCHAR(400) NOT NULL UNIQUE,
     title TEXT NOT NULL,
     content TEXT,
@@ -45,8 +45,11 @@ CREATE TABLE blogs.blog_tags (
 );
 
 CREATE TABLE blogs.idx_user_author_profile (
+
     user_id TEXT NOT NULL,
     author_id TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    display_name TEXT NOT NULL,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 

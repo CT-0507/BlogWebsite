@@ -72,7 +72,7 @@ func (r *BlogRepository) ListAuthorBlogsByAuthorID(c context.Context, authorID s
 
 	rows, err := q.ListBlogsByAuthor(c, blogdb.ListBlogsByAuthorParams{
 		AuthorID: authorID,
-		Status:   "true",
+		Status:   "active",
 	})
 	if err != nil {
 		return nil, err
@@ -86,15 +86,15 @@ func (r *BlogRepository) ListAuthorBlogsByAuthorID(c context.Context, authorID s
 	return blogs, nil
 }
 
-func (r *BlogRepository) ListAuthorBlogsByNickname(c context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
+func (r *BlogRepository) ListAuthorBlogsBySlug(c context.Context, slug string) ([]domain.BlogWithAuthorData, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
 	q := blogdb.New(db)
 
-	rows, err := q.ListBlogsByAuthorNickname(c, blogdb.ListBlogsByAuthorNicknameParams{
-		Nickname: nickname,
-		Status:   "true",
+	rows, err := q.ListBlogsByAuthorSlug(c, blogdb.ListBlogsByAuthorSlugParams{
+		Slug:   slug,
+		Status: "active",
 	})
 	if err != nil {
 		return nil, err
@@ -159,15 +159,17 @@ func (r *BlogRepository) Delete(c context.Context, id int64, userID string) (*in
 	return &deletedId, nil
 }
 
-func (r *BlogRepository) CreateUserIDAuthorProfileIDCacheRecord(c context.Context, userID string, authorID string) error {
+func (r *BlogRepository) CreateUserIDAuthorProfileIDCacheRecord(c context.Context, userID string, authorID string, slug string, displayName string) error {
 
 	db := utils.GetExecutor(c, r.pool)
 
 	q := blogdb.New(db)
 
 	return q.CreateUserAuthorProfileIDCacheRecord(c, blogdb.CreateUserAuthorProfileIDCacheRecordParams{
-		UserID:   userID,
-		AuthorID: authorID,
+		UserID:      userID,
+		AuthorID:    authorID,
+		Slug:        slug,
+		DisplayName: displayName,
 	})
 }
 

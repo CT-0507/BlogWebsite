@@ -64,19 +64,28 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 const createUserAuthorProfileIDCacheRecord = `-- name: CreateUserAuthorProfileIDCacheRecord :exec
 INSERT INTO blogs.idx_user_author_profile (
     user_id,
-    author_id
+    author_id,
+    slug,
+    display_name
 ) VALUES (
-    $1, $2
+    $1, $2, $3, $4
 )
 `
 
 type CreateUserAuthorProfileIDCacheRecordParams struct {
-	UserID   string
-	AuthorID string
+	UserID      string
+	AuthorID    string
+	Slug        string
+	DisplayName string
 }
 
 func (q *Queries) CreateUserAuthorProfileIDCacheRecord(ctx context.Context, arg CreateUserAuthorProfileIDCacheRecordParams) error {
-	_, err := q.db.Exec(ctx, createUserAuthorProfileIDCacheRecord, arg.UserID, arg.AuthorID)
+	_, err := q.db.Exec(ctx, createUserAuthorProfileIDCacheRecord,
+		arg.UserID,
+		arg.AuthorID,
+		arg.Slug,
+		arg.DisplayName,
+	)
 	return err
 }
 
@@ -126,34 +135,32 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.nickname,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
 WHERE b.blog_id = $1 AND b.deleted_at IS NULL
 `
 
 type GetBlogRow struct {
-	BlogID     int64
-	Title      string
-	UrlSlug    string
-	AuthorID   string
-	AuthorName interface{}
-	Nickname   string
-	Email      pgtype.Text
-	Content    pgtype.Text
-	Status     string
-	CreatedAt  pgtype.Timestamptz
-	CreatedBy  string
-	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  string
+	BlogID      int64
+	Title       string
+	UrlSlug     string
+	AuthorID    string
+	Content     pgtype.Text
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   string
+	Slug        string
+	DisplayName string
 }
 
 func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error) {
@@ -164,15 +171,14 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 		&i.Title,
 		&i.UrlSlug,
 		&i.AuthorID,
-		&i.AuthorName,
-		&i.Nickname,
-		&i.Email,
 		&i.Content,
 		&i.Status,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.Slug,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -183,34 +189,32 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.nickname,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
 WHERE b.url_slug = $1 AND b.deleted_at IS NULL
 `
 
 type GetBlogByUrlSlugRow struct {
-	BlogID     int64
-	Title      string
-	UrlSlug    string
-	AuthorID   string
-	AuthorName interface{}
-	Nickname   string
-	Email      pgtype.Text
-	Content    pgtype.Text
-	Status     string
-	CreatedAt  pgtype.Timestamptz
-	CreatedBy  string
-	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  string
+	BlogID      int64
+	Title       string
+	UrlSlug     string
+	AuthorID    string
+	Content     pgtype.Text
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   string
+	Slug        string
+	DisplayName string
 }
 
 func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlogByUrlSlugRow, error) {
@@ -221,15 +225,14 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.Title,
 		&i.UrlSlug,
 		&i.AuthorID,
-		&i.AuthorName,
-		&i.Nickname,
-		&i.Email,
 		&i.Content,
 		&i.Status,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.Slug,
+		&i.DisplayName,
 	)
 	return i, err
 }
@@ -304,22 +307,27 @@ SELECT
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
 WHERE b.deleted_at IS NULL
 `
 
 type ListBlogsRow struct {
-	BlogID    int64
-	AuthorID  string
-	Title     string
-	UrlSlug   string
-	Content   pgtype.Text
-	Status    string
-	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
+	BlogID      int64
+	AuthorID    string
+	Title       string
+	UrlSlug     string
+	Content     pgtype.Text
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   string
+	Slug        string
+	DisplayName string
 }
 
 func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
@@ -342,6 +350,8 @@ func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
 			&i.CreatedBy,
 			&i.UpdatedAt,
 			&i.UpdatedBy,
+			&i.Slug,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -359,18 +369,17 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    u.nickname,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
-WHERE b.author_id = $1 AND b.deleted_at IS NULL AND b.status = $2
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
+WHERE i.author_id = $1 AND b.deleted_at IS NULL AND b.status = $2
 `
 
 type ListBlogsByAuthorParams struct {
@@ -379,19 +388,18 @@ type ListBlogsByAuthorParams struct {
 }
 
 type ListBlogsByAuthorRow struct {
-	BlogID     int64
-	Title      string
-	UrlSlug    string
-	AuthorID   string
-	Nickname   string
-	AuthorName interface{}
-	Email      pgtype.Text
-	Content    pgtype.Text
-	Status     string
-	CreatedAt  pgtype.Timestamptz
-	CreatedBy  string
-	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  string
+	BlogID      int64
+	Title       string
+	UrlSlug     string
+	AuthorID    string
+	Content     pgtype.Text
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   string
+	Slug        string
+	DisplayName string
 }
 
 func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorParams) ([]ListBlogsByAuthorRow, error) {
@@ -408,15 +416,14 @@ func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorPa
 			&i.Title,
 			&i.UrlSlug,
 			&i.AuthorID,
-			&i.Nickname,
-			&i.AuthorName,
-			&i.Email,
 			&i.Content,
 			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
 			&i.UpdatedAt,
 			&i.UpdatedBy,
+			&i.Slug,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}
@@ -428,70 +435,67 @@ func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorPa
 	return items, nil
 }
 
-const listBlogsByAuthorNickname = `-- name: ListBlogsByAuthorNickname :many
+const listBlogsByAuthorSlug = `-- name: ListBlogsByAuthorSlug :many
 SELECT
     b.blog_id, 
     b.title,
     b.url_slug,
     b.author_id,
-    u.nickname,
-    CONCAT(u.first_name, ' ', u.last_name) as author_name,
-    u.email,
     b.content,
     b.status,
     b.created_at, 
     b.created_by, 
     b.updated_at, 
-    b.updated_by 
+    b.updated_by,
+    i.slug,
+    i.display_name
 FROM blogs.blogs b
-JOIN users.users u ON u.user_id = b.author_id
-WHERE u.nickname = $1 AND b.deleted_at IS NULL AND b.status = $2
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
+WHERE i.slug = $1 AND b.deleted_at IS NULL AND b.status = $2
 `
 
-type ListBlogsByAuthorNicknameParams struct {
-	Nickname string
-	Status   string
+type ListBlogsByAuthorSlugParams struct {
+	Slug   string
+	Status string
 }
 
-type ListBlogsByAuthorNicknameRow struct {
-	BlogID     int64
-	Title      string
-	UrlSlug    string
-	AuthorID   string
-	Nickname   string
-	AuthorName interface{}
-	Email      pgtype.Text
-	Content    pgtype.Text
-	Status     string
-	CreatedAt  pgtype.Timestamptz
-	CreatedBy  string
-	UpdatedAt  pgtype.Timestamptz
-	UpdatedBy  string
+type ListBlogsByAuthorSlugRow struct {
+	BlogID      int64
+	Title       string
+	UrlSlug     string
+	AuthorID    string
+	Content     pgtype.Text
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   string
+	Slug        string
+	DisplayName string
 }
 
-func (q *Queries) ListBlogsByAuthorNickname(ctx context.Context, arg ListBlogsByAuthorNicknameParams) ([]ListBlogsByAuthorNicknameRow, error) {
-	rows, err := q.db.Query(ctx, listBlogsByAuthorNickname, arg.Nickname, arg.Status)
+func (q *Queries) ListBlogsByAuthorSlug(ctx context.Context, arg ListBlogsByAuthorSlugParams) ([]ListBlogsByAuthorSlugRow, error) {
+	rows, err := q.db.Query(ctx, listBlogsByAuthorSlug, arg.Slug, arg.Status)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListBlogsByAuthorNicknameRow
+	var items []ListBlogsByAuthorSlugRow
 	for rows.Next() {
-		var i ListBlogsByAuthorNicknameRow
+		var i ListBlogsByAuthorSlugRow
 		if err := rows.Scan(
 			&i.BlogID,
 			&i.Title,
 			&i.UrlSlug,
 			&i.AuthorID,
-			&i.Nickname,
-			&i.AuthorName,
-			&i.Email,
 			&i.Content,
 			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
 			&i.UpdatedAt,
 			&i.UpdatedBy,
+			&i.Slug,
+			&i.DisplayName,
 		); err != nil {
 			return nil, err
 		}

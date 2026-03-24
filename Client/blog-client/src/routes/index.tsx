@@ -11,7 +11,8 @@ import PublishPage from "@/pages/blog/publish/Publish";
 import NotFound from "@/pages/NotFound/NotFound";
 import ErrorBoundary from "@/pages/error/ErrorBoundary";
 import ViewBlog from "@/pages/blog/viewBlog/ViewBlog";
-import AuthorBlog from "@/pages/blog/authorBlog/authorBlog";
+import AuthorBlog from "@/pages/blog/authorBlog/AuthorBlog";
+import CreateAuthorPage from "@/pages/author/CreateAuthorPage";
 
 export default function AppRoutes() {
   return (
@@ -34,6 +35,12 @@ export default function AppRoutes() {
             <Route path="profile" element={<Profile />} />
           </Route>
           <Route
+            path="authors"
+            element={<RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.USER]} />}
+          >
+            <Route path="new" element={<CreateAuthorPage />} />
+          </Route>
+          <Route
             path="blogs"
             element={<RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.USER]} />}
           >
@@ -43,7 +50,7 @@ export default function AppRoutes() {
             <Route index element={<Home />} />
             <Route path=":id" element={<ViewBlog />} />
             <Route path="author">
-              <Route path=":id" element={<AuthorBlog />} />
+              <Route path=":slug" element={<AuthorBlog />} />
             </Route>
           </Route>
         </Route>

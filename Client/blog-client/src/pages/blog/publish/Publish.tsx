@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { publishBlogSchema, type PublishBlogFormValues } from "./model/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Divider from "@mui/material/Divider";
@@ -42,7 +42,7 @@ export default function PublishPage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<PublishBlogFormValues>({
@@ -55,7 +55,7 @@ export default function PublishPage() {
     mode: "all",
   });
 
-  const title = watch("title");
+  const title = useWatch({ control, name: "title" });
 
   useEffect(() => {
     if (title) {

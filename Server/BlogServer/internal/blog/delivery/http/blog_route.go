@@ -9,6 +9,7 @@ func (h *BlogHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 		blogs.GET("", h.getAllBlogs)
 		blogs.GET("/:slug", h.getBlogByUrlSlug)
 		blogs.GET("/id/:id", h.getBlogByID)
+		blogs.GET("/author/:slug", h.getBlogsByAuthorSlug)
 	}
 }
 
