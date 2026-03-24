@@ -10,9 +10,9 @@ import (
 )
 
 const getUnprocessedEvent = `-- name: GetUnprocessedEvent :many
-SELECT id, topic, payload
+SELECT id, topic, payload, retries
 FROM outbox.outbox_events
-WHERE processed_at IS NULL
+WHERE processed_at IS NULL AND retries < 3
 ORDER BY created_at
 LIMIT 50
 FOR UPDATE SKIP LOCKED
@@ -22,6 +22,7 @@ type GetUnprocessedEventRow struct {
 	ID      int64
 	Topic   string
 	Payload []byte
+	Retries int32
 }
 
 func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]GetUnprocessedEventRow, error) {
@@ -33,7 +34,12 @@ func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]GetUnprocessedEven
 	var items []GetUnprocessedEventRow
 	for rows.Next() {
 		var i GetUnprocessedEventRow
-		if err := rows.Scan(&i.ID, &i.Topic, &i.Payload); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Topic,
+			&i.Payload,
+			&i.Retries,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -68,5 +74,16 @@ WHERE id = ANY($1::bigint[])
 
 func (q *Queries) UpdateProcessedAt(ctx context.Context, dollar_1 []int64) error {
 	_, err := q.db.Exec(ctx, updateProcessedAt, dollar_1)
+	return err
+}
+
+const updateRetiresInBatch = `-- name: UpdateRetiresInBatch :exec
+UPDATE outbox.outbox_events
+SET retries = retries + 1
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) UpdateRetiresInBatch(ctx context.Context, dollar_1 []int64) error {
+	_, err := q.db.Exec(ctx, updateRetiresInBatch, dollar_1)
 	return err
 }

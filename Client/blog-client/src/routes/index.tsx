@@ -12,6 +12,7 @@ import NotFound from "@/pages/NotFound/NotFound";
 import ErrorBoundary from "@/pages/error/ErrorBoundary";
 import ViewBlog from "@/pages/blog/viewBlog/ViewBlog";
 import AuthorBlog from "@/pages/blog/authorBlog/AuthorBlog";
+import CreateAuthorPage from "@/pages/author/CreateAuthorPage";
 
 export default function AppRoutes() {
   return (
@@ -32,6 +33,12 @@ export default function AppRoutes() {
           >
             <Route index element={<UserHome />} />
             <Route path="profile" element={<Profile />} />
+          </Route>
+          <Route
+            path="authors"
+            element={<RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.USER]} />}
+          >
+            <Route path="new" element={<CreateAuthorPage />} />
           </Route>
           <Route
             path="blogs"

@@ -8,7 +8,7 @@ import Typography from "@mui/material/Typography";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import MoreIcon from "@mui/icons-material/MoreVert";
 import { Link, Outlet, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BorderColor from "@mui/icons-material/BorderColor";
 import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
@@ -18,8 +18,11 @@ import NotificationMenu from "./NotificationMenu";
 import MobileMenu from "./MobileMenu";
 import BigScreenMenu from "./BigScreenMenu";
 import GoToTopButton from "@/components/Goto/Goto";
+import { useQueryClient } from "@tanstack/react-query";
+import { getFollowedAuthorsRequest } from "@/api/authorApi";
 
 export default function BasicLayout() {
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -28,6 +31,7 @@ export default function BasicLayout() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const isMenuOpen = Boolean(anchorEl);
   const isMobileMenuOpen = Boolean(mobileMoreAnchorEl);
+  const hasPrefetched = useRef(false);
 
   const menuId = "primary-search-account-menu";
   const mobileMenuId = "primary-search-account-menu-mobile";
@@ -38,6 +42,18 @@ export default function BasicLayout() {
     ["blog_created_admin"],
     setSnackbarOpen
   );
+
+  useEffect(() => {
+    if (!isAuthenticated || hasPrefetched.current) return;
+
+    queryClient
+      .prefetchQuery({
+        queryKey: ["followed_authors"],
+        queryFn: () => getFollowedAuthorsRequest(),
+        staleTime: 1000 * 60 * 5,
+      })
+      .then((data) => console.log(data));
+  }, [isAuthenticated, queryClient]);
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -127,6 +143,22 @@ export default function BasicLayout() {
                   >
                     <BorderColor />
                     <Typography ml={2}>Publish new blog</Typography>
+                  </Button>
+                  <Button
+                    component={Link}
+                    to="/authors/new"
+                    size="large"
+                    aria-label="account of current user"
+                    aria-haspopup="true"
+                    color="info"
+                    title="Become an author"
+                    variant="contained"
+                    sx={{
+                      mx: 1,
+                    }}
+                  >
+                    <BorderColor />
+                    <Typography ml={2}>Become an author</Typography>
                   </Button>
                   <IconButton
                     size="large"

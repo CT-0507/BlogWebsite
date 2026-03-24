@@ -12,6 +12,7 @@ type OutboxOutboxEvent struct {
 	ID          int64
 	Topic       string
 	Payload     []byte
+	Retries     int32
 	CreatedAt   pgtype.Timestamptz
 	ProcessedAt pgtype.Timestamptz
 }

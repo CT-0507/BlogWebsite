@@ -3,7 +3,7 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import type { Blog } from "@/pages/home/BlogList";
-import { getAuthorBlogs } from "@/api/authorApi";
+import { getAuthorBlogsRequest } from "@/api/authorApi";
 import { useQuery } from "@tanstack/react-query";
 import { relativeTime } from "@/utils/timeUtils";
 import { truncate } from "@/utils/textUtils";
@@ -14,7 +14,7 @@ interface AuthorBlogsColumnProps {
 export default function AuthorBlogsColumn({ slug }: AuthorBlogsColumnProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["author_blogs", slug],
-    queryFn: () => getAuthorBlogs(slug),
+    queryFn: () => getAuthorBlogsRequest(slug),
     staleTime: Infinity,
   });
   const blogs = data as Blog[];

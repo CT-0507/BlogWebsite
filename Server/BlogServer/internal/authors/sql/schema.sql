@@ -3,7 +3,7 @@ CREATE SCHEMA IF NOT EXISTS authors;
 
 CREATE TABLE authors.authors (
     author_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL, -- external reference (NO FK)
+    user_id TEXT NOT NULL UNIQUE, -- external reference (NO FK)
     display_name VARCHAR(100) NOT NULL,
 
     bio TEXT,

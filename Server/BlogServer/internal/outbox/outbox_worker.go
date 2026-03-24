@@ -10,6 +10,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const MAX_RETRIES = 3
+
+type OutboxRepository interface {
+	Insert(ctx context.Context, topic string, payload []byte) error
+	UpdateProcessedAt(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error
+	GetUnprocessedEvent(ctx context.Context, q *outboxdb.Queries) ([]outboxdb.GetUnprocessedEventRow, error)
+	UpdateRetries(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error
+}
+
 type OutboxWorker struct {
 	db         *pgxpool.Pool
 	bus        *event.Bus
@@ -53,12 +62,18 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 	}
 
 	var ids []int64
+	var failedIds []int64
 
 	for _, row := range rows {
+
+		if row.Retries >= MAX_RETRIES {
+			continue
+		}
 
 		err = w.handleEvent(row.Topic, row.Payload)
 		if err != nil {
 			log.Println(err)
+			failedIds = append(failedIds, row.ID)
 			continue
 		}
 
@@ -67,6 +82,17 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 
 	if len(ids) > 0 {
 		err := w.outboxRepo.UpdateProcessedAt(ctx, q, ids)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(failedIds) > 0 {
+
+		log.Println("Failed messages")
+		log.Println(failedIds)
+
+		err := w.outboxRepo.UpdateRetries(ctx, q, failedIds)
 		if err != nil {
 			return
 		}

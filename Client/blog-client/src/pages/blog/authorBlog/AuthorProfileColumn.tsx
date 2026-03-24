@@ -6,33 +6,30 @@ import Avatar from "@mui/material/Avatar";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 import { useQuery } from "@tanstack/react-query";
-import { getAuthorProfile } from "@/api/authorApi";
+import { getAuthorProfileRequest } from "@/api/authorApi";
 import { relativeTime } from "@/utils/timeUtils";
+import type { Author } from "@/types/types";
+import FollowSection from "./FollowSection";
+import { useAuth } from "@/hooks/useAuth";
+import NotLoginFollowButton from "./NotLoginFollowButton";
+import FollowersSection from "./FollowerSection";
 
 interface AuthorProfileColumnProps {
   slug: string;
 }
-interface Author {
-  authorID: string;
-  displayName: string;
-  bio: string;
-  avatar: string;
-  slug: string;
-  socialLink: string;
-  email: string;
-  followerCount: number;
-  blogCount: number;
-  createdAt: string;
-}
+
 export default function AuthorProfileColumn({
   slug,
 }: AuthorProfileColumnProps) {
+  const isAuthenticated = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ["author", slug],
-    queryFn: () => getAuthorProfile(slug),
-    staleTime: Infinity,
+    queryFn: () => getAuthorProfileRequest(slug),
   });
+
+  console.log(data);
   const author = data as Author;
+
   return (
     <Grid size={{ xs: 12, md: 3 }}>
       <Box sx={{ position: "sticky", top: 24 }}>
@@ -47,6 +44,13 @@ export default function AuthorProfileColumn({
               <Typography variant="body2" color="text.secondary">
                 Frontend Engineer & Technical Writer
               </Typography>
+              <Divider sx={{ my: 2 }} />
+              {isAuthenticated ? (
+                <FollowSection author={author} />
+              ) : (
+                <NotLoginFollowButton />
+              )}
+              <FollowersSection slug={slug} />
               <Divider sx={{ my: 2 }} />
               <Typography variant="body2">
                 {author.bio}

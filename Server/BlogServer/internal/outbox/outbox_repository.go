@@ -8,23 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type OutboxRepository interface {
-	Insert(ctx context.Context, topic string, payload []byte) error
-	UpdateProcessedAt(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error
-	GetUnprocessedEvent(ctx context.Context, q *outboxdb.Queries) ([]outboxdb.GetUnprocessedEventRow, error)
-}
-
-type outboxRepository struct {
+type OutboxRepositoryImpl struct {
 	pool *pgxpool.Pool
 }
 
-func New(pool *pgxpool.Pool) OutboxRepository {
-	return &outboxRepository{
+func New(pool *pgxpool.Pool) *OutboxRepositoryImpl {
+	return &OutboxRepositoryImpl{
 		pool: pool,
 	}
 }
 
-func (r *outboxRepository) Insert(ctx context.Context, topic string, payload []byte) error {
+func (r *OutboxRepositoryImpl) Insert(ctx context.Context, topic string, payload []byte) error {
 
 	db := utils.GetExecutor(ctx, r.pool)
 
@@ -35,10 +29,14 @@ func (r *outboxRepository) Insert(ctx context.Context, topic string, payload []b
 	})
 }
 
-func (r *outboxRepository) UpdateProcessedAt(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error {
+func (r *OutboxRepositoryImpl) UpdateProcessedAt(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error {
 	return q.UpdateProcessedAt(ctx, outboxID)
 }
 
-func (r *outboxRepository) GetUnprocessedEvent(ctx context.Context, q *outboxdb.Queries) ([]outboxdb.GetUnprocessedEventRow, error) {
+func (r *OutboxRepositoryImpl) UpdateRetries(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error {
+	return q.UpdateRetiresInBatch(ctx, outboxID)
+}
+
+func (r *OutboxRepositoryImpl) GetUnprocessedEvent(ctx context.Context, q *outboxdb.Queries) ([]outboxdb.GetUnprocessedEventRow, error) {
 	return q.GetUnprocessedEvent(ctx)
 }

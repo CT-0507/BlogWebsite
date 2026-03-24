@@ -500,7 +500,20 @@ func (h *AuthorProfileHandler) getFollowedAuthors(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, authors)
+	if len(authors) == 0 {
+		c.JSON(http.StatusOK, &gin.H{
+			"message": "Ok",
+			"length":  0,
+			"authors": []string{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, &gin.H{
+		"message": "Ok",
+		"length":  len(authors),
+		"authors": authors,
+	})
 }
 
 // Author Profile Presentation

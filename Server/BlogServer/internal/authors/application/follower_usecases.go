@@ -5,17 +5,16 @@ import (
 	"encoding/json"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
 type FollowerUsecases struct {
 	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
-	outboxRepo outbox.OutboxRepository
+	outboxRepo OutboxRepository
 }
 
-func NewFollowerUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outbox.OutboxRepository) *FollowerUsecases {
+func NewFollowerUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo OutboxRepository) *FollowerUsecases {
 	return &FollowerUsecases{
 		txManager:  txManager,
 		repo:       repo,

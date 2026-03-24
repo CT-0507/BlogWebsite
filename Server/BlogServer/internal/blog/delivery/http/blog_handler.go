@@ -74,12 +74,6 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if len(blogs) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "success with no data",
-		})
-		return
-	}
 	c.JSON(http.StatusOK, blogs)
 }
 
@@ -101,12 +95,6 @@ func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
 	blogs, err := h.service.ListAuthorBlogsBySlug(ctx, slug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if len(blogs) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "success with no data",
-		})
 		return
 	}
 	c.JSON(http.StatusOK, blogs)
