@@ -5,30 +5,31 @@ import (
 	"log"
 	"time"
 
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event"
-	outboxdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox/db"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/google/uuid"
 )
 
 const MAX_RETRIES = 3
 
 type OutboxRepository interface {
-	Insert(ctx context.Context, topic string, payload []byte) error
-	UpdateProcessedAt(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error
-	GetUnprocessedEvent(ctx context.Context, q *outboxdb.Queries) ([]outboxdb.GetUnprocessedEventRow, error)
-	UpdateRetries(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error
+	Insert(ctx context.Context, event *messaging.OutboxEvent) error
+	UpdateProcessedAt(ctx context.Context, outboxIDs []uuid.UUID) error
+	GetUnprocessedEvent(ctx context.Context) ([]messaging.OutboxEvent, error)
+	UpdateRetries(ctx context.Context, outboxIDs []uuid.UUID) error
 }
 
 type OutboxWorker struct {
-	db         *pgxpool.Pool
-	bus        *event.Bus
+	txManager  database.TxManager
+	publisher  messaging.EventPublisher
 	outboxRepo OutboxRepository
 }
 
-func NewOutboxWorker(db *pgxpool.Pool, bus *event.Bus, outboxRepo OutboxRepository) *OutboxWorker {
+func NewOutboxWorker(txManager database.TxManager, publisher messaging.EventPublisher, outboxRepo OutboxRepository, orchestrator domain.Orchestrator) *OutboxWorker {
 	return &OutboxWorker{
-		db:         db,
-		bus:        bus,
+		txManager:  txManager,
+		publisher:  publisher,
 		outboxRepo: outboxRepo,
 	}
 }
@@ -49,89 +50,55 @@ func (w *OutboxWorker) Start(ctx context.Context) {
 }
 
 func (w *OutboxWorker) processBatch(ctx context.Context) {
-
-	tx, err := w.db.Begin(ctx)
-	if err != nil {
-		return
-	}
-	defer tx.Rollback(ctx)
-	q := outboxdb.New(tx)
-	rows, err := w.outboxRepo.GetUnprocessedEvent(ctx, q)
-	if err != nil {
-		return
-	}
-
-	var ids []int64
-	var failedIds []int64
-
-	for _, row := range rows {
-
-		if row.Retries >= MAX_RETRIES {
-			continue
-		}
-
-		err = w.handleEvent(row.Topic, row.Payload)
+	w.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+		events, err := w.outboxRepo.GetUnprocessedEvent(ctx)
 		if err != nil {
-			log.Println(err)
-			failedIds = append(failedIds, row.ID)
-			continue
+			return err
 		}
 
-		ids = append(ids, row.ID)
-	}
+		var ids []uuid.UUID
+		var failedIds []uuid.UUID
 
-	if len(ids) > 0 {
-		err := w.outboxRepo.UpdateProcessedAt(ctx, q, ids)
-		if err != nil {
-			return
+		for _, evt := range events {
+
+			if evt.RetryCount >= MAX_RETRIES {
+				continue
+			}
+
+			err = w.handleEvent(evt)
+			if err != nil {
+				log.Println(err)
+				failedIds = append(failedIds, evt.ID)
+				continue
+			}
+
+			ids = append(ids, evt.ID)
 		}
-	}
 
-	if len(failedIds) > 0 {
-
-		log.Println("Failed messages")
-		log.Println(failedIds)
-
-		err := w.outboxRepo.UpdateRetries(ctx, q, failedIds)
-		if err != nil {
-			return
+		if len(ids) > 0 {
+			err := w.outboxRepo.UpdateProcessedAt(ctx, ids)
+			if err != nil {
+				return err
+			}
 		}
-	}
-
-	tx.Commit(ctx)
+		return nil
+	})
 }
 
-// event
-// type BlogCreatedEvent struct {
-// 	BlogID int64
-// 	Type   string
-// }
-
-func (w *OutboxWorker) handleEvent(topic string, payload []byte) error {
+func (w *OutboxWorker) handleEvent(evt messaging.OutboxEvent) error {
 
 	log.Print("Proccess topic: ")
-	log.Println(topic)
+	log.Println(evt.EventType)
 
-	switch topic {
+	switch evt.EventType {
 
 	case "blog.created", "authorFollower.created", "authorFollower.deleted", "authorIdentity.created", "authorIdentity.deleted", "authorIdentity.hardDeleted":
-		// var evt BlogCreatedEvent
-		// json.Unmarshal(payload, &evt)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		return w.bus.Publish(ctx, topic, payload)
+		return w.publisher.Publish(evt)
 
 	case "notification.created":
 
-		// var evt BlogCreatedEvent
-		// json.Unmarshal(payload, &evt)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
-		return w.bus.Publish(ctx, topic, payload)
+		return w.publisher.Publish(evt)
 
 	}
 

@@ -1,15 +1,15 @@
 -- name: InsertRecord :exec
 INSERT INTO outbox.outbox_events
-    (topic, payload)
-VALUES ($1,$2);
+    (saga_id, event_type, payload)
+VALUES ($1, $2, $3);
 
 -- name: UpdateProcessedAt :exec
 UPDATE outbox.outbox_events
     SET processed_at = NOW()
-WHERE id = ANY($1::bigint[]);
+WHERE id = ANY($1::UUID[]);
 
 -- name: GetUnprocessedEvent :many
-SELECT id, topic, payload, retries
+SELECT *
 FROM outbox.outbox_events
 WHERE processed_at IS NULL AND retries < 3
 ORDER BY created_at
@@ -18,5 +18,5 @@ FOR UPDATE SKIP LOCKED;
 
 -- name: UpdateRetiresInBatch :exec
 UPDATE outbox.outbox_events
-SET retries = retries + 1
-WHERE id = ANY($1::bigint[]);
+SET retry_count = retry_count + 1
+WHERE id = ANY($1::UUID[]);

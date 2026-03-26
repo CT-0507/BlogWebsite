@@ -2,10 +2,10 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
@@ -52,12 +52,9 @@ func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Bl
 			BlogTitle: insertedBlog.Title,
 		}
 
-		payload, err := json.Marshal(event)
-		if err != nil {
-			return err
-		}
-
-		err = s.outboxRepo.Insert(c, event.EventName(), payload)
+		err = s.outboxRepo.Insert(c, &messaging.OutboxEvent{
+			Payload: event,
+		})
 		if err != nil {
 			return err
 		}
@@ -71,27 +68,25 @@ func (s *CreateBlogUseCases) VerifyAuthorIDByUserID(c context.Context, userID st
 }
 
 // Handle blog posted event for event bus
-func (s *CreateBlogUseCases) OnBlogPosted(c context.Context, payload []byte) error {
+func (s *CreateBlogUseCases) OnBlogPosted(c context.Context, payload BlogCreatedEvent) error {
 	return s.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-		var evt BlogCreatedEvent
-		if err := json.Unmarshal(payload, &evt); err != nil {
-			return err
-		}
-
-		content := fmt.Sprintf("A blog with title %s has just been created", evt.BlogTitle)
+		content := fmt.Sprintf("A blog with title %s has just been created", payload.BlogTitle)
 		not, err := s.userService.CreateNotification(c, content, uuid.MustParse(config.ADMIN_ID), uuid.MustParse(config.SYSTEM_ID))
 		if err != nil {
 			return err
 		}
 
-		// Insert event into outbox table
-		notificationPayload, err := json.Marshal(not)
-		if err != nil {
-			return err
+		newPayload := map[string]any{
+			"blogID":    payload.BlogID,
+			"blogTitle": payload.BlogTitle,
+			"userID":    not.UserID,
 		}
 
-		err = s.outboxRepo.Insert(c, "notification.created", notificationPayload)
+		err = s.outboxRepo.Insert(c, &messaging.OutboxEvent{
+			EventType: "blogCreated",
+			Payload:   newPayload,
+		})
 		if err != nil {
 			return err
 		}

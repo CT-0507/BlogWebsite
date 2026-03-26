@@ -1,6 +1,10 @@
-package saga
+package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type SagaStatus string
 
@@ -21,28 +25,34 @@ const (
 )
 
 type Saga struct {
-	ID          string
+	ID          uuid.UUID
 	Type        string
 	Status      SagaStatus
-	CurrentStep int
+	CurrentStep int32
+	Payload     interface{}
 	Context     map[string]interface{}
+	Error       *string
+	TotalSteps  int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
 type SagaStep struct {
-	SagaID     string
+	ID         uuid.UUID
+	SagaID     uuid.UUID
 	StepIndex  int
 	Name       string
+	Context    map[string]interface{}
 	Status     StepStatus
 	RetryCount int
-	LastError  string
 }
 
 type Step struct {
-	Name       string
-	ActionType string
-	Compensate string
+	Name           string
+	ActionType     string
+	CompensateType string
+	Next           string
+	MaxRetries     int
 }
 
 type SagaDefinition struct {

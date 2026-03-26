@@ -64,3 +64,14 @@ sql:
         out: "internal/authors/infrastructure/db"
         sql_package: "pgx/v5"
         overrides: *common_overrides
+
+  - engine: "postgresql"
+    queries: "internal/saga/sql"
+    schema:
+      - "internal/saga/sql"
+    gen:
+      go:
+        package: "sagadb"
+        out: "internal/saga/infrastructure/db"
+        sql_package: "pgx/v5"
+        overrides: *common_overrides

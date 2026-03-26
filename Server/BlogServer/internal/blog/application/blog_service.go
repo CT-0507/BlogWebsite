@@ -8,7 +8,7 @@ import (
 
 type BlogService interface {
 	CreateWithOutBox(c context.Context, blog *domain.Blog, userID string) error
-	OnBlogPosted(c context.Context, payload []byte) error
+	OnBlogPosted(c context.Context, payload any) error
 	GetAll(ctx context.Context) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/application"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
@@ -41,8 +42,8 @@ func (s *BlogService) CreateWithOutBox(c context.Context, blog *domain.Blog, use
 	return s.createBlog.CreateWithOutBox(c, blog, userID)
 }
 
-func (s *BlogService) OnBlogPosted(c context.Context, payload []byte) error {
-	return s.createBlog.OnBlogPosted(c, payload)
+func (s *BlogService) OnBlogPosted(c context.Context, e messaging.OutboxEvent) error {
+	return s.createBlog.OnBlogPosted(c, e.Payload.(application.BlogCreatedEvent))
 }
 
 func (s *BlogService) GetAll(ctx context.Context) ([]domain.BlogWithAuthorData, error) {

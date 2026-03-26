@@ -7,10 +7,12 @@ package outboxdb
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const getUnprocessedEvent = `-- name: GetUnprocessedEvent :many
-SELECT id, topic, payload, retries
+SELECT id, saga_id, event_type, payload, retry_count, created_at, processed_at
 FROM outbox.outbox_events
 WHERE processed_at IS NULL AND retries < 3
 ORDER BY created_at
@@ -18,27 +20,23 @@ LIMIT 50
 FOR UPDATE SKIP LOCKED
 `
 
-type GetUnprocessedEventRow struct {
-	ID      int64
-	Topic   string
-	Payload []byte
-	Retries int32
-}
-
-func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]GetUnprocessedEventRow, error) {
+func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]OutboxOutboxEvent, error) {
 	rows, err := q.db.Query(ctx, getUnprocessedEvent)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUnprocessedEventRow
+	var items []OutboxOutboxEvent
 	for rows.Next() {
-		var i GetUnprocessedEventRow
+		var i OutboxOutboxEvent
 		if err := rows.Scan(
 			&i.ID,
-			&i.Topic,
+			&i.SagaID,
+			&i.EventType,
 			&i.Payload,
-			&i.Retries,
+			&i.RetryCount,
+			&i.CreatedAt,
+			&i.ProcessedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -52,38 +50,45 @@ func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]GetUnprocessedEven
 
 const insertRecord = `-- name: InsertRecord :exec
 INSERT INTO outbox.outbox_events
-    (topic, payload)
-VALUES ($1,$2)
+    (saga_id, event_type, payload, retry_count)
+VALUES ($1, $2, $3, $4)
 `
 
 type InsertRecordParams struct {
-	Topic   string
-	Payload []byte
+	SagaID     *uuid.UUID
+	EventType  string
+	Payload    []byte
+	RetryCount int32
 }
 
 func (q *Queries) InsertRecord(ctx context.Context, arg InsertRecordParams) error {
-	_, err := q.db.Exec(ctx, insertRecord, arg.Topic, arg.Payload)
+	_, err := q.db.Exec(ctx, insertRecord,
+		arg.SagaID,
+		arg.EventType,
+		arg.Payload,
+		arg.RetryCount,
+	)
 	return err
 }
 
 const updateProcessedAt = `-- name: UpdateProcessedAt :exec
 UPDATE outbox.outbox_events
     SET processed_at = NOW()
-WHERE id = ANY($1::bigint[])
+WHERE id = ANY($1::UUID[])
 `
 
-func (q *Queries) UpdateProcessedAt(ctx context.Context, dollar_1 []int64) error {
+func (q *Queries) UpdateProcessedAt(ctx context.Context, dollar_1 []uuid.UUID) error {
 	_, err := q.db.Exec(ctx, updateProcessedAt, dollar_1)
 	return err
 }
 
 const updateRetiresInBatch = `-- name: UpdateRetiresInBatch :exec
 UPDATE outbox.outbox_events
-SET retries = retries + 1
-WHERE id = ANY($1::bigint[])
+SET retry_count = retry_count + 1
+WHERE id = ANY($1::UUID[])
 `
 
-func (q *Queries) UpdateRetiresInBatch(ctx context.Context, dollar_1 []int64) error {
+func (q *Queries) UpdateRetiresInBatch(ctx context.Context, dollar_1 []uuid.UUID) error {
 	_, err := q.db.Exec(ctx, updateRetiresInBatch, dollar_1)
 	return err
 }

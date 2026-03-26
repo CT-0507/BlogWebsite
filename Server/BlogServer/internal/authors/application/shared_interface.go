@@ -1,7 +1,11 @@
 package application
 
-import "context"
+import (
+	"context"
+
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+)
 
 type OutboxRepository interface {
-	Insert(ctx context.Context, topic string, payload []byte) error
+	Insert(ctx context.Context, evt messaging.OutboxEvent) error
 }

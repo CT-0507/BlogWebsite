@@ -2,9 +2,12 @@ package outbox
 
 import (
 	"context"
+	"encoding/json"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	outboxdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox/db"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,25 +21,45 @@ func New(pool *pgxpool.Pool) *OutboxRepositoryImpl {
 	}
 }
 
-func (r *OutboxRepositoryImpl) Insert(ctx context.Context, topic string, payload []byte) error {
+func (r *OutboxRepositoryImpl) Insert(ctx context.Context, event *messaging.OutboxEvent) error {
 
 	db := utils.GetExecutor(ctx, r.pool)
 
+	data, _ := json.Marshal(event.Payload)
+
 	q := outboxdb.New(db)
 	return q.InsertRecord(ctx, outboxdb.InsertRecordParams{
-		Topic:   topic,
-		Payload: payload,
+		SagaID:    event.SagaID,
+		EventType: event.EventType,
+		Payload:   data,
 	})
 }
 
-func (r *OutboxRepositoryImpl) UpdateProcessedAt(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error {
-	return q.UpdateProcessedAt(ctx, outboxID)
+func (r *OutboxRepositoryImpl) UpdateProcessedAt(ctx context.Context, outboxIDs []uuid.UUID) error {
+	db := utils.GetExecutor(ctx, r.pool)
+	q := outboxdb.New(db)
+	return q.UpdateProcessedAt(ctx, outboxIDs)
 }
 
-func (r *OutboxRepositoryImpl) UpdateRetries(ctx context.Context, q *outboxdb.Queries, outboxID []int64) error {
-	return q.UpdateRetiresInBatch(ctx, outboxID)
+func (r *OutboxRepositoryImpl) UpdateRetries(ctx context.Context, outboxIDs []uuid.UUID) error {
+	db := utils.GetExecutor(ctx, r.pool)
+	q := outboxdb.New(db)
+	return q.UpdateRetiresInBatch(ctx, outboxIDs)
 }
 
-func (r *OutboxRepositoryImpl) GetUnprocessedEvent(ctx context.Context, q *outboxdb.Queries) ([]outboxdb.GetUnprocessedEventRow, error) {
-	return q.GetUnprocessedEvent(ctx)
+func (r *OutboxRepositoryImpl) GetUnprocessedEvent(ctx context.Context) ([]messaging.OutboxEvent, error) {
+	db := utils.GetExecutor(ctx, r.pool)
+	q := outboxdb.New(db)
+	outboxEvents, err := q.GetUnprocessedEvent(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []messaging.OutboxEvent
+	for _, value := range outboxEvents {
+		v := value
+		events = append(events, *MapToOutboxEvent(&v))
+	}
+
+	return events, nil
 }
