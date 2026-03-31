@@ -29,10 +29,8 @@ type Saga struct {
 	Type        string
 	Status      SagaStatus
 	CurrentStep int32
-	Payload     interface{}
-	Context     map[string]interface{}
+	Context     []byte
 	Error       *string
-	TotalSteps  int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -40,11 +38,13 @@ type Saga struct {
 type SagaStep struct {
 	ID         uuid.UUID
 	SagaID     uuid.UUID
-	StepIndex  int
-	Name       string
-	Context    map[string]interface{}
+	StepIndex  int32
+	StepName   string
+	EventID    uuid.UUID
+	Input      []byte
+	Output     *[]byte
 	Status     StepStatus
-	RetryCount int
+	RetryCount int32
 }
 
 type Step struct {
@@ -52,7 +52,7 @@ type Step struct {
 	ActionType     string
 	CompensateType string
 	Next           string
-	MaxRetries     int
+	MaxRetries     int32
 }
 
 type SagaDefinition struct {

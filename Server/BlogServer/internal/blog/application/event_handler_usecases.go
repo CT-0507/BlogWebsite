@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
@@ -20,40 +21,40 @@ func NewEventHandlerUsecases(txManager database.TxManager, repo domain.BlogRepos
 	}
 }
 
-func (u *EventHandlerUsecases) OnAuthorCreated(c context.Context, payload []byte) error {
+func (u *EventHandlerUsecases) OnAuthorCreated(c context.Context, evt *messaging.OutboxEvent) error {
 	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-		var evt domain.AuthorCreatedEvent
-		if err := json.Unmarshal(payload, &evt); err != nil {
+		var event domain.AuthorCreatedEvent
+		if err := json.Unmarshal(evt.Payload, &event); err != nil {
 			return err
 		}
 
-		return u.repo.CreateUserIDAuthorProfileIDCacheRecord(c, evt.UserID, evt.AuthorID, evt.Slug, evt.DisplayName)
+		return u.repo.CreateUserIDAuthorProfileIDCacheRecord(c, event.UserID, event.AuthorID, event.Slug, event.DisplayName)
 	})
 }
 
-func (u *EventHandlerUsecases) OnAuthorDeleted(c context.Context, payload []byte) error {
+func (u *EventHandlerUsecases) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
 	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-		var evt domain.AuthorDeletedEvent
-		if err := json.Unmarshal(payload, &evt); err != nil {
+		var event domain.AuthorDeletedEvent
+		if err := json.Unmarshal(evt.Payload, &event); err != nil {
 			return err
 		}
-		return u.repo.UpdateBlogStatusForDeletedAuthor(c, evt.AuthorID)
+		return u.repo.UpdateBlogStatusForDeletedAuthor(c, event.AuthorID)
 	})
 }
 
-func (u *EventHandlerUsecases) OnAuthorHardDeleted(c context.Context, payload []byte) error {
+func (u *EventHandlerUsecases) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
 	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-		var evt domain.AuthorDeletedEvent
-		if err := json.Unmarshal(payload, &evt); err != nil {
+		var event domain.AuthorDeletedEvent
+		if err := json.Unmarshal(evt.Payload, &event); err != nil {
 			return err
 		}
-		err := u.repo.DeleteAuthorCache(c, evt.AuthorID)
+		err := u.repo.DeleteAuthorCache(c, event.AuthorID)
 		if err != nil {
 			return err
 		}
-		return u.repo.DeleteAuthorHardDeletedBlogs(c, evt.AuthorID)
+		return u.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
 	})
 }

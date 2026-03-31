@@ -14,9 +14,9 @@ import (
 
 const createSaga = `-- name: CreateSaga :one
 INSERT INTO saga.sagas (
-  saga_type, status, current_step, payload, context, error
+  saga_type, status, current_step, context
 ) VALUES (
-  $1, $2, $3, $4, $5, $6
+  $1, $2, $3, $4
 )
 RETURNING id
 `
@@ -24,10 +24,8 @@ RETURNING id
 type CreateSagaParams struct {
 	SagaType    string
 	Status      string
-	CurrentStep pgtype.Text
-	Payload     []byte
+	CurrentStep int32
 	Context     []byte
-	Error       pgtype.Text
 }
 
 func (q *Queries) CreateSaga(ctx context.Context, arg CreateSagaParams) (uuid.UUID, error) {
@@ -35,45 +33,175 @@ func (q *Queries) CreateSaga(ctx context.Context, arg CreateSagaParams) (uuid.UU
 		arg.SagaType,
 		arg.Status,
 		arg.CurrentStep,
-		arg.Payload,
 		arg.Context,
-		arg.Error,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
 
-type CreateSagaStepsParams struct {
-	SagaID      *uuid.UUID
-	StepIndex   int32
-	StepName    string
-	Status      string
-	RetryCount  int32
-	MaxRetries  int32
-	NextRetryAt pgtype.Timestamptz
-	Context     []byte
-}
-
-const markSagaAsFailed = `-- name: MarkSagaAsFailed :exec
-UPDATE saga.sagas
-SET status = 'failed'
-WHERE id = $1
+const createSagaStep = `-- name: CreateSagaStep :exec
+INSERT INTO saga.saga_steps (
+  saga_id, step_index, step_name, status, event_id, input
+) VALUES (
+  $1, $2, $3, $4, $5, $6
+)
 `
 
-func (q *Queries) MarkSagaAsFailed(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markSagaAsFailed, id)
+type CreateSagaStepParams struct {
+	SagaID    uuid.UUID
+	StepIndex int32
+	StepName  string
+	Status    string
+	EventID   uuid.UUID
+	Input     []byte
+}
+
+func (q *Queries) CreateSagaStep(ctx context.Context, arg CreateSagaStepParams) error {
+	_, err := q.db.Exec(ctx, createSagaStep,
+		arg.SagaID,
+		arg.StepIndex,
+		arg.StepName,
+		arg.Status,
+		arg.EventID,
+		arg.Input,
+	)
 	return err
 }
 
-const updateSaga = `-- name: UpdateSaga :exec
-UPDATE saga.sagas
-SET current_step = current_step + 1
+const getSagaByID = `-- name: GetSagaByID :one
+SELECT id, saga_type, status, current_step, context, error, created_at, updated_at
+FROM saga.sagas
 WHERE id = $1
 `
 
-func (q *Queries) UpdateSaga(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, updateSaga, id)
+func (q *Queries) GetSagaByID(ctx context.Context, id uuid.UUID) (SagaSaga, error) {
+	row := q.db.QueryRow(ctx, getSagaByID, id)
+	var i SagaSaga
+	err := row.Scan(
+		&i.ID,
+		&i.SagaType,
+		&i.Status,
+		&i.CurrentStep,
+		&i.Context,
+		&i.Error,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getStepByIndexAndSagaID = `-- name: GetStepByIndexAndSagaID :one
+SELECT id, saga_id, step_index, step_name, status, event_id, retry_count, next_retry_at, input, output, last_error, created_at, updated_at, compensated_at
+FROM saga.saga_steps
+WHERE saga_id = $1 AND step_index = $2
+`
+
+type GetStepByIndexAndSagaIDParams struct {
+	SagaID    uuid.UUID
+	StepIndex int32
+}
+
+func (q *Queries) GetStepByIndexAndSagaID(ctx context.Context, arg GetStepByIndexAndSagaIDParams) (SagaSagaStep, error) {
+	row := q.db.QueryRow(ctx, getStepByIndexAndSagaID, arg.SagaID, arg.StepIndex)
+	var i SagaSagaStep
+	err := row.Scan(
+		&i.ID,
+		&i.SagaID,
+		&i.StepIndex,
+		&i.StepName,
+		&i.Status,
+		&i.EventID,
+		&i.RetryCount,
+		&i.NextRetryAt,
+		&i.Input,
+		&i.Output,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CompensatedAt,
+	)
+	return i, err
+}
+
+const insertDLQ = `-- name: InsertDLQ :exec
+INSERT INTO saga.dead_letter_queue (
+  saga_id, step_index, step_name, status, event_id, input, output, last_error
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8
+)
+`
+
+type InsertDLQParams struct {
+	SagaID    uuid.UUID
+	StepIndex int32
+	StepName  string
+	Status    string
+	EventID   uuid.UUID
+	Input     []byte
+	Output    []byte
+	LastError pgtype.Text
+}
+
+func (q *Queries) InsertDLQ(ctx context.Context, arg InsertDLQParams) error {
+	_, err := q.db.Exec(ctx, insertDLQ,
+		arg.SagaID,
+		arg.StepIndex,
+		arg.StepName,
+		arg.Status,
+		arg.EventID,
+		arg.Input,
+		arg.Output,
+		arg.LastError,
+	)
+	return err
+}
+
+const updateSagaContextAndIncreaseStep = `-- name: UpdateSagaContextAndIncreaseStep :exec
+UPDATE saga.sagas
+SET context = context || $1::jsonb, current_step = current_step + 1
+WHERE id = $2
+`
+
+type UpdateSagaContextAndIncreaseStepParams struct {
+	Column1 []byte
+	ID      uuid.UUID
+}
+
+func (q *Queries) UpdateSagaContextAndIncreaseStep(ctx context.Context, arg UpdateSagaContextAndIncreaseStepParams) error {
+	_, err := q.db.Exec(ctx, updateSagaContextAndIncreaseStep, arg.Column1, arg.ID)
+	return err
+}
+
+const updateSagaCurrentStep = `-- name: UpdateSagaCurrentStep :exec
+UPDATE saga.sagas
+SET current_step = $2
+WHERE id = $1
+`
+
+type UpdateSagaCurrentStepParams struct {
+	ID          uuid.UUID
+	CurrentStep int32
+}
+
+func (q *Queries) UpdateSagaCurrentStep(ctx context.Context, arg UpdateSagaCurrentStepParams) error {
+	_, err := q.db.Exec(ctx, updateSagaCurrentStep, arg.ID, arg.CurrentStep)
+	return err
+}
+
+const updateSagaStatus = `-- name: UpdateSagaStatus :exec
+UPDATE saga.sagas
+SET status = $2
+WHERE id = $1
+`
+
+type UpdateSagaStatusParams struct {
+	ID     uuid.UUID
+	Status string
+}
+
+func (q *Queries) UpdateSagaStatus(ctx context.Context, arg UpdateSagaStatusParams) error {
+	_, err := q.db.Exec(ctx, updateSagaStatus, arg.ID, arg.Status)
 	return err
 }
 
@@ -88,7 +216,7 @@ WHERE saga_id = $2 AND step_index = $3
 
 type UpdateStepRetriesParams struct {
 	LastError pgtype.Text
-	SagaID    *uuid.UUID
+	SagaID    uuid.UUID
 	StepIndex int32
 }
 
@@ -99,16 +227,40 @@ func (q *Queries) UpdateStepRetries(ctx context.Context, arg UpdateStepRetriesPa
 
 const updateStepStatus = `-- name: UpdateStepStatus :exec
 UPDATE saga.saga_steps
-SET status = 'completed'
+SET status = $3
 WHERE saga_id = $1 AND step_index = $2
 `
 
 type UpdateStepStatusParams struct {
-	SagaID    *uuid.UUID
+	SagaID    uuid.UUID
 	StepIndex int32
+	Status    string
 }
 
 func (q *Queries) UpdateStepStatus(ctx context.Context, arg UpdateStepStatusParams) error {
-	_, err := q.db.Exec(ctx, updateStepStatus, arg.SagaID, arg.StepIndex)
+	_, err := q.db.Exec(ctx, updateStepStatus, arg.SagaID, arg.StepIndex, arg.Status)
+	return err
+}
+
+const updateStepStatusAndOutput = `-- name: UpdateStepStatusAndOutput :exec
+UPDATE saga.saga_steps
+SET status = $3, output = $4
+WHERE saga_id = $1 AND step_index = $2
+`
+
+type UpdateStepStatusAndOutputParams struct {
+	SagaID    uuid.UUID
+	StepIndex int32
+	Status    string
+	Output    []byte
+}
+
+func (q *Queries) UpdateStepStatusAndOutput(ctx context.Context, arg UpdateStepStatusAndOutputParams) error {
+	_, err := q.db.Exec(ctx, updateStepStatusAndOutput,
+		arg.SagaID,
+		arg.StepIndex,
+		arg.Status,
+		arg.Output,
+	)
 	return err
 }

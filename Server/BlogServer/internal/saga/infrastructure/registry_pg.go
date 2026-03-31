@@ -7,7 +7,9 @@ type Registry struct {
 }
 
 func NewRegistry() domain.Registry {
-	return &Registry{}
+	return &Registry{
+		definitions: make(map[string][]domain.Step),
+	}
 }
 
 func (r *Registry) Register(name string, steps []domain.Step) {

@@ -1,4 +1,4 @@
-package application
+package outboxrepo
 
 import (
 	"context"
@@ -7,5 +7,5 @@ import (
 )
 
 type OutboxRepository interface {
-	Insert(ctx context.Context, evt messaging.OutboxEvent) error
+	Insert(ctx context.Context, evt *messaging.OutboxEvent) error
 }

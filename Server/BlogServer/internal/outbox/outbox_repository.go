@@ -2,7 +2,6 @@ package outbox
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	outboxdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox/db"
@@ -25,13 +24,17 @@ func (r *OutboxRepositoryImpl) Insert(ctx context.Context, event *messaging.Outb
 
 	db := utils.GetExecutor(ctx, r.pool)
 
-	data, _ := json.Marshal(event.Payload)
+	var context []byte = nil
+	if event.Context != nil {
+		context = *event.Context
+	}
 
 	q := outboxdb.New(db)
 	return q.InsertRecord(ctx, outboxdb.InsertRecordParams{
 		SagaID:    event.SagaID,
 		EventType: event.EventType,
-		Payload:   data,
+		Payload:   event.Payload,
+		Context:   context,
 	})
 }
 

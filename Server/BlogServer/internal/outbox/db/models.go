@@ -9,21 +9,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type OutboxDeadLetterQueue struct {
-	ID        uuid.UUID
-	SagaID    *uuid.UUID
-	StepIndex pgtype.Int4
-	EventType string
-	Payload   []byte
-	Error     string
-	FailedAt  pgtype.Timestamptz
-}
-
 type OutboxOutboxEvent struct {
 	ID          uuid.UUID
 	SagaID      *uuid.UUID
 	EventType   string
+	Context     []byte
 	Payload     []byte
+	Error       pgtype.Text
 	RetryCount  int32
 	CreatedAt   pgtype.Timestamptz
 	ProcessedAt pgtype.Timestamptz

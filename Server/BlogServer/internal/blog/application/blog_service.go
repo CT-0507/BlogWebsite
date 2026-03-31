@@ -4,11 +4,13 @@ import (
 	"context"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 )
 
 type BlogService interface {
-	CreateWithOutBox(c context.Context, blog *domain.Blog, userID string) error
-	OnBlogPosted(c context.Context, payload any) error
+	CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error
+	CreateBlog(c context.Context, evt *messaging.OutboxEvent) error
+	OnBlogPosted(c context.Context, evt *messaging.OutboxEvent) error
 	GetAll(ctx context.Context) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
@@ -17,7 +19,7 @@ type BlogService interface {
 	DeleteBlog(ctx context.Context, id int64, userID string) (*int64, error)
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
 	// Event handler
-	OnAuthorCreated(c context.Context, payload []byte) error
-	OnAuthorDeleted(c context.Context, payload []byte) error
-	OnAuthorHardDeleted(c context.Context, payload []byte) error
+	OnAuthorCreated(c context.Context, evt *messaging.OutboxEvent) error
+	OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error
+	OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error
 }

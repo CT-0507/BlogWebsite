@@ -9,12 +9,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type SagaDeadLetterQueue struct {
+	ID            uuid.UUID
+	SagaID        uuid.UUID
+	StepIndex     int32
+	StepName      string
+	Status        string
+	EventID       uuid.UUID
+	RetryCount    int32
+	NextRetryAt   pgtype.Timestamptz
+	Input         []byte
+	Output        []byte
+	LastError     pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+	CompensatedAt pgtype.Timestamptz
+	Error         string
+	FailedAt      pgtype.Timestamptz
+}
+
 type SagaSaga struct {
 	ID          uuid.UUID
 	SagaType    string
 	Status      string
-	CurrentStep pgtype.Text
-	Payload     []byte
+	CurrentStep int32
 	Context     []byte
 	Error       pgtype.Text
 	CreatedAt   pgtype.Timestamptz
@@ -23,14 +41,15 @@ type SagaSaga struct {
 
 type SagaSagaStep struct {
 	ID            uuid.UUID
-	SagaID        *uuid.UUID
+	SagaID        uuid.UUID
 	StepIndex     int32
 	StepName      string
 	Status        string
+	EventID       uuid.UUID
 	RetryCount    int32
-	MaxRetries    int32
 	NextRetryAt   pgtype.Timestamptz
-	Context       []byte
+	Input         []byte
+	Output        []byte
 	LastError     pgtype.Text
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz

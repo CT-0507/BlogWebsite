@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/google/uuid"
 )
@@ -26,7 +25,7 @@ type OutboxWorker struct {
 	outboxRepo OutboxRepository
 }
 
-func NewOutboxWorker(txManager database.TxManager, publisher messaging.EventPublisher, outboxRepo OutboxRepository, orchestrator domain.Orchestrator) *OutboxWorker {
+func NewOutboxWorker(txManager database.TxManager, publisher messaging.EventPublisher, outboxRepo OutboxRepository) *OutboxWorker {
 	return &OutboxWorker{
 		txManager:  txManager,
 		publisher:  publisher,
@@ -65,9 +64,9 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 				continue
 			}
 
-			err = w.handleEvent(evt)
-			if err != nil {
-				log.Println(err)
+			errs := w.handleEvent(ctx, &evt)
+			if errs != nil {
+				log.Println(errs)
 				failedIds = append(failedIds, evt.ID)
 				continue
 			}
@@ -76,7 +75,17 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 		}
 
 		if len(ids) > 0 {
+			log.Println("Update proccessed")
+			log.Println(ids[0])
+
 			err := w.outboxRepo.UpdateProcessedAt(ctx, ids)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(failedIds) > 0 {
+			err := w.outboxRepo.UpdateRetries(ctx, failedIds)
 			if err != nil {
 				return err
 			}
@@ -85,22 +94,22 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 	})
 }
 
-func (w *OutboxWorker) handleEvent(evt messaging.OutboxEvent) error {
+func (w *OutboxWorker) handleEvent(ctx context.Context, evt *messaging.OutboxEvent) []error {
 
-	log.Print("Proccess topic: ")
-	log.Println(evt.EventType)
+	log.Print("Proccess topic: " + evt.EventType)
 
-	switch evt.EventType {
+	// switch evt.EventType {
 
-	case "blog.created", "authorFollower.created", "authorFollower.deleted", "authorIdentity.created", "authorIdentity.deleted", "authorIdentity.hardDeleted":
+	// case "blog.created", "authorFollower.created", "authorFollower.deleted", "authorIdentity.created", "authorIdentity.deleted", "authorIdentity.hardDeleted":
 
-		return w.publisher.Publish(evt)
+	// 	return w.publisher.Publish(*w.context, evt)
 
-	case "notification.created":
+	// case "notification.created":
 
-		return w.publisher.Publish(evt)
+	// 	return w.publisher.Publish(evt)
 
-	}
+	// }
 
-	return nil
+	// return nil
+	return w.publisher.Publish(ctx, evt)
 }

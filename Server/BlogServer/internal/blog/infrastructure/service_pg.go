@@ -5,8 +5,8 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/application"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,7 +25,7 @@ func NewBlogService(
 	pool *pgxpool.Pool,
 	repo domain.BlogRepository,
 	userService user.UserService,
-	outboxRepo outbox.OutboxRepository,
+	outboxRepo outboxrepo.OutboxRepository,
 ) application.BlogService {
 	txManager := database.NewTxManager(pool)
 
@@ -38,12 +38,16 @@ func NewBlogService(
 	}
 }
 
-func (s *BlogService) CreateWithOutBox(c context.Context, blog *domain.Blog, userID string) error {
-	return s.createBlog.CreateWithOutBox(c, blog, userID)
+func (s *BlogService) CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error {
+	return s.createBlog.CreateBlogStartSaga(c, blog, userID)
 }
 
-func (s *BlogService) OnBlogPosted(c context.Context, e messaging.OutboxEvent) error {
-	return s.createBlog.OnBlogPosted(c, e.Payload.(application.BlogCreatedEvent))
+func (s *BlogService) CreateBlog(c context.Context, evt *messaging.OutboxEvent) error {
+	return s.createBlog.CreateBlog(c, evt)
+}
+
+func (s *BlogService) OnBlogPosted(c context.Context, evt *messaging.OutboxEvent) error {
+	return s.createBlog.OnBlogPosted(c, evt)
 }
 
 func (s *BlogService) GetAll(ctx context.Context) ([]domain.BlogWithAuthorData, error) {
@@ -70,18 +74,18 @@ func (s *BlogService) ListAuthorBlogsBySlug(ctx context.Context, nickname string
 	return s.listBlogs.ListAuthorBlogsBySlug(ctx, nickname)
 }
 
-func (s *BlogService) OnAuthorCreated(c context.Context, payload []byte) error {
-	return s.eventHandlerUsecases.OnAuthorCreated(c, payload)
+func (s *BlogService) OnAuthorCreated(c context.Context, evt *messaging.OutboxEvent) error {
+	return s.eventHandlerUsecases.OnAuthorCreated(c, evt)
 }
 
 func (s *BlogService) VerifyAuthorIDByUserID(c context.Context, userID string) (string, error) {
 	return s.createBlog.VerifyAuthorIDByUserID(c, userID)
 }
 
-func (s *BlogService) OnAuthorDeleted(c context.Context, payload []byte) error {
-	return s.eventHandlerUsecases.OnAuthorDeleted(c, payload)
+func (s *BlogService) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+	return s.eventHandlerUsecases.OnAuthorDeleted(c, evt)
 }
 
-func (s *BlogService) OnAuthorHardDeleted(c context.Context, payload []byte) error {
-	return s.eventHandlerUsecases.OnAuthorHardDeleted(c, payload)
+func (s *BlogService) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+	return s.eventHandlerUsecases.OnAuthorHardDeleted(c, evt)
 }

@@ -103,6 +103,13 @@ JOIN authors.authors a ON a.author_id = f.author_id
 WHERE a.slug = $1
 ORDER BY a.created_at;
 
+-- name: GetAuthorFollowersByID :many
+SELECT f.user_id
+FROM authors.author_followers f
+JOIN authors.authors a ON a.author_id = f.author_id
+WHERE a.author_id = $1
+ORDER BY a.created_at;
+
 -- name: GetFollowedAuthors :many
 SELECT author_id
 FROM authors.author_followers

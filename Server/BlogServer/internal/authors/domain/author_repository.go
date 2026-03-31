@@ -25,6 +25,7 @@ type AuthorProfileRepository interface {
 	CreateAuthorFollower(c context.Context, authorID string, userID string) error
 	DeleteAuthorFollower(c context.Context, authorID string, userID string) error
 	GetAuthorFollowers(c context.Context, slug string, page int64, limit int64) ([]string, error)
+	GetAuthorFollowersByID(c context.Context, authorID string) ([]string, error)
 	GetFollowedAuthors(c context.Context, userID string, page int64, limit int64) ([]string, error)
 
 	// Author Social (Follow System)

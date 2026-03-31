@@ -12,9 +12,9 @@ import (
 )
 
 const getUnprocessedEvent = `-- name: GetUnprocessedEvent :many
-SELECT id, saga_id, event_type, payload, retry_count, created_at, processed_at
+SELECT id, saga_id, event_type, context, payload, error, retry_count, created_at, processed_at
 FROM outbox.outbox_events
-WHERE processed_at IS NULL AND retries < 3
+WHERE processed_at IS NULL AND retry_count < 3
 ORDER BY created_at
 LIMIT 50
 FOR UPDATE SKIP LOCKED
@@ -33,7 +33,9 @@ func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]OutboxOutboxEvent,
 			&i.ID,
 			&i.SagaID,
 			&i.EventType,
+			&i.Context,
 			&i.Payload,
+			&i.Error,
 			&i.RetryCount,
 			&i.CreatedAt,
 			&i.ProcessedAt,
@@ -50,15 +52,15 @@ func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]OutboxOutboxEvent,
 
 const insertRecord = `-- name: InsertRecord :exec
 INSERT INTO outbox.outbox_events
-    (saga_id, event_type, payload, retry_count)
+    (saga_id, event_type, payload, context)
 VALUES ($1, $2, $3, $4)
 `
 
 type InsertRecordParams struct {
-	SagaID     *uuid.UUID
-	EventType  string
-	Payload    []byte
-	RetryCount int32
+	SagaID    *uuid.UUID
+	EventType string
+	Payload   []byte
+	Context   []byte
 }
 
 func (q *Queries) InsertRecord(ctx context.Context, arg InsertRecordParams) error {
@@ -66,7 +68,7 @@ func (q *Queries) InsertRecord(ctx context.Context, arg InsertRecordParams) erro
 		arg.SagaID,
 		arg.EventType,
 		arg.Payload,
-		arg.RetryCount,
+		arg.Context,
 	)
 	return err
 }

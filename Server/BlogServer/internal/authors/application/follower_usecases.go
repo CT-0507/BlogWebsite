@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
+	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
 type FollowerUsecases struct {
 	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
-	outboxRepo OutboxRepository
+	outboxRepo outboxrepo.OutboxRepository
 }
 
-func NewFollowerUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo OutboxRepository) *FollowerUsecases {
+func NewFollowerUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outboxrepo.OutboxRepository) *FollowerUsecases {
 	return &FollowerUsecases{
 		txManager:  txManager,
 		repo:       repo,
@@ -31,7 +34,7 @@ func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, auth
 			}
 		}
 
-		event := &domain.AuthorFollowedEvent{
+		event := &contracts.AuthorFollowedEvent{
 			AuthorID:    authorID,
 			UserID:      userID,
 			IsIncrement: true,
@@ -42,7 +45,11 @@ func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, auth
 			return err
 		}
 
-		return u.outboxRepo.Insert(ctx, event.EventName(), payload)
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType:  event.EventName(),
+			Payload:    payload,
+			RetryCount: 1,
+		})
 	})
 }
 
@@ -55,7 +62,7 @@ func (u *FollowerUsecases) UnfollowAuthor(ctx context.Context, userID string, au
 			}
 		}
 
-		event := &domain.AuthorUnfollowedEvent{
+		event := &contracts.AuthorUnfollowedEvent{
 			AuthorID:    authorID,
 			UserID:      userID,
 			IsIncrement: false,
@@ -66,7 +73,11 @@ func (u *FollowerUsecases) UnfollowAuthor(ctx context.Context, userID string, au
 			return err
 		}
 
-		return u.outboxRepo.Insert(ctx, event.EventName(), payload)
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType:  event.EventName(),
+			Payload:    payload,
+			RetryCount: 1,
+		})
 	})
 }
 
@@ -78,32 +89,33 @@ func (u *FollowerUsecases) GetFollowedAuthors(ctx context.Context, userID string
 	return u.repo.GetFollowedAuthors(ctx, userID, page, limit)
 }
 
-func (u *FollowerUsecases) OnAuthorFollowerCountChanged(ctx context.Context, payload []byte) error {
+func (u *FollowerUsecases) OnAuthorFollowerCountChanged(ctx context.Context, evt *messaging.OutboxEvent) error {
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		var evt domain.FollowCountChangedEvent
-		err := json.Unmarshal(payload, &evt)
+		var event contracts.FollowCountChangedEvent
+		err := json.Unmarshal(evt.Payload, &event)
 		if err != nil {
 			return err
 		}
 
-		err = u.repo.UpdateAuthorFollowerCount(ctx, evt.AuthorID, evt.IsIncrement)
+		err = u.repo.UpdateAuthorFollowerCount(ctx, event.AuthorID, event.IsIncrement)
 		if err != nil {
 			return err
 		}
 
-		newEvt := &domain.FollowCountChangedEvent{
-			AuthorID:    evt.AuthorID,
-			UserID:      evt.UserID,
-			IsIncrement: evt.IsIncrement,
+		event2 := &contracts.FollowCountChangedEvent{
+			AuthorID:    event.AuthorID,
+			UserID:      event.UserID,
+			IsIncrement: event.IsIncrement,
 		}
 
-		newEventPayload, err := json.Marshal(newEvt)
-		if err != nil {
-			return err
-		}
+		eventPayload, _ := json.Marshal(event2)
 
-		return u.outboxRepo.Insert(ctx, newEvt.EventName(), newEventPayload)
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType:  event2.EventName(),
+			Payload:    eventPayload,
+			RetryCount: 1,
+		})
 	})
 }
 

@@ -7,7 +7,9 @@ CREATE TABLE outbox.outbox_events (
     saga_id UUID,
 
     event_type TEXT NOT NULL,
+    context JSONB,
     payload JSONB NOT NULL,
+    error TEXT,
 
     retry_count  INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
