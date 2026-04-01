@@ -2,24 +2,56 @@ package http
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/application"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 )
 
-type BlogHandler struct {
-	service application.BlogService
+type CreateBlogUseCases interface {
+	CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error
+	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
 }
 
-func NewBlogHandler(service application.BlogService) *BlogHandler {
-	return &BlogHandler{service: service}
+type DeleteBlogUseCase interface {
+	DeleteBlog(ctx context.Context, id int64, userID string) (*int64, error)
+}
+
+type GetBlogUseCases interface {
+	GetBlog(ctx context.Context, id int64) (*domain.BlogWithAuthorData, error)
+	GetBlogByUrlSlug(ctx context.Context, slug string) (*domain.BlogWithAuthorData, error)
+}
+
+type ListBlogsUseCases interface {
+	ListBlogs(ctx context.Context) ([]domain.BlogWithAuthorData, error)
+	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
+	ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
+}
+
+type BlogHandler struct {
+	createBlogUseCases CreateBlogUseCases
+	getBlogUseCases    GetBlogUseCases
+	listBlogsUseCases  ListBlogsUseCases
+	deleteBlogUseCases DeleteBlogUseCase
+}
+
+func NewBlogHandler(
+	createBlogUseCases CreateBlogUseCases,
+	getBlogUseCases GetBlogUseCases,
+	listBlogsUseCases ListBlogsUseCases,
+	deleteBlogUseCases DeleteBlogUseCase,
+) *BlogHandler {
+	return &BlogHandler{
+		createBlogUseCases: createBlogUseCases,
+		getBlogUseCases:    getBlogUseCases,
+		listBlogsUseCases:  listBlogsUseCases,
+		deleteBlogUseCases: deleteBlogUseCases,
+	}
 }
 
 // Description: create new blog
@@ -49,7 +81,7 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CreateBlogStartSaga(ctx, &domain.Blog{
+	if err := h.createBlogUseCases.CreateBlogStartSaga(ctx, &domain.Blog{
 		Title:   blog.Title,
 		URLSlug: blog.URLSlug,
 		Content: blog.Content,
@@ -69,7 +101,7 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 10*time.Second)
 	defer cancel()
 
-	blogs, err := h.service.GetAll(ctx)
+	blogs, err := h.listBlogsUseCases.ListBlogs(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -92,7 +124,7 @@ func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	blogs, err := h.service.ListAuthorBlogsBySlug(ctx, slug)
+	blogs, err := h.listBlogsUseCases.ListAuthorBlogsBySlug(ctx, slug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -121,11 +153,11 @@ func (h *BlogHandler) getBlogByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "blogId not valid",
 		})
-		fmt.Println(parseErr)
+		log.Println(parseErr)
 		return
 	}
 
-	blog, err := h.service.GetBlog(ctx, blogIdInt)
+	blog, err := h.getBlogUseCases.GetBlog(ctx, blogIdInt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "blogId not found",
@@ -151,7 +183,7 @@ func (h *BlogHandler) getBlogByUrlSlug(c *gin.Context) {
 		return
 	}
 
-	blog, err := h.service.GetBlogByUrlSlug(ctx, slug)
+	blog, err := h.getBlogUseCases.GetBlogByUrlSlug(ctx, slug)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Url not found",
@@ -193,7 +225,7 @@ func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 		return
 	}
 
-	id, err := h.service.DeleteBlog(ctx, blogIdInt, userID)
+	id, err := h.deleteBlogUseCases.DeleteBlog(ctx, blogIdInt, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "blogId not valid",

@@ -70,7 +70,7 @@ func main() {
 	// blogHandler := blog.NewBlogHandler(blogService)
 
 	// Blog CA
-	blogModule := blog.NewBlogModule(pool, userService, outboxRepo)
+	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
@@ -116,7 +116,7 @@ func main() {
 
 	// Saga
 	bus.Subscribe("create_blog_saga", saga.Orchestrator.StartSaga)
-	bus.Subscribe("CreateBlog", blogModule.Service.CreateBlog)
+	bus.Subscribe("CreateBlog", blogModule.EventHandler.CreateBlog)
 	bus.Subscribe("InceaseAuthorBlogCount", saga.Orchestrator.HandleEvent)
 	// bus.Subscribe("CreateBlog.Failed", saga.Orchestrator.HandleFailure)
 	// bus.Subscribe("DeleteBlog", saga)
@@ -125,9 +125,9 @@ func main() {
 
 	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
-	bus.Subscribe("authorIdentity.created", blogModule.Service.OnAuthorCreated)
-	bus.Subscribe("authorIdentity.deleted", blogModule.Service.OnAuthorDeleted)
-	bus.Subscribe("authorIdentity.hardDeleted", blogModule.Service.OnAuthorHardDeleted)
+	bus.Subscribe("authorIdentity.created", blogModule.EventHandler.OnAuthorCreated)
+	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnAuthorDeleted)
+	bus.Subscribe("authorIdentity.hardDeleted", blogModule.EventHandler.OnAuthorHardDeleted)
 	bus.Subscribe("authorFollower.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
 	bus.Subscribe("authorFollower.deleted", event_bus.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
 
