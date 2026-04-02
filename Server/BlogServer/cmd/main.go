@@ -16,6 +16,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	storage "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage/infrastructure"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
@@ -27,6 +28,8 @@ import (
 // Application entry point
 func main() {
 
+	const PORT = ":8080"
+
 	// Load env
 	err := godotenv.Load("../.env")
 	if err != nil {
@@ -37,12 +40,26 @@ func main() {
 		log.Fatal("DATABASE_DSN is not set")
 	}
 
+	// Uploads
+	const RELATIVE_PATH = "/uploads"
+	path := os.Getenv("UPLOAD_PATH")
+	if dsn == "" {
+		path = "." + RELATIVE_PATH
+	}
+	err = os.MkdirAll(path, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Create connection pool
 	pool, err := database.NewPostgresPool(dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer pool.Close()
+
+	// Storage
+	storage := storage.New(path, "")
 
 	//
 	txManager := database.NewTxManager(pool)
@@ -60,7 +77,7 @@ func main() {
 	userModule := user.New(pool, txManager, outboxRepo)
 
 	// Author Module
-	authorModule := authors.NewAuthorsModule(pool, txManager, outboxRepo)
+	authorModule := authors.NewAuthorsModule(pool, txManager, outboxRepo, storage)
 
 	// Blog CA
 	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo)
@@ -74,6 +91,20 @@ func main() {
 	// Register Router
 	router := gin.Default()
 
+	// Require authentication
+	router.GET("/files/:filepath", func(c *gin.Context) {
+
+		filepath := c.Param("filepath") // /2026/04/03/file.jpg
+
+		fullPath := path + "private" + filepath
+
+		c.File(fullPath)
+	})
+
+	// Serve static files
+	router.Static(RELATIVE_PATH, path)
+
+	// CORS policy
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 	var origins []string
 	if allowedOrigins != "" {
@@ -128,7 +159,7 @@ func main() {
 
 	go worker.Start(context.Background())
 
-	if err := router.Run(":8080"); err != nil {
+	if err := router.Run(PORT); err != nil {
 		fmt.Println("Failed to start server", err)
 	}
 }

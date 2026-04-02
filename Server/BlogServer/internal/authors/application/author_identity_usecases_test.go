@@ -25,10 +25,12 @@ func (s *AuthorIdentityUseCasesTestSuite) SetupTest() {
 	s.mockRepo = &mocks.MockAuthorProfileRepository{}
 	s.txManager = &mocks_test.MockTxManager{}
 	s.mockOutboxRepo = &mocks_test.MockOutboxRepository{}
+	storage := &mocks_test.MockStorage{}
 	s.usecases = application.NewAuthorIdentityUsecases(
 		s.txManager,
 		s.mockRepo,
 		s.mockOutboxRepo,
+		storage,
 	)
 }
 
@@ -145,6 +147,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_Success() {
 	author := &domain.AuthorProfile{}
 	userID := "user-1"
 	createdBy := userID
+	fileParams := &domain.CreateUserFileStorageParams{}
 	// Expectation
 	s.mockRepo.
 		On("CreateAuthorProfile", ctx, mock.MatchedBy(func(a *domain.AuthorProfile) bool {
@@ -159,7 +162,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_Success() {
 		Return(nil)
 
 	// Act
-	err := s.usecases.CreateAuthor(ctx, author, userID, createdBy)
+	err := s.usecases.CreateAuthor(ctx, fileParams, author, userID, createdBy)
 
 	// Assert
 	s.NoError(err)
@@ -177,6 +180,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_ErrorOnInsertingAutho
 	}
 	userID := "user-1"
 	createdBy := userID
+	fileParams := &domain.CreateUserFileStorageParams{}
 
 	expectedErr := &domain.ErrFailedToCreateAuthorProfile{
 		Message: "Failed to create author profile",
@@ -192,7 +196,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_ErrorOnInsertingAutho
 		Return(nil)
 
 	// Act
-	err := s.usecases.CreateAuthor(ctx, author, userID, createdBy)
+	err := s.usecases.CreateAuthor(ctx, fileParams, author, userID, createdBy)
 
 	// Assert
 	s.Error(err)
@@ -210,6 +214,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_ErrorOnInsertingOutbo
 	}
 	userID := "user-1"
 	createdBy := userID
+	fileParams := &domain.CreateUserFileStorageParams{}
 
 	expectedErr := &domain.ErrFailedToCreateAuthorProfile{
 		Message: "Failed to create author profile",
@@ -225,7 +230,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_ErrorOnInsertingOutbo
 		Return(expectedErr)
 
 	// Act
-	err := s.usecases.CreateAuthor(ctx, author, userID, createdBy)
+	err := s.usecases.CreateAuthor(ctx, fileParams, author, userID, createdBy)
 
 	// Assert
 	s.Error(err)

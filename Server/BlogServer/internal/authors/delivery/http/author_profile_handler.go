@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/oklog/ulid/v2"
 )
 
 type AuthorDiscoveryUsecases interface {
@@ -20,7 +22,7 @@ type AuthorDiscoveryUsecases interface {
 }
 
 type AuthorIdentityUsecases interface {
-	CreateAuthor(ctx context.Context, author *domain.AuthorProfile, userID string, createdBy string) error
+	CreateAuthor(ctx context.Context, fileParams *domain.CreateUserFileStorageParams, author *domain.AuthorProfile, userID string, createdBy string) error
 	GetAuthorProfileByID(ctx context.Context, authorID string) (*domain.AuthorProfile, error)
 	GetAuthorProfileBySlug(ctx context.Context, slug string) (*domain.AuthorProfile, error)
 	ListAuthorProfiles(ctx context.Context, page int64, limit int64) (*[]domain.AuthorProfile, error)
@@ -75,7 +77,7 @@ func NewAuthorProfileHandler(
 
 func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 	var author CreateAuthorRequest
-	if err := c.ShouldBindJSON(&author); err != nil {
+	if err := c.ShouldBind(&author); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -83,6 +85,30 @@ func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 	if err := utils.ValidateStruct(messages.ENGLISH, author); err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
+	}
+	var fileParams *domain.CreateUserFileStorageParams = nil
+	fileHeader, err := c.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if fileHeader != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+			return
+		}
+		defer file.Close()
+		ext := filepath.Ext(fileHeader.Filename)
+		fileName := ulid.Make().String() + ext
+		contentType := fileHeader.Header.Get("Content-Type")
+
+		fileParams = &domain.CreateUserFileStorageParams{
+			File:        file,
+			FileName:    fileName,
+			ContentType: contentType,
+		}
 	}
 
 	userID, err := utils.GetUserIDStringFromContext(c)
@@ -96,7 +122,7 @@ func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 5*time.Second)
 	defer cancel()
 
-	if err := h.authorIdentityUsecases.CreateAuthor(ctx, &domain.AuthorProfile{
+	if err := h.authorIdentityUsecases.CreateAuthor(ctx, fileParams, &domain.AuthorProfile{
 		DisplayName: author.DisplayName,
 		Bio:         author.Bio,
 		Avatar:      author.Avatar,
