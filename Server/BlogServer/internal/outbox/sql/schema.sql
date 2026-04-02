@@ -2,10 +2,16 @@
 CREATE SCHEMA IF NOT EXISTS outbox;
 
 CREATE TABLE outbox.outbox_events (
-    id BIGSERIAL PRIMARY KEY,
-    topic TEXT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    saga_id UUID,
+
+    event_type TEXT NOT NULL,
+    context JSONB,
     payload JSONB NOT NULL,
-    retries INT NOT NULL DEFAULT 0,
+    error TEXT,
+
+    retry_count  INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     processed_at TIMESTAMPTZ
 );

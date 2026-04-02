@@ -3,34 +3,35 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
+	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/google/uuid"
 )
 
 type CreateBlogUseCases struct {
-	txManager   database.TxManager
-	repo        domain.BlogRepository
-	userService user.UserService
-	outboxRepo  outbox.OutboxRepository
+	txManager  database.TxManager
+	repo       domain.BlogRepository
+	outboxRepo outboxrepo.OutboxRepository
 }
 
-func NewCreateBlogUseCases(txManager database.TxManager, repo domain.BlogRepository, userService user.UserService, outboxRepo outbox.OutboxRepository) *CreateBlogUseCases {
+func NewCreateBlogUseCases(
+	txManager database.TxManager,
+	repo domain.BlogRepository,
+	outboxRepo outboxrepo.OutboxRepository,
+) *CreateBlogUseCases {
 	return &CreateBlogUseCases{
-		txManager:   txManager,
-		repo:        repo,
-		userService: userService,
-		outboxRepo:  outboxRepo,
+		txManager:  txManager,
+		repo:       repo,
+		outboxRepo: outboxRepo,
 	}
 }
 
 // Save a box to database and Create an Event to outbox_events table
-func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Blog, userID string) error {
+func (s *CreateBlogUseCases) CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error {
 
 	authorID, err := s.repo.VerifyAuthorIDByUserID(c, userID)
 	if err != nil {
@@ -40,24 +41,31 @@ func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Bl
 
 		blog.AuthorID = authorID
 
-		insertedBlog, err := s.repo.Create(c, blog)
-		if err != nil {
-			return err
-		}
-
+		userUUID := uuid.MustParse(userID)
 		// Save event to outbox table
-		event := &BlogCreatedEvent{
-			BlogID:    insertedBlog.BlogID,
-			AuthorID:  authorID,
-			BlogTitle: insertedBlog.Title,
+		context := &contracts.BlogCreatedSagaContext{
+			AuthorID: authorID,
+			UserID:   userUUID,
 		}
 
-		payload, err := json.Marshal(event)
-		if err != nil {
-			return err
+		payload := &contracts.BlogCreatedSagaPayload{
+			AuthorID: authorID,
+			UserID:   userUUID,
+			Title:    blog.Title,
+			UrlSlug:  blog.URLSlug,
+			Content:  blog.Content,
+			Status:   blog.Status,
 		}
 
-		err = s.outboxRepo.Insert(c, event.EventName(), payload)
+		payloadMarshal, _ := json.Marshal(payload)
+		contextMarshal, _ := json.Marshal(context)
+		sagaID := uuid.New()
+		err = s.outboxRepo.Insert(c, &messaging.OutboxEvent{
+			SagaID:    &sagaID,
+			EventType: "create_blog_saga",
+			Payload:   payloadMarshal,
+			Context:   &contextMarshal,
+		})
 		if err != nil {
 			return err
 		}
@@ -68,33 +76,4 @@ func (s *CreateBlogUseCases) CreateWithOutBox(c context.Context, blog *domain.Bl
 
 func (s *CreateBlogUseCases) VerifyAuthorIDByUserID(c context.Context, userID string) (string, error) {
 	return s.repo.VerifyAuthorIDByUserID(c, userID)
-}
-
-// Handle blog posted event for event bus
-func (s *CreateBlogUseCases) OnBlogPosted(c context.Context, payload []byte) error {
-	return s.txManager.WithVoidTx(c, func(ctx context.Context) error {
-
-		var evt BlogCreatedEvent
-		if err := json.Unmarshal(payload, &evt); err != nil {
-			return err
-		}
-
-		content := fmt.Sprintf("A blog with title %s has just been created", evt.BlogTitle)
-		not, err := s.userService.CreateNotification(c, content, uuid.MustParse(config.ADMIN_ID), uuid.MustParse(config.SYSTEM_ID))
-		if err != nil {
-			return err
-		}
-
-		// Insert event into outbox table
-		notificationPayload, err := json.Marshal(not)
-		if err != nil {
-			return err
-		}
-
-		err = s.outboxRepo.Insert(c, "notification.created", notificationPayload)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
 }

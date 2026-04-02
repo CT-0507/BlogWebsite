@@ -4,16 +4,17 @@ import (
 	"context"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
+	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
 type AuthorSocialUsecases struct {
 	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
-	outboxRepo OutboxRepository
+	outboxRepo outboxrepo.OutboxRepository
 }
 
-func NewAuthorSocialUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo OutboxRepository) *AuthorSocialUsecases {
+func NewAuthorSocialUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outboxrepo.OutboxRepository) *AuthorSocialUsecases {
 	return &AuthorSocialUsecases{
 		txManager:  txManager,
 		repo:       repo,

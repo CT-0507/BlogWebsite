@@ -5,14 +5,18 @@
 package outboxdb
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type OutboxOutboxEvent struct {
-	ID          int64
-	Topic       string
+	ID          uuid.UUID
+	SagaID      *uuid.UUID
+	EventType   string
+	Context     []byte
 	Payload     []byte
-	Retries     int32
+	Error       pgtype.Text
+	RetryCount  int32
 	CreatedAt   pgtype.Timestamptz
 	ProcessedAt pgtype.Timestamptz
 }

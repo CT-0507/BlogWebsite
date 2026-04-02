@@ -170,6 +170,34 @@ func (q *Queries) GetAuthorFollowers(ctx context.Context, slug string) ([]string
 	return items, nil
 }
 
+const getAuthorFollowersByID = `-- name: GetAuthorFollowersByID :many
+SELECT f.user_id
+FROM authors.author_followers f
+JOIN authors.authors a ON a.author_id = f.author_id
+WHERE a.author_id = $1
+ORDER BY a.created_at
+`
+
+func (q *Queries) GetAuthorFollowersByID(ctx context.Context, authorID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, getAuthorFollowersByID, authorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAuthorProfileByID = `-- name: GetAuthorProfileByID :one
 SELECT author_id, user_id, display_name, bio, avatar, slug, social_link, status, email, follower_count, blog_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 FROM authors.authors a

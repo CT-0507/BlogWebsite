@@ -11,9 +11,10 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event_bus"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/notification"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
@@ -43,6 +44,9 @@ func main() {
 	}
 	defer pool.Close()
 
+	//
+	txManager := database.NewTxManager(pool)
+
 	// outbox
 	outboxRepo := outbox.New(pool)
 
@@ -52,21 +56,14 @@ func main() {
 	// sse
 	sseHandler := sse.NewSSEHandler(broker)
 
-	// User Feature block
-	userRepo := user.NewUserRepository()
-	userService := user.NewUserService(pool, userRepo)
-	userHandler := user.NewUserHandler(userService)
+	// User Module
+	userModule := user.New(pool, txManager, outboxRepo)
 
 	// Author Module
-	authorModule := authors.NewAuthorsModule(pool, outboxRepo)
-
-	// Blog Feature block
-	// blogRepo := blog.NewBlogRepository()
-	// blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
-	// blogHandler := blog.NewBlogHandler(blogService)
+	authorModule := authors.NewAuthorsModule(pool, txManager, outboxRepo)
 
 	// Blog CA
-	blogModule := blog.NewBlogModule(pool, userService, outboxRepo)
+	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
@@ -103,21 +100,31 @@ func main() {
 	}))
 	router.Use(gin.Logger())
 
-	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userHandler, dashboardHanlder, sseHandler, authorModule.Handler)
-	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userHandler, dashboardHanlder, sseHandler, authorModule.Handler)
+	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
+	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
 
-	bus := event.NewBus()
+	saga := saga.NewSagaModule(pool, txManager, outboxRepo)
 
-	bus.Subscribe("blog.created", blogModule.Service.OnBlogPosted)
-	bus.Subscribe("blog.created", event.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
+	bus := event_bus.NewBus()
+
+	// Saga
+	bus.Subscribe("create_blog_saga", saga.Orchestrator.StartSaga)
+	bus.Subscribe("CreateBlog", blogModule.EventHandler.CreateBlog)
+	bus.Subscribe("InceaseAuthorBlogCount", saga.Orchestrator.HandleEvent)
+	// bus.Subscribe("CreateBlog.Failed", saga.Orchestrator.HandleFailure)
+	// bus.Subscribe("DeleteBlog", saga)
+	bus.Subscribe("InceaseAuthorBlogCount", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
+	bus.Subscribe("InceaseAuthorBlogCount.Success", saga.Orchestrator.HandleEvent)
+
+	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
-	bus.Subscribe("authorIdentity.created", blogModule.Service.OnAuthorCreated)
-	bus.Subscribe("authorIdentity.deleted", blogModule.Service.OnAuthorDeleted)
-	bus.Subscribe("authorIdentity.hardDeleted", blogModule.Service.OnAuthorHardDeleted)
-	bus.Subscribe("authorFollower.created", event.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
-	bus.Subscribe("authorFollower.deleted", event.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
+	bus.Subscribe("authorIdentity.created", blogModule.EventHandler.OnAuthorCreated)
+	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnAuthorDeleted)
+	bus.Subscribe("authorIdentity.hardDeleted", blogModule.EventHandler.OnAuthorHardDeleted)
+	bus.Subscribe("authorFollower.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
+	bus.Subscribe("authorFollower.deleted", event_bus.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
 
-	worker := outbox.NewOutboxWorker(pool, bus, outboxRepo)
+	worker := outbox.NewOutboxWorker(txManager, bus, outboxRepo)
 
 	go worker.Start(context.Background())
 

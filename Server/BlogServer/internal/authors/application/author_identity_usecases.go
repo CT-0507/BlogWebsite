@@ -3,19 +3,24 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
+	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/oklog/ulid/v2"
 )
 
 type AuthorIdentityUsecases struct {
 	txManager  database.TxManager
 	repo       domain.AuthorProfileRepository
-	outboxRepo OutboxRepository
+	outboxRepo outboxrepo.OutboxRepository
 }
 
-func NewAuthorIdentityUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo OutboxRepository) *AuthorIdentityUsecases {
+func NewAuthorIdentityUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outboxrepo.OutboxRepository) *AuthorIdentityUsecases {
 	return &AuthorIdentityUsecases{
 		txManager:  txManager,
 		repo:       repo,
@@ -34,7 +39,7 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domai
 			}
 		}
 
-		event := &domain.AuthorCreatedEvent{
+		event := &contracts.AuthorCreatedEvent{
 			AuthorID:    author.AuthorID,
 			UserID:      userID,
 			Slug:        author.Slug,
@@ -46,7 +51,10 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domai
 			return err
 		}
 
-		return u.outboxRepo.Insert(ctx, event.EventName(), payload)
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType: event.EventName(),
+			Payload:   payload,
+		})
 	})
 }
 
@@ -84,7 +92,7 @@ func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, author
 			return err
 		}
 
-		event := &domain.AuthorDeletedEvent{
+		event := &contracts.AuthorDeletedEvent{
 			AuthorID: authorID,
 		}
 
@@ -93,7 +101,11 @@ func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, author
 			return err
 		}
 
-		return u.outboxRepo.Insert(ctx, event.EventName(), payload)
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType:  event.EventName(),
+			Payload:    payload,
+			RetryCount: 1,
+		})
 	})
 }
 
@@ -118,7 +130,7 @@ func (u *AuthorIdentityUsecases) HardDeleteAuthorProfile(ctx context.Context, au
 			return err
 		}
 
-		event := &domain.AuthorHardDeletedEvent{
+		event := &contracts.AuthorHardDeletedEvent{
 			AuthorID: authorID,
 		}
 
@@ -127,7 +139,11 @@ func (u *AuthorIdentityUsecases) HardDeleteAuthorProfile(ctx context.Context, au
 			return err
 		}
 
-		return u.outboxRepo.Insert(ctx, event.EventName(), payload)
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType:  event.EventName(),
+			Payload:    payload,
+			RetryCount: 1,
+		})
 	})
 }
 
@@ -141,15 +157,52 @@ func (u *AuthorIdentityUsecases) UpdateAuthorStatus(ctx context.Context, authorI
 
 // Event Handler
 
-func (u *AuthorIdentityUsecases) OnBlogCreated(ctx context.Context, payload []byte) error {
-	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+func (u *AuthorIdentityUsecases) OnBlogCreated(ctx context.Context, evt *messaging.OutboxEvent) error {
+	timeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	return u.txManager.WithVoidTx(timeCtx, func(ctx context.Context) error {
 
-		var evt domain.BlogCountChangedEvent
-		err := json.Unmarshal(payload, &evt)
+		var payload contracts.BlogCountChangedEvent
+		err := json.Unmarshal(evt.Payload, &payload)
 		if err != nil {
 			return err
 		}
 
-		return u.repo.UpdateAuthorBlogCount(ctx, evt.AuthorID, true)
+		err = u.repo.UpdateAuthorBlogCount(ctx, payload.AuthorID, true)
+		if err != nil {
+			return err
+		}
+
+		context := &map[string]interface{}{
+			"AuthorID": payload.AuthorID,
+		}
+
+		newPayload, err := utils.StructToMap(payload)
+		if err != nil {
+			return err
+		}
+
+		followerIds, err := u.repo.GetAuthorFollowersByID(ctx, payload.AuthorID)
+		if err != nil {
+			return err
+		}
+		newPayload["FollowerIds"] = followerIds
+		payloadMarshal, _ := json.Marshal(newPayload)
+		contextMarshal, _ := json.Marshal(context)
+
+		err = u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType: "CreateNotification",
+			Payload:   payloadMarshal,
+		})
+		if err != nil {
+			return err
+		}
+
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "InceaseAuthorBlogCount.Success",
+			Payload:   evt.Payload,
+			Context:   &contextMarshal,
+		})
 	})
 }

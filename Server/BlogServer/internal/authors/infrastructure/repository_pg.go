@@ -14,7 +14,7 @@ type AuthorProfileRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewAuthorProfileRepository(pool *pgxpool.Pool) domain.AuthorProfileRepository {
+func NewAuthorProfileRepository(pool *pgxpool.Pool) *AuthorProfileRepository {
 	return &AuthorProfileRepository{
 		pool: pool,
 	}
@@ -184,6 +184,14 @@ func (r *AuthorProfileRepository) GetAuthorFollowers(c context.Context, slug str
 	q := authordb.New(db)
 
 	return q.GetAuthorFollowers(c, slug)
+}
+
+func (r *AuthorProfileRepository) GetAuthorFollowersByID(c context.Context, authorID string) ([]string, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.GetAuthorFollowersByID(c, authorID)
 }
 
 func (r *AuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string, page, limit int64) ([]string, error) {

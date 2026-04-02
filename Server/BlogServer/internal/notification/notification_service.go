@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 )
 
 type NotificationService interface {
-	PublishNotification(c context.Context, payload []byte) error
+	PublishNotification(c context.Context, evt *messaging.OutboxEvent) error
 }
 
 type notificationService struct {
@@ -24,15 +25,16 @@ func NewNotificationService(broker *sse.Broker) NotificationService {
 // 	Content string
 // }
 
-func (s *notificationService) PublishNotification(c context.Context, payload []byte) error {
-	var evt interface{}
-	if err := json.Unmarshal(payload, &evt); err != nil {
+func (s *notificationService) PublishNotification(c context.Context, evt *messaging.OutboxEvent) error {
+
+	var event interface{}
+	if err := json.Unmarshal(evt.Payload, &event); err != nil {
 		return err
 	}
 	s.broker.PublishCache("blog_created_admin", "blog", sse.Cache{
 		QueryKey: []string{"notifications"},
 		Op:       "append",
-		Data:     evt,
+		Data:     event,
 	})
 
 	return nil

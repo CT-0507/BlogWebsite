@@ -64,3 +64,15 @@ func HashPassword(password string) (string, error) {
 	}
 	return string(hashedPassword), nil
 }
+
+func Truncate(s string, max int, withEllipsis bool) string {
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	result := string(runes[:max])
+	if withEllipsis {
+		result += "..."
+	}
+	return result
+}
