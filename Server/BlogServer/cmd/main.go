@@ -56,18 +56,11 @@ func main() {
 	// sse
 	sseHandler := sse.NewSSEHandler(broker)
 
-	// User Feature block
-	userRepo := user.NewUserRepository()
-	userService := user.NewUserService(pool, userRepo)
-	userHandler := user.NewUserHandler(userService)
+	// User Module
+	userModule := user.New(pool, txManager, outboxRepo)
 
 	// Author Module
 	authorModule := authors.NewAuthorsModule(pool, txManager, outboxRepo)
-
-	// Blog Feature block
-	// blogRepo := blog.NewBlogRepository()
-	// blogService := blog.NewBlogService(pool, blogRepo, userService, outboxRepo)
-	// blogHandler := blog.NewBlogHandler(blogService)
 
 	// Blog CA
 	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo)
@@ -107,8 +100,8 @@ func main() {
 	}))
 	router.Use(gin.Logger())
 
-	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userHandler, dashboardHanlder, sseHandler, authorModule.Handler)
-	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userHandler, dashboardHanlder, sseHandler, authorModule.Handler)
+	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
+	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
 
 	saga := saga.NewSagaModule(pool, txManager, outboxRepo)
 

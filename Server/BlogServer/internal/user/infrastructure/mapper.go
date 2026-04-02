@@ -1,14 +1,15 @@
-package user
+package infrastructure
 
 import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
-	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/db"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/domain"
+	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/infrastructure/db"
 )
 
-func UserDTOToUser(userDTO *userdb.UsersUser) *User {
-	return &User{
-		UserID:       userDTO.UserID.String(),
+func UserDTOToUser(userDTO *userdb.UsersUser) *domain.User {
+	return &domain.User{
+		UserID:       userDTO.UserID,
 		Username:     userDTO.Username,
 		Password:     userDTO.Password,
 		Email:        userDTO.Email.String,
@@ -26,8 +27,8 @@ func UserDTOToUser(userDTO *userdb.UsersUser) *User {
 	}
 }
 
-func NotificationDTOToNotification(notDTO *userdb.UsersNotification) *Notification {
-	return &Notification{
+func NotificationDTOToNotification(notDTO *userdb.UsersNotification) *domain.Notification {
+	return &domain.Notification{
 		NotificationID: notDTO.NotificationID,
 		UserID:         "",
 		Content:        notDTO.Content,
@@ -38,21 +39,3 @@ func NotificationDTOToNotification(notDTO *userdb.UsersNotification) *Notificati
 		},
 	}
 }
-
-// func UserDTOToUserLogin(user *userdb.UsersUser) *User {
-// 	return &User{
-// 		UserID:    userDTO.UserID.String(),
-// 		Username:  userDTO.Username,
-// 		Email:     userDTO.Email.String,
-// 		FirstName: userDTO.FirstName,
-// 		LastName:  userDTO.LastName,
-// 		Role:      userDTO.Role,
-// 		Active:    userDTO.Active.Bool,
-// 		Audit: model.Audit{
-// 			CreatedAt: userDTO.CreatedAt.Time,
-// 			CreatedBy: utils.UUIDPtr(userDTO.CreatedBy),
-// 			UpdatedAt: userDTO.UpdatedAt.Time,
-// 			UpdatedBy: utils.UUIDPtr(userDTO.UpdatedBy),
-// 		},
-// 	}
-// }

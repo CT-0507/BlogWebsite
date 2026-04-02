@@ -1,32 +1,60 @@
-package user
+package http
 
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/domain"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
+type AuthUsecases interface {
+	CheckExistedUsername(c context.Context, username string) (int64, error)
+	RegisterUser(c context.Context, user *domain.User) (*uuid.UUID, error)
+	LoginUser(c context.Context, username string, password string) (*domain.User, error)
+	LogoutUser(c context.Context, userID uuid.UUID) error
+	GetUserByID(c context.Context, userID uuid.UUID) (*domain.User, error)
+}
+
+type ProfileUsecases interface {
+	UpdateEmail(c context.Context, userID uuid.UUID, email string) error
+	UpdatePassword(c context.Context, userID uuid.UUID, currentPassword string, newPassword string) error
+	UpdateBasicInfo(c context.Context, userID uuid.UUID, user *domain.User) error
+}
+
+type NotificationUsecases interface {
+	GetUserNotifications(c context.Context, userID uuid.UUID) ([]domain.Notification, error)
+	CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*domain.Notification, error)
+	UpdateNotificationStatus(c context.Context, notID int64, status bool, updatedBy *uuid.UUID) error
+}
+
 type UserHandler struct {
-	service UserService
+	authUsecases         AuthUsecases
+	profileUsecases      ProfileUsecases
+	notificationUsecases NotificationUsecases
 }
 
-func NewUserHandler(service UserService) *UserHandler {
-	return &UserHandler{service: service}
+func New(
+	authUsecases AuthUsecases,
+	profileUsecases ProfileUsecases,
+	notificationUsecases NotificationUsecases,
+) *UserHandler {
+	return &UserHandler{
+		authUsecases:         authUsecases,
+		profileUsecases:      profileUsecases,
+		notificationUsecases: notificationUsecases,
+	}
 }
 
-// Description: create new blog
-//   - @route POST /blogs
-//   - @access Private
-func (h *UserHandler) registerUser(c *gin.Context) {
+func (h *UserHandler) RegisterUser(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	var user CreateUserRequest
@@ -45,7 +73,7 @@ func (h *UserHandler) registerUser(c *gin.Context) {
 		return
 	}
 
-	newUserId, err := h.service.RegisterUser(ctx, &User{
+	newUserId, err := h.authUsecases.RegisterUser(ctx, &domain.User{
 		Username:  user.Username,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
@@ -54,9 +82,9 @@ func (h *UserHandler) registerUser(c *gin.Context) {
 	})
 	if err != nil {
 		switch {
-		case errors.Is(err, &ErrUsernameAlreadyTaken{}):
+		case errors.Is(err, &domain.ErrUsernameAlreadyTaken{}):
 			c.JSON(http.StatusConflict, gin.H{"error": "username already exists"})
-		case errors.Is(err, &ErrFailedToHashString{}):
+		case errors.Is(err, &domain.ErrFailedToHashString{}):
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -67,7 +95,7 @@ func (h *UserHandler) registerUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, newUserId)
 }
 
-func (h *UserHandler) loginUser(c *gin.Context) {
+func (h *UserHandler) LoginUser(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 10*time.Second)
 	defer cancel()
@@ -88,11 +116,11 @@ func (h *UserHandler) loginUser(c *gin.Context) {
 		return
 	}
 
-	foundUser, loginErr := h.service.LoginUser(ctx, user.Username, user.Password)
+	foundUser, loginErr := h.authUsecases.LoginUser(ctx, user.Username, user.Password)
 	if loginErr != nil {
 		switch {
-		case errors.Is(loginErr, &ErrNotFound{}):
-		case errors.Is(loginErr, &ErrPasswordNotMatched{}):
+		case errors.Is(loginErr, &domain.ErrNotFound{}):
+		case errors.Is(loginErr, &domain.ErrPasswordNotMatched{}):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Username or password is invalid"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": loginErr.Error()})
@@ -101,7 +129,7 @@ func (h *UserHandler) loginUser(c *gin.Context) {
 	}
 
 	token, refreshToken, err := utils.GenerateAllTokens(
-		foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID, foundUser.Roles, foundUser.TokenVersion,
+		foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID.String(), foundUser.Roles, foundUser.TokenVersion,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -120,7 +148,7 @@ func (h *UserHandler) loginUser(c *gin.Context) {
 	)
 
 	c.JSON(http.StatusOK, &UserLoginResponse{
-		UserID:      foundUser.UserID,
+		UserID:      foundUser.UserID.String(),
 		FirstName:   foundUser.FirstName,
 		LastName:    foundUser.LastName,
 		Email:       foundUser.Email,
@@ -155,7 +183,7 @@ func (h *UserHandler) logout(c *gin.Context) {
 	}
 
 	// Update last logout
-	if h.service.LogoutUser(ctx, userID) != nil {
+	if h.authUsecases.LogoutUser(ctx, userID) != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Unable to logout",
 		})
@@ -169,7 +197,7 @@ func (h *UserHandler) logout(c *gin.Context) {
 
 func (h *UserHandler) getUserById(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 5*time.Second)
+	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
 
 	userID, err := utils.GetUserIDFromContext(c)
@@ -180,14 +208,14 @@ func (h *UserHandler) getUserById(c *gin.Context) {
 		return
 	}
 
-	foundUser, err := h.service.GetUserByID(ctx, userID)
+	foundUser, err := h.authUsecases.GetUserByID(ctx, userID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
 
 	c.JSON(http.StatusCreated, &UserLoginResponse{
-		UserID:    foundUser.UserID,
+		UserID:    foundUser.UserID.String(),
 		FirstName: foundUser.FirstName,
 		LastName:  foundUser.LastName,
 		Email:     foundUser.Email,
@@ -204,14 +232,14 @@ func (h *UserHandler) RefreshTokenHandler(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 
 	if err != nil {
-		fmt.Println("error", err.Error())
+		log.Println("error", err.Error())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unable to retrieve refresh token from cookie"})
 		return
 	}
 
 	claim, err := utils.ValidateRefreshToken(refreshToken)
 	if err != nil || claim == nil {
-		fmt.Println("error", err.Error())
+		log.Println("error", err.Error())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
 		return
 	}
@@ -222,13 +250,13 @@ func (h *UserHandler) RefreshTokenHandler(c *gin.Context) {
 		return
 	}
 
-	foundUser, err := h.service.GetUserByID(ctx, userID)
+	foundUser, err := h.authUsecases.GetUserByID(ctx, userID)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
 
-	newToken, newRefreshToken, err := utils.GenerateAllTokens(foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID, foundUser.Roles, foundUser.TokenVersion)
+	newToken, newRefreshToken, err := utils.GenerateAllTokens(foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID.String(), foundUser.Roles, foundUser.TokenVersion)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
@@ -263,7 +291,7 @@ func (h *UserHandler) UpdateUserBasicInfo(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 5*time.Second)
 	defer cancel()
 
-	if err := h.service.UpdateBasicInfo(ctx, userID, &User{
+	if err := h.profileUsecases.UpdateBasicInfo(ctx, userID, &domain.User{
 		FirstName: userInfo.FirstName,
 		LastName:  userInfo.LastName,
 	}); err != nil {
@@ -307,7 +335,7 @@ func (h *UserHandler) UpdateUserEmail(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 5*time.Second)
 	defer cancel()
 
-	if err := h.service.UpdateEmail(ctx, userID, userEmail.Email); err != nil {
+	if err := h.profileUsecases.UpdateEmail(ctx, userID, userEmail.Email); err != nil {
 		c.JSON(http.StatusInternalServerError, &gin.H{"error": err.Error()})
 		return
 	}
@@ -349,10 +377,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 5*time.Second)
 	defer cancel()
 
-	if err := h.service.UpdatePassword(ctx, userID, &UpdatePasswordServiceParams{
-		CurrentPassword: userPassword.CurrentPassword,
-		NewPassword:     userPassword.NewPassword,
-	}); err != nil {
+	if err := h.profileUsecases.UpdatePassword(ctx, userID, userPassword.CurrentPassword, userPassword.NewPassword); err != nil {
 		c.JSON(http.StatusInternalServerError, &gin.H{"error": err.Error()})
 		return
 	}
@@ -375,7 +400,7 @@ func (h *UserHandler) GetNotifications(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	notifications, err := h.service.GetUserNotifications(ctx, userID)
+	notifications, err := h.notificationUsecases.GetUserNotifications(ctx, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err.Error())
 		return
@@ -401,7 +426,7 @@ func (h *UserHandler) UpdateNotification(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	if err := h.service.UpdateNotificationStatus(ctx, requestJson.NotId, requestJson.Status, &userID); err != nil {
+	if err := h.notificationUsecases.UpdateNotificationStatus(ctx, requestJson.NotId, requestJson.Status, &userID); err != nil {
 		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -425,7 +450,7 @@ func (h *UserHandler) GetHashedString(c *gin.Context) {
 		return
 	}
 
-	hashedString, err := h.service.GetHashedString(str)
+	hashedString, err := utils.HashPassword(str)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, &gin.H{"message": "Cannot hash"})
 		return
