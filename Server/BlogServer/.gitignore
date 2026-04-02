@@ -40,3 +40,6 @@ prod.env
 
 # sql
 init_database.sql
+
+# public
+uploads

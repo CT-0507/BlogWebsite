@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
@@ -10,26 +11,64 @@ import (
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/oklog/ulid/v2"
 )
 
 type AuthorIdentityUsecases struct {
-	txManager  database.TxManager
-	repo       domain.AuthorProfileRepository
-	outboxRepo outboxrepo.OutboxRepository
+	txManager      database.TxManager
+	repo           domain.AuthorProfileRepository
+	outboxRepo     outboxrepo.OutboxRepository
+	storageService storage.Storage
 }
 
-func NewAuthorIdentityUsecases(txManager database.TxManager, repo domain.AuthorProfileRepository, outboxRepo outboxrepo.OutboxRepository) *AuthorIdentityUsecases {
+func NewAuthorIdentityUsecases(
+	txManager database.TxManager,
+	repo domain.AuthorProfileRepository,
+	outboxRepo outboxrepo.OutboxRepository,
+	storageService storage.Storage,
+) *AuthorIdentityUsecases {
 	return &AuthorIdentityUsecases{
-		txManager:  txManager,
-		repo:       repo,
-		outboxRepo: outboxRepo,
+		txManager:      txManager,
+		repo:           repo,
+		outboxRepo:     outboxRepo,
+		storageService: storageService,
 	}
 }
 
-func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domain.AuthorProfile, userID string, createdBy string) error {
-	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *domain.CreateUserFileStorageParams, author *domain.AuthorProfile, userID string, createdBy string) error {
+
+	var err error
+
+	if fileParams != nil {
+		// Ensure folder on current ymd
+		uploadDir, err := utils.EnsureUploadPath("./uploads")
+		if err != nil {
+			return err
+		}
+
+		uploaded := false
+
+		fileParams.FileName = filepath.Join(uploadDir, fileParams.FileName)
+
+		url, err := u.storageService.Upload(fileParams.File, fileParams.FileName, fileParams.ContentType)
+		if err != nil {
+			return err
+		}
+		uploaded = true
+
+		// Ensure delete on failure to create user
+		defer func() {
+			if err != nil && uploaded {
+				_ = u.storageService.Delete(fileParams.FileName)
+			}
+		}()
+
+		author.Avatar = url
+	}
+
+	err = u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 		author.AuthorID = ulid.Make().String()
 		author.Status = "active"
 		err := u.repo.CreateAuthorProfile(ctx, author, userID, createdBy)
@@ -56,6 +95,8 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, author *domai
 			Payload:   payload,
 		})
 	})
+
+	return err
 }
 
 func (u *AuthorIdentityUsecases) GetAuthorProfileByID(ctx context.Context, authorID string) (*domain.AuthorProfile, error) {
