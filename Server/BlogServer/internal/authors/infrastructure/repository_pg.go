@@ -34,18 +34,18 @@ func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author 
 			Valid:  author.DisplayName != "",
 		},
 		Avatar: pgtype.Text{
-			String: author.Avatar,
-			Valid:  author.Avatar != "",
+			String: *author.Avatar,
+			Valid:  author.Avatar != nil,
 		},
 		Slug: author.Slug,
 		SocialLink: pgtype.Text{
-			String: author.SocialLink,
-			Valid:  author.SocialLink != "",
+			String: *author.SocialLink,
+			Valid:  author.SocialLink != nil,
 		},
 		Status: author.Status,
 		Email: pgtype.Text{
-			String: author.Email,
-			Valid:  author.Email != "",
+			String: *author.Email,
+			Valid:  author.Email != nil,
 		},
 		CreatedBy: createdBy,
 	})

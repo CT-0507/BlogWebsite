@@ -154,6 +154,20 @@ func (o *Orchestrator) HandleFailure(ctx context.Context, e *messaging.OutboxEve
 			return err
 		}
 
+		if instance.CurrentStep == 0 {
+			err = o.repo.UpdateSagaStatus(ctx, instance.ID, domain.SagaFailed)
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+			err = o.repo.UpdateStepStatus(ctx, instance.ID, instance.CurrentStep, domain.StepCompensated)
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+			return nil
+		}
+
 		currentStep, err := o.repo.GetStepByIndex(ctx, *e.SagaID, instance.CurrentStep)
 		if err != nil {
 			return err
@@ -219,7 +233,7 @@ func (o *Orchestrator) StartCompensation(ctx context.Context, instance *domain.S
 	})
 }
 
-func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt messaging.OutboxEvent) error {
+func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt *messaging.OutboxEvent) error {
 	return o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
 		instance, err := o.repo.GetSagaByID(ctx, *evt.SagaID)
@@ -228,7 +242,7 @@ func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt messag
 		}
 
 		// 1. mark step compensated
-		err = o.repo.UpdateStepStatus(ctx, *evt.SagaID, instance.CurrentStep, domain.SagaStatus(domain.StepCompensated))
+		err = o.repo.UpdateStepStatus(ctx, *evt.SagaID, instance.CurrentStep, domain.StepCompensated)
 		if err != nil {
 			return err
 		}
@@ -270,19 +284,19 @@ func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt messag
 	})
 }
 
-func (o *Orchestrator) HandleCompensationFailure(ctx context.Context, evt messaging.OutboxEvent) {
+func (o *Orchestrator) HandleCompensationFailure(ctx context.Context, evt *messaging.OutboxEvent) error {
 
 	instance, err := o.repo.GetSagaByID(ctx, *evt.SagaID)
 	if err != nil {
-		return
+		return err
 	}
 
 	currentStep, err := o.repo.GetStepByIndex(ctx, *evt.SagaID, instance.CurrentStep)
 	if err != nil {
-		return
+		return err
 	}
 
-	o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+	return o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
 		currentStep.RetryCount++
 
@@ -302,6 +316,7 @@ func (o *Orchestrator) HandleCompensationFailure(ctx context.Context, evt messag
 			return err
 		}
 		// retry
-		return o.outboxRepo.Insert(ctx, &evt)
+		return o.outboxRepo.Insert(ctx, evt)
 	})
+
 }

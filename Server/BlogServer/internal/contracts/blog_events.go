@@ -25,3 +25,12 @@ type BlogCreatedSagaPayload struct {
 	Content  string
 	UrlSlug  string
 }
+
+type DeleteBlogPayload struct {
+	BlogID int64
+}
+
+type CreateBlogAuthorCacheSuccessContext struct {
+	AuthorID string
+	UserID   string
+}

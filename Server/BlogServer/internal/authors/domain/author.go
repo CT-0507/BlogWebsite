@@ -7,15 +7,15 @@ import (
 )
 
 type AuthorProfile struct {
-	AuthorID    string `json:"authorID"`
-	UserID      string `json:"userID"`
-	DisplayName string `json:"displayName"`
-	Bio         string `json:"bio"`
-	Avatar      string `json:"avatar"`
-	Slug        string `json:"slug"`
-	SocialLink  string `json:"socialLink"`
-	Status      string `json:"status"`
-	Email       string `json:"email"`
+	AuthorID    string  `json:"authorID"`
+	UserID      string  `json:"userID"`
+	DisplayName string  `json:"displayName"`
+	Bio         *string `json:"bio"`
+	Avatar      *string `json:"avatar"`
+	Slug        string  `json:"slug"`
+	SocialLink  *string `json:"socialLink"`
+	Status      string  `json:"status"`
+	Email       *string `json:"email"`
 	// Derived data
 	FollowerCount int32 `json:"followerCount"`
 	BlogCount     int32 `json:"blogCount"`

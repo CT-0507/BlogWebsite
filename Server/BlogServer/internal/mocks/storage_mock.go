@@ -17,6 +17,12 @@ func (m *MockStorage) Upload(file io.Reader, filename string, contentType string
 	return "", args.Error(1)
 }
 
+func (m *MockStorage) MoveFile(src, dst string) error {
+	args := m.Called(src, dst)
+
+	return args.Error(0)
+}
+
 func (m *MockStorage) Delete(filename string) error {
 
 	args := m.Called(filename)

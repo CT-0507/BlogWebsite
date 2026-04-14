@@ -61,7 +61,15 @@ WHERE author_id = $3;
 UPDATE authors.authors
     SET status = $1,
     updated_at = NOW(),
-    updated_by = $2
+    updated_by = $2,
+    deleted_at = CASE
+        WHEN $1 = 'deleted' THEN NOW()
+        ELSE deleted_at
+    END,
+    deleted_by = CASE
+        WHEN $1 = 'deleted' AND deleted_by IS NULL THEN $2
+        ELSE deleted_by
+    END
 WHERE author_id = $3;
 
 -- name: UpdateAuthorProfileDeleteAt :exec

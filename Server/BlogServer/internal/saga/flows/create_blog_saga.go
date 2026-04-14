@@ -1,4 +1,4 @@
-package create_blog
+package flows
 
 import "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/domain"
 
@@ -8,16 +8,12 @@ var CreateBlogSaga = domain.SagaDefinition{
 		{
 			ActionType:     "CreateBlog",
 			CompensateType: "DeleteBlog",
+			MaxRetries:     2,
 		},
 		{
 			ActionType:     "InceaseAuthorBlogCount",
 			CompensateType: "DecreaseAuthorBlogCount",
+			MaxRetries:     2,
 		},
-		// Move on to normal event
-		// {
-		// 	ActionType:     "CreateNotifications",
-		// 	CompensateType: "DeleteNotifications",
-		// },
-
 	},
 }

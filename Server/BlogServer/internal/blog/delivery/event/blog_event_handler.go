@@ -3,12 +3,14 @@ package event
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 )
@@ -27,45 +29,88 @@ func NewEventHandler(txManager database.TxManager, repo domain.BlogRepository, o
 	}
 }
 
-func (u *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxEvent) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
+func (e *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxEvent) error {
 
-		var event domain.AuthorCreatedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
+	var stepPayload contracts.CreateBlogAuthorCachePayload
+	_ = json.Unmarshal(evt.Payload, &stepPayload)
 
-		return u.repo.CreateUserIDAuthorProfileIDCacheRecord(c, event.UserID, event.AuthorID, event.Slug, event.DisplayName)
-	})
-}
+	err := e.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-func (u *EventHandler) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-
-		var event domain.AuthorDeletedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
-		return u.repo.UpdateBlogStatusForDeletedAuthor(c, event.AuthorID)
-	})
-}
-
-func (u *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-
-		var event domain.AuthorDeletedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
-		err := u.repo.DeleteAuthorCache(c, event.AuthorID)
+		err := e.repo.CreateUserIDAuthorProfileIDCacheRecord(c, stepPayload.UserID, stepPayload.AuthorID, stepPayload.Slug, stepPayload.DisplayName)
 		if err != nil {
 			return err
 		}
-		return u.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
+
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.CreateBlogAuthorCacheSuccessContext{
+			UserID:   stepPayload.UserID,
+			AuthorID: stepPayload.AuthorID,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "CreateBlogAuthorCache.Success",
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "CreateBlogAuthorCache.Failed",
+			Payload:   b,
+			Error:     evt.Error,
+		})
+		if err1 != nil {
+			return err1
+		}
+		return err
+	}
+	return nil
+}
+
+func (e *EventHandler) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		var event domain.AuthorDeletedEvent
+		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+			return err
+		}
+		return e.repo.UpdateBlogStatusForDeletedAuthor(c, event.AuthorID)
 	})
 }
 
-func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent) error {
+func (e *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		var event domain.AuthorDeletedEvent
+		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+			return err
+		}
+		err := e.repo.DeleteAuthorCache(c, event.AuthorID)
+		if err != nil {
+			return err
+		}
+		return e.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
+	})
+}
+
+func (e *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent) error {
 
 	ctx, cancel := context.WithTimeout(c, 3*time.Second)
 	defer cancel()
@@ -76,9 +121,9 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 		return err
 	}
 
-	return s.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+	err = e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		insertedBlog, err := s.repo.Create(ctx, &domain.Blog{
+		insertedBlog, err := e.repo.Create(ctx, &domain.Blog{
 			AuthorID: payload.AuthorID,
 			Title:    payload.Title,
 			Content:  payload.Content,
@@ -86,12 +131,6 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 			URLSlug:  payload.UrlSlug,
 		})
 		if err != nil {
-			// Fail to create blog
-			err = s.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-				SagaID:    evt.SagaID,
-				EventType: "CreateBlog.Failed",
-				Error:     evt.Error,
-			})
 			return err
 		}
 
@@ -109,6 +148,7 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 			"UserID":           payload.UserID,
 			"TruncatedTitle":   truncatedTitle,
 			"TruncatedContent": truncatedContent,
+			"UrlSlug":          payload.UrlSlug,
 		}
 
 		payloadMarshal, _ := json.Marshal(payload)
@@ -121,7 +161,7 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 		// }
 
 		// Proceed next step
-		err = s.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
 			EventType: "InceaseAuthorBlogCount",
 			Payload:   payloadMarshal,
@@ -139,7 +179,7 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 		}
 
 		blogCreatedEvtPayload, _ := json.Marshal(blogCreatedEvt)
-		err = s.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			EventType: "blog.created",
 			Payload:   blogCreatedEvtPayload,
 		})
@@ -150,6 +190,27 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 
 		return nil
 	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx = context.WithValue(ctx, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "CreateBlog.Failed",
+			Payload:   b,
+			Error:     evt.Error,
+		})
+		if err1 != nil {
+			log.Println(err1)
+			return err1
+		}
+		return err
+	}
+	return nil
 }
 
 // Handle blog posted event for event bus
@@ -192,4 +253,58 @@ func (s *EventHandler) OnBlogPosted(c context.Context, evt *messaging.OutboxEven
 		// }
 		return nil
 	})
+}
+
+func (e *EventHandler) OnDeleteBlog(c context.Context, evt *messaging.OutboxEvent) error {
+	ctx, cancel := context.WithTimeout(c, time.Second)
+	defer cancel()
+
+	var payload contracts.DeleteBlogPayload
+	err := json.Unmarshal(evt.Payload, &payload)
+	if err != nil {
+		return err
+	}
+
+	err = e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+
+		_, err := e.repo.Delete(ctx, payload.BlogID, config.SYSTEM_ID)
+		if err != nil {
+			return err
+		}
+
+		// empty payload
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "DeleteBlog.Failed",
+			Payload:   b,
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx = context.WithValue(ctx, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "DeleteBlog.Failed",
+			Payload:   b,
+			Error:     evt.Error,
+		})
+		if err1 != nil {
+			log.Println(err1)
+			return err1
+		}
+		return err
+	}
+	return nil
 }

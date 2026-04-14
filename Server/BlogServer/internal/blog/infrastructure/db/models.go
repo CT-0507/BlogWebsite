@@ -58,7 +58,7 @@ type BlogsTag struct {
 type UsersNotification struct {
 	NotificationID int64
 	UserID         *uuid.UUID
-	Content        string
+	Content        []byte
 	IsRead         bool
 	CreatedAt      pgtype.Timestamptz
 	CreatedBy      *uuid.UUID

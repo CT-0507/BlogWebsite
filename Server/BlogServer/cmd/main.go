@@ -41,7 +41,7 @@ func main() {
 	}
 
 	// Uploads
-	const RELATIVE_PATH = "/uploads"
+	const RELATIVE_PATH = "../uploads"
 	path := os.Getenv("UPLOAD_PATH")
 	if dsn == "" {
 		path = "." + RELATIVE_PATH
@@ -139,21 +139,48 @@ func main() {
 	bus := event_bus.NewBus()
 
 	// Saga
+
+	// Create blog saga
 	bus.Subscribe("create_blog_saga", saga.Orchestrator.StartSaga)
+	// Step 1
 	bus.Subscribe("CreateBlog", blogModule.EventHandler.CreateBlog)
 	bus.Subscribe("InceaseAuthorBlogCount", saga.Orchestrator.HandleEvent)
-	// bus.Subscribe("CreateBlog.Failed", saga.Orchestrator.HandleFailure)
-	// bus.Subscribe("DeleteBlog", saga)
-	bus.Subscribe("InceaseAuthorBlogCount", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
+	bus.Subscribe("CreateBlog.Failed", saga.Orchestrator.HandleFailure)
+
+	// Step 2
+	bus.Subscribe("InceaseAuthorBlogCount", authorModule.EventHandler.OnBlogCreated)
 	bus.Subscribe("InceaseAuthorBlogCount.Success", saga.Orchestrator.HandleEvent)
+	bus.Subscribe("InceaseAuthorBlogCount.Failed", saga.Orchestrator.HandleFailure)
+	// Step 2 compensation
+	bus.Subscribe("DeleteBlog", blogModule.EventHandler.CreateBlog)
+	bus.Subscribe("DeleteBlog.Success", saga.Orchestrator.HandleCompensationSuccess)
+	bus.Subscribe("DeleteBlog.Failed", saga.Orchestrator.HandleCompensationFailure)
+	// Notifications
+	bus.Subscribe("CreateNotifications", userModule.EventHandler.OnCreateNotifications)
+
+	// Create Author Saga
+	bus.Subscribe("create_author_saga", saga.Orchestrator.StartSaga)
+
+	// Step 1
+	bus.Subscribe("CreateAuthor", authorModule.EventHandler.OnAuthorFollowerCountChanged)
+	bus.Subscribe("CreateAuthor.Failed", saga.Orchestrator.HandleFailure)
+
+	//Step 2
+	bus.Subscribe("CreateBlogAuthorCache", blogModule.EventHandler.OnAuthorCreated)
+	bus.Subscribe("CreateBlogAuthorCache.Success", saga.Orchestrator.HandleEvent)
+	bus.Subscribe("CreateBlogAuthorCache.Failed", saga.Orchestrator.HandleFailure)
+
+	bus.Subscribe("DeleteAuthor", authorModule.EventHandler.OnDeleteAuthor)
+	bus.Subscribe("DeleteAuthor.Success", saga.Orchestrator.HandleCompensationSuccess)
+	bus.Subscribe("DeleteAuthor.Failed", saga.Orchestrator.HandleCompensationFailure)
 
 	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
 	bus.Subscribe("authorIdentity.created", blogModule.EventHandler.OnAuthorCreated)
 	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnAuthorDeleted)
 	bus.Subscribe("authorIdentity.hardDeleted", blogModule.EventHandler.OnAuthorHardDeleted)
-	bus.Subscribe("authorFollower.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
-	bus.Subscribe("authorFollower.deleted", event_bus.HandlerFunc(authorModule.EventHandlers.OnAuthorFollowerCountChanged))
+	bus.Subscribe("authorFollower.created", authorModule.EventHandler.OnAuthorFollowerCountChanged)
+	bus.Subscribe("authorFollower.deleted", authorModule.EventHandler.OnAuthorFollowerCountChanged)
 
 	worker := outbox.NewOutboxWorker(txManager, bus, outboxRepo)
 

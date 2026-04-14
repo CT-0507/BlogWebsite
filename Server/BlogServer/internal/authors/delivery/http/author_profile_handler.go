@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
@@ -30,7 +29,6 @@ type AuthorIdentityUsecases interface {
 	HardDeleteAuthorProfile(ctx context.Context, authorID string) error
 	UpdateAuthorSlug(ctx context.Context, authorID string, slug string, updatedBy string) error
 	UpdateAuthorStatus(ctx context.Context, authorID string, status string, updatedBy string) error
-	OnBlogCreated(ctx context.Context, evt *messaging.OutboxEvent) error
 }
 
 type AuthorSocialUsecases interface {
@@ -46,7 +44,6 @@ type AuthorFollowerUsecases interface {
 	UnfollowAuthor(ctx context.Context, userID string, authorID string) error
 	GetAuthorFollowers(ctx context.Context, slug string, page int64, limit int64) ([]string, error)
 	GetFollowedAuthors(ctx context.Context, userID string, page int64, limit int64) ([]string, error)
-	OnAuthorFollowerCountChanged(ctx context.Context, evt *messaging.OutboxEvent) error
 }
 
 type AuthorProfileHandler struct {
@@ -124,11 +121,11 @@ func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 
 	if err := h.authorIdentityUsecases.CreateAuthor(ctx, fileParams, &domain.AuthorProfile{
 		DisplayName: author.DisplayName,
-		Bio:         author.Bio,
-		Avatar:      author.Avatar,
+		Bio:         &author.Bio,
+		Avatar:      &author.Avatar,
 		Slug:        author.Slug,
-		SocialLink:  author.SocialLink,
-		Email:       author.Email,
+		SocialLink:  &author.SocialLink,
+		Email:       &author.Email,
 	}, userID, userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

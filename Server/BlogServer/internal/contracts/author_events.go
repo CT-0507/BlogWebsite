@@ -1,15 +1,47 @@
 package contracts
 
 // Author module
-type AuthorCreatedEvent struct {
+type AuthorCreatedEventPayload struct {
 	AuthorID    string
 	UserID      string
+	Slug        string
+	Status      string
+	DisplayName string
+	SocialLink  *string
+	Email       *string
+	Bio         *string
+	Avatar      *string
+	CreatedBy   *string
+}
+
+type AuthorCreatedEventContext struct {
+	UserID string
+	Avatar *string
+}
+
+type CreateBlogAuthorCachePayload struct {
+	UserID      string
+	AuthorID    string
 	Slug        string
 	DisplayName string
 }
 
-func (e AuthorCreatedEvent) EventName() string {
-	return "authorIdentity.created"
+type CreateBlogAuthorCacheContext struct {
+	AuthorID string
+	Avatar   *string
+}
+
+type AuthorDeleteContext struct {
+	AuthorID string
+	UserID   string
+	Status   string
+}
+
+type AuthorDeletePayload struct {
+	AuthorID string
+	UserID   string
+	Status   string
+	Avatar   *string
 }
 
 type AuthorDeletedEvent struct {
@@ -64,8 +96,12 @@ func (e FollowCountChangedEvent) EventName() string {
 }
 
 type BlogCountChangedEvent struct {
-	BlogID   int64
-	AuthorID string
+	BlogID           int64
+	AuthorID         string
+	UserID           string
+	TruncatedTitle   string
+	TruncatedContent string
+	UrlSlug          string
 }
 
 func (e BlogCountChangedEvent) EventName() string {

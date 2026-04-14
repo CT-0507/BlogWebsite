@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"context"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/domain"
 	userdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/infrastructure/db"
@@ -149,7 +150,7 @@ func (r *UserRepository) GetNotificationsByUserID(c context.Context, userID uuid
 	return notifications, nil
 }
 
-func (r *UserRepository) CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*domain.Notification, error) {
+func (r *UserRepository) CreateNotification(c context.Context, content []byte, userID uuid.UUID, createdBy uuid.UUID) (*domain.Notification, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
@@ -163,6 +164,28 @@ func (r *UserRepository) CreateNotification(c context.Context, content string, u
 	return NotificationDTOToNotification(&notification), err
 }
 
+func (r *UserRepository) CreateNotifications(c context.Context, nots []domain.Notification) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := userdb.New(db)
+
+	systemUUID := uuid.MustParse(config.SYSTEM_ID)
+
+	var params []userdb.CreateNotificationsParams
+	for _, value := range nots {
+		v := value
+		uuid := uuid.MustParse(value.UserID)
+		params = append(params, userdb.CreateNotificationsParams{
+			UserID:    &uuid,
+			Content:   v.Content,
+			CreatedBy: &systemUUID,
+		})
+	}
+
+	_, err := q.CreateNotifications(c, params)
+	return err
+}
 func (r *UserRepository) UpdateNotificationByID(c context.Context, notificationID int64, status bool, updatedBy *uuid.UUID) error {
 
 	db := utils.GetExecutor(c, r.pool)

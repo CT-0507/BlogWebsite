@@ -89,36 +89,6 @@ func (u *FollowerUsecases) GetFollowedAuthors(ctx context.Context, userID string
 	return u.repo.GetFollowedAuthors(ctx, userID, page, limit)
 }
 
-func (u *FollowerUsecases) OnAuthorFollowerCountChanged(ctx context.Context, evt *messaging.OutboxEvent) error {
-	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
-
-		var event contracts.FollowCountChangedEvent
-		err := json.Unmarshal(evt.Payload, &event)
-		if err != nil {
-			return err
-		}
-
-		err = u.repo.UpdateAuthorFollowerCount(ctx, event.AuthorID, event.IsIncrement)
-		if err != nil {
-			return err
-		}
-
-		event2 := &contracts.FollowCountChangedEvent{
-			AuthorID:    event.AuthorID,
-			UserID:      event.UserID,
-			IsIncrement: event.IsIncrement,
-		}
-
-		eventPayload, _ := json.Marshal(event2)
-
-		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType:  event2.EventName(),
-			Payload:    eventPayload,
-			RetryCount: 1,
-		})
-	})
-}
-
 // func (u *FollowerUsecases) OnAuthorUnfollowed(ctx context.Context, payload []byte) error {
 // 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 

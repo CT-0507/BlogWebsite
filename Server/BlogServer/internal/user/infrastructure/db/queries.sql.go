@@ -38,7 +38,7 @@ RETURNING notification_id, user_id, content, is_read, created_at, created_by, up
 
 type CreateNotificationParams struct {
 	UserID    *uuid.UUID
-	Content   string
+	Content   []byte
 	CreatedBy *uuid.UUID
 }
 
@@ -58,6 +58,12 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		&i.DeletedBy,
 	)
 	return i, err
+}
+
+type CreateNotificationsParams struct {
+	UserID    *uuid.UUID
+	Content   []byte
+	CreatedBy *uuid.UUID
 }
 
 const createUser = `-- name: CreateUser :one

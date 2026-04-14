@@ -8,16 +8,17 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 )
 
-type NotificationService interface {
-	PublishNotification(c context.Context, evt *messaging.OutboxEvent) error
+type NotificationPublisher interface {
+	PublishCache(topic string, event string, data *sse.Cache)
+	PublishEvent(topic string, event string, data *interface{})
 }
 
-type notificationService struct {
-	broker *sse.Broker
+type NotificationService struct {
+	publisher NotificationPublisher
 }
 
-func NewNotificationService(broker *sse.Broker) NotificationService {
-	return &notificationService{broker: broker}
+func NewNotificationService(publisher NotificationPublisher) *NotificationService {
+	return &NotificationService{publisher: publisher}
 }
 
 // type NotificationCreatedEvent struct {
@@ -25,13 +26,13 @@ func NewNotificationService(broker *sse.Broker) NotificationService {
 // 	Content string
 // }
 
-func (s *notificationService) PublishNotification(c context.Context, evt *messaging.OutboxEvent) error {
+func (s *NotificationService) PublishNotification(c context.Context, evt *messaging.OutboxEvent) error {
 
 	var event interface{}
 	if err := json.Unmarshal(evt.Payload, &event); err != nil {
 		return err
 	}
-	s.broker.PublishCache("blog_created_admin", "blog", sse.Cache{
+	s.publisher.PublishCache("blog_created_admin", "blog", &sse.Cache{
 		QueryKey: []string{"notifications"},
 		Op:       "append",
 		Data:     event,

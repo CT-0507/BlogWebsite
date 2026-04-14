@@ -11,6 +11,6 @@ type Orchestrator interface {
 	HandleEvent(ctx context.Context, evt *messaging.OutboxEvent) error
 	HandleFailure(ctx context.Context, e *messaging.OutboxEvent) error
 	StartCompensation(ctx context.Context, instance *Saga) error
-	HandleCompensationSuccess(ctx context.Context, evt messaging.OutboxEvent) error
-	HandleCompensationFailure(ctx context.Context, evt messaging.OutboxEvent)
+	HandleCompensationSuccess(ctx context.Context, evt *messaging.OutboxEvent) error
+	HandleCompensationFailure(ctx context.Context, evt *messaging.OutboxEvent) error
 }

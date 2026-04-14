@@ -36,7 +36,7 @@ CREATE TABLE users.refresh_tokens (
 CREATE TABLE users.notifications (
     notification_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id UUID REFERENCES users.users(user_id),
-    content TEXT NOT NULL,
+    content JSONB NOT NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

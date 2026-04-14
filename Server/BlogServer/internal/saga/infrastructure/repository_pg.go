@@ -87,7 +87,7 @@ func (r *SagaRepository) GetStepByIndex(ctx context.Context, sagaID uuid.UUID, s
 	return mapStepToDomainStep(&step), nil
 }
 
-func (r *SagaRepository) UpdateStepStatus(ctx context.Context, sagaID uuid.UUID, stepIndex int32, status domain.SagaStatus) error {
+func (r *SagaRepository) UpdateStepStatus(ctx context.Context, sagaID uuid.UUID, stepIndex int32, status domain.StepStatus) error {
 
 	db := utils.GetExecutor(ctx, r.pool)
 

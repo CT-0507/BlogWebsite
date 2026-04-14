@@ -8,9 +8,7 @@
 
 ## Context per step
 
-### Step 1: CreateBlog
-
-Kickstart outboxPayload
+### Kickstart outboxPayload
 
 Get author id and user id from local cache table
 
@@ -30,6 +28,8 @@ Get author id and user id from local cache table
   }
 }
 ```
+
+### Step 1: CreateBlog
 
 create saga
 
@@ -74,8 +74,6 @@ this step's outbox, same as the kickstart outbox
 }
 ```
 
-### Service handles event
-
 #### Success outbox
 
 outbox
@@ -88,6 +86,7 @@ outbox
   "payload": {
     "userID": "user-1",
     "blogID": "blog-1",
+    "blog_slug": "my-first-blog",
     "authorID": "author-1",
     "truncatedTitle": "My first blog",
     "truncatedContent": "This is.."
@@ -136,6 +135,7 @@ Create step 2
   "input": {
     "userID": "user-1",
     "blogID": "blog-1",
+    "blog_slug": "my-first-blog",
     "authorID": "author-1",
     "truncatedTitle": "My first blog",
     "truncatedContent": "This is.."
@@ -152,14 +152,13 @@ Emit next step with outbox payload
   "payload": {
     "userID": "user-1",
     "blogID": "blog-1",
+    "blog_slug": "my-first-blog",
     "authorID": "author-1",
     "truncatedTitle": "My first blog",
     "truncatedContent": "This is.."
   }
 }
 ```
-
-### Service handles event
 
 ### Success
 
@@ -172,7 +171,10 @@ outbox
   },
   "payload": {
     "blogID": "blog-1",
+    "blog_slug": "my-first-blog",
     "authorID": "author-1",
+    "authorName": "author-1-name",
+    "authorSlug": "author-1-slug",
     "userID": "user-1",
     "followerIds": ["user-2", "user-3"],
     "truncatedTitle": "My first blog",
@@ -217,7 +219,11 @@ Create step 3
 ```json
 {
   "input": {
+    "blogID": "blog-1",
+    "blog_slug": "my-first-blog",
     "authorID": "author-1",
+    "authorName": "author-1-name",
+    "authorSlug": "author-1-slug",
     "userID": "user-1",
     "followerIds": ["user-2", "user-3"],
     "truncatedTitle": "My first blog",
@@ -233,7 +239,11 @@ outbox
 {
   "context": {},
   "payload": {
+    "blogID": "blog-1",
+    "blog_slug": "my-first-blog",
     "authorID": "author-1",
+    "authorName": "author-1-name",
+    "authorSlug": "author-1-slug",
     "userID": "user-1",
     "followerIds": ["user-2", "user-3"],
     "truncatedTitle": "My first blog",

@@ -117,6 +117,15 @@ INSERT INTO users.notifications (
 VALUES ($1, $2, $3, $3)
 RETURNING *;
 
+-- name: CreateNotifications :copyfrom
+INSERT INTO users.notifications (
+    user_id,
+    content,
+    created_by,
+    updated_by
+)
+VALUES ($1, $2, $3, $3);
+
 -- name: UpdateNotification :exec
 UPDATE users.notifications 
     SET is_read = $2,

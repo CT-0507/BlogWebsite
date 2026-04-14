@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
-	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
@@ -13,7 +12,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
-	"github.com/oklog/ulid/v2"
+	"github.com/google/uuid"
 )
 
 type AuthorIdentityUsecases struct {
@@ -43,7 +42,7 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *d
 
 	if fileParams != nil {
 		// Ensure folder on current ymd
-		uploadDir, err := utils.EnsureUploadPath("./uploads")
+		uploadDir, err := utils.EnsureUploadPath("../uploads/temp")
 		if err != nil {
 			return err
 		}
@@ -65,34 +64,44 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *d
 			}
 		}()
 
-		author.Avatar = url
+		author.Avatar = &url
 	}
 
 	err = u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
-		author.AuthorID = ulid.Make().String()
-		author.Status = "active"
-		err := u.repo.CreateAuthorProfile(ctx, author, userID, createdBy)
-		if err != nil {
-			return &domain.ErrFailedToCreateAuthorProfile{
-				Message: err.Error(),
-			}
-		}
 
-		event := &contracts.AuthorCreatedEvent{
+		eventPayload := &contracts.AuthorCreatedEventPayload{
 			AuthorID:    author.AuthorID,
 			UserID:      userID,
+			Status:      "active",
 			Slug:        author.Slug,
 			DisplayName: author.DisplayName,
+			SocialLink:  author.SocialLink,
+			Email:       author.Email,
+			Bio:         author.Bio,
+			CreatedBy:   &userID,
 		}
 
-		payload, err := json.Marshal(event)
+		payload, err := json.Marshal(eventPayload)
 		if err != nil {
 			return err
 		}
 
+		eventContext := &contracts.AuthorCreatedEventContext{
+			UserID: userID,
+			Avatar: author.Avatar,
+		}
+		context, err := json.Marshal(eventContext)
+		if err != nil {
+			return err
+		}
+
+		sagaID := uuid.New()
+
 		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType: event.EventName(),
+			EventType: "CreateAuthor",
+			SagaID:    &sagaID,
 			Payload:   payload,
+			Context:   &context,
 		})
 	})
 
@@ -113,39 +122,66 @@ func (u *AuthorIdentityUsecases) ListAuthorProfiles(ctx context.Context, page in
 }
 
 func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, authorID string, deletedBy string) error {
+
+	author, err := u.repo.GetAuthorProfileByID(ctx, authorID, "active", "check_null")
+	if err != nil {
+		return &domain.ErrAuthorNotFound{
+			Message: err.Error(),
+		}
+	}
+
+	if author == nil {
+		return &domain.ErrAuthorNotFound{
+			Message: "Author not found",
+		}
+	}
+
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		author, err := u.repo.GetAuthorProfileByID(ctx, authorID, "active", "check_null")
-		if err != nil {
-			return &domain.ErrAuthorNotFound{
-				Message: err.Error(),
-			}
+		// err = u.repo.DeleteAuthorProfile(ctx, authorID, deletedBy)
+		// if err != nil {
+		// 	return err
+		// }
+
+		// event := &contracts.AuthorDeletedEvent{
+		// 	AuthorID: authorID,
+		// }
+
+		// payload, err := json.Marshal(event)
+		// if err != nil {
+		// 	return err
+		// }
+
+		eventPayload := &contracts.AuthorDeletePayload{
+			AuthorID: author.AuthorID,
+			UserID:   author.UserID,
+			Status:   author.Status,
+			Avatar:   author.Avatar,
 		}
 
-		if author == nil {
-			return &domain.ErrAuthorNotFound{
-				Message: "Author not found",
-			}
-		}
-
-		err = u.repo.DeleteAuthorProfile(ctx, authorID, deletedBy)
+		payload, err := json.Marshal(eventPayload)
 		if err != nil {
 			return err
 		}
 
-		event := &contracts.AuthorDeletedEvent{
-			AuthorID: authorID,
+		eventContext := &contracts.AuthorDeleteContext{
+			AuthorID: author.AuthorID,
+			UserID:   author.UserID,
+			Status:   "deleted",
 		}
 
-		payload, err := json.Marshal(event)
+		context, err := json.Marshal(eventContext)
 		if err != nil {
 			return err
 		}
+
+		sagaID := uuid.New()
 
 		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType:  event.EventName(),
-			Payload:    payload,
-			RetryCount: 1,
+			SagaID:    &sagaID,
+			EventType: "delete_author_saga",
+			Payload:   payload,
+			Context:   &context,
 		})
 	})
 }
@@ -194,56 +230,4 @@ func (u *AuthorIdentityUsecases) UpdateAuthorSlug(ctx context.Context, authorID 
 
 func (u *AuthorIdentityUsecases) UpdateAuthorStatus(ctx context.Context, authorID string, status string, updatedBy string) error {
 	return u.repo.UpdateAuthorStatus(ctx, authorID, status, updatedBy)
-}
-
-// Event Handler
-
-func (u *AuthorIdentityUsecases) OnBlogCreated(ctx context.Context, evt *messaging.OutboxEvent) error {
-	timeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	return u.txManager.WithVoidTx(timeCtx, func(ctx context.Context) error {
-
-		var payload contracts.BlogCountChangedEvent
-		err := json.Unmarshal(evt.Payload, &payload)
-		if err != nil {
-			return err
-		}
-
-		err = u.repo.UpdateAuthorBlogCount(ctx, payload.AuthorID, true)
-		if err != nil {
-			return err
-		}
-
-		context := &map[string]interface{}{
-			"AuthorID": payload.AuthorID,
-		}
-
-		newPayload, err := utils.StructToMap(payload)
-		if err != nil {
-			return err
-		}
-
-		followerIds, err := u.repo.GetAuthorFollowersByID(ctx, payload.AuthorID)
-		if err != nil {
-			return err
-		}
-		newPayload["FollowerIds"] = followerIds
-		payloadMarshal, _ := json.Marshal(newPayload)
-		contextMarshal, _ := json.Marshal(context)
-
-		err = u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType: "CreateNotification",
-			Payload:   payloadMarshal,
-		})
-		if err != nil {
-			return err
-		}
-
-		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			SagaID:    evt.SagaID,
-			EventType: "InceaseAuthorBlogCount.Success",
-			Payload:   evt.Payload,
-			Context:   &contextMarshal,
-		})
-	})
 }
