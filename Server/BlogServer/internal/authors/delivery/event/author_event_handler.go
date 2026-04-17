@@ -144,13 +144,24 @@ func (e *EventHandler) OnAuthorCreate(c context.Context, evt *messaging.OutboxEv
 	return nil
 }
 
-func (e *EventHandler) OnDeleteAuthor(c context.Context, evt *messaging.OutboxEvent) error {
+func (e *EventHandler) OnCreateAuthorCompensation(c context.Context, evt *messaging.OutboxEvent) error {
 
 	ctx, cancel := context.WithTimeout(c, time.Second)
 	defer cancel()
 
 	var output contracts.CreateBlogAuthorCacheContext
 	_ = json.Unmarshal(evt.Payload, &output)
+
+	if output.Avatar != nil {
+
+		dst := utils.SwapTemp(*output.Avatar, true)
+
+		err := e.storageService.MoveFile(*output.Avatar, dst)
+		if err != nil {
+			return err
+		}
+		output.Avatar = &dst
+	}
 
 	err := e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 		err := e.repo.UpdateAuthorStatus(ctx, output.AuthorID, "deleted", config.SYSTEM_ID)
@@ -167,7 +178,7 @@ func (e *EventHandler) OnDeleteAuthor(c context.Context, evt *messaging.OutboxEv
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "DeleteAuthor.Success",
+			EventType: "CreateAuthorCompesation.Success",
 			Payload:   payload,
 		})
 	})
@@ -181,7 +192,140 @@ func (e *EventHandler) OnDeleteAuthor(c context.Context, evt *messaging.OutboxEv
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
+			EventType: "CreateAuthorCompesation.Failed",
+			Payload:   b,
+			Error:     evt.Error,
+		})
+		if err1 != nil {
+			return err1
+		}
+		return err
+	}
+	return nil
+}
+
+func (e *EventHandler) OnDeleteAuthor(c context.Context, evt *messaging.OutboxEvent) error {
+
+	ctx, cancel := context.WithTimeout(c, time.Second)
+	defer cancel()
+
+	var outboxPayload contracts.DeleteAuthorKickstartPayload
+	_ = json.Unmarshal(evt.Payload, &outboxPayload)
+
+	if outboxPayload.Avatar != nil {
+
+		dst := utils.SwapTemp(*outboxPayload.Avatar, true)
+
+		err := e.storageService.MoveFile(*outboxPayload.Avatar, dst)
+		if err != nil {
+			return err
+		}
+		outboxPayload.Avatar = &dst
+	}
+
+	err := e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+		err := e.repo.UpdateAuthorStatus(ctx, outboxPayload.AuthorID, "deleted", config.SYSTEM_ID)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := &contracts.DeleteAuthorPayload{
+			AuthorID: outboxPayload.AuthorID,
+		}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteAuthorContext{
+			AuthorID:       outboxPayload.AuthorID,
+			PreviousStatus: outboxPayload.Status,
+			Avatar:         outboxPayload.Avatar,
+		}
+
+		context, err := json.Marshal(eventContext)
+		if err != nil {
+			return err
+		}
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "DeleteAuthor.Success",
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx = context.WithValue(ctx, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
 			EventType: "DeleteAuthor.Failed",
+			Payload:   b,
+			Error:     evt.Error,
+		})
+		if err1 != nil {
+			return err1
+		}
+		return err
+	}
+	return nil
+}
+
+func (e *EventHandler) OnRestoreAuthor(c context.Context, evt *messaging.OutboxEvent) error {
+	ctx, cancel := context.WithTimeout(c, time.Second)
+	defer cancel()
+
+	var output contracts.DeleteAuthorContext
+	_ = json.Unmarshal(evt.Payload, &output)
+
+	if output.Avatar != nil {
+
+		dst := utils.SwapTemp(*output.Avatar, false)
+
+		err := e.storageService.MoveFile(*output.Avatar, dst)
+		if err != nil {
+			return err
+		}
+		output.Avatar = &dst
+	}
+
+	err := e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+		err := e.repo.UpdateAuthorStatus(ctx, output.AuthorID, output.PreviousStatus, config.SYSTEM_ID)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := &map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "RestoreAuthor.Success",
+			Payload:   payload,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx = context.WithValue(ctx, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "RestoreAuthor.Failed",
 			Payload:   b,
 			Error:     evt.Error,
 		})

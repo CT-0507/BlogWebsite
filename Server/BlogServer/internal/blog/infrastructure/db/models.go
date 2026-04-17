@@ -40,7 +40,9 @@ type BlogsIdxUserAuthorProfile struct {
 	AuthorID    string
 	Slug        string
 	DisplayName string
+	Status      string
 	CreatedAt   pgtype.Timestamptz
+	DeletedAt   pgtype.Timestamptz
 }
 
 type BlogsTag struct {

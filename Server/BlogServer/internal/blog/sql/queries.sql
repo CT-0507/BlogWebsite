@@ -140,7 +140,8 @@ WHERE user_id = $1;
 
 -- name: UpdateBlogStatusForDeletedAuthor :exec
 UPDATE blogs.blogs
-SET status = 'author_deleted'
+SET status = 'author_deleted',
+deleted_at = NOW()
 WHERE blogs.author_id = $1;
 
 -- name: DeleteAuthorHardDeletedBlogs :exec
@@ -149,4 +150,9 @@ WHERE author_id = $1;
 
 -- name: DeleteAuthorCache :exec
 DELETE FROM blogs.idx_user_author_profile
+WHERE author_id = $1;
+
+-- name: MarkAuthorCacheAsDeleted :exec
+UPDATE blogs.idx_user_author_profile
+SET status = 'deleted', deleted_at = NOW()
 WHERE author_id = $1;

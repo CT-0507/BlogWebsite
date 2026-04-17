@@ -31,17 +31,28 @@ type CreateBlogAuthorCacheContext struct {
 	Avatar   *string
 }
 
-type AuthorDeleteContext struct {
-	AuthorID string
-	UserID   string
-	Status   string
-}
-
-type AuthorDeletePayload struct {
+type DeleteAuthorKickstartContext struct {
 	AuthorID string
 	UserID   string
 	Status   string
 	Avatar   *string
+}
+
+type DeleteAuthorKickstartPayload struct {
+	AuthorID string
+	UserID   string
+	Status   string
+	Avatar   *string
+}
+
+type DeleteAuthorContext struct {
+	AuthorID       string
+	PreviousStatus string
+	Avatar         *string
+}
+
+type DeleteAuthorPayload struct {
+	AuthorID string
 }
 
 type AuthorDeletedEvent struct {

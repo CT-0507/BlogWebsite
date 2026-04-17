@@ -7,7 +7,7 @@ var CreateAuthorSaga = domain.SagaDefinition{
 	Steps: []domain.Step{
 		{
 			ActionType:     "CreateAuthor",
-			CompensateType: "DeleteAuthor",
+			CompensateType: "CreateAuthorCompesation",
 			MaxRetries:     2,
 		},
 		{

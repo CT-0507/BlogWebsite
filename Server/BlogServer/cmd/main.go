@@ -170,14 +170,30 @@ func main() {
 	bus.Subscribe("CreateBlogAuthorCache.Success", saga.Orchestrator.HandleEvent)
 	bus.Subscribe("CreateBlogAuthorCache.Failed", saga.Orchestrator.HandleFailure)
 
-	bus.Subscribe("DeleteAuthor", authorModule.EventHandler.OnDeleteAuthor)
-	bus.Subscribe("DeleteAuthor.Success", saga.Orchestrator.HandleCompensationSuccess)
-	bus.Subscribe("DeleteAuthor.Failed", saga.Orchestrator.HandleCompensationFailure)
+	bus.Subscribe("CreateAuthorCompesation", authorModule.EventHandler.OnCreateAuthorCompensation)
+	bus.Subscribe("CreateAuthorCompesation.Success", saga.Orchestrator.HandleCompensationSuccess)
+	bus.Subscribe("CreateAuthorCompesation.Failed", saga.Orchestrator.HandleCompensationFailure)
+
+	// Delete Author Saga
+	bus.Subscribe("delete_author_saga", saga.Orchestrator.StartSaga)
+
+	// Step 1: Mark author as deleted
+	bus.Subscribe("DeleteAuthor", authorModule.EventHandler.OnAuthorFollowerCountChanged)
+	bus.Subscribe("DeleteAuthor.Failed", saga.Orchestrator.HandleFailure)
+
+	// Step 2
+	bus.Subscribe("DeleteBlogAuthorCache", blogModule.EventHandler.OnAuthorCreated)
+	bus.Subscribe("DeleteBlogAuthorCache.Success", saga.Orchestrator.HandleEvent)
+	bus.Subscribe("DeleteBlogAuthorCache.Failed", saga.Orchestrator.HandleFailure)
+
+	bus.Subscribe("RestoreAuthor", authorModule.EventHandler.OnCreateAuthorCompensation)
+	bus.Subscribe("RestoreAuthor.Success", saga.Orchestrator.HandleCompensationSuccess)
+	bus.Subscribe("RestoreAuthor.Failed", saga.Orchestrator.HandleCompensationFailure)
 
 	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
 	bus.Subscribe("authorIdentity.created", blogModule.EventHandler.OnAuthorCreated)
-	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnAuthorDeleted)
+	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnDeleteBlogAuthorCache)
 	bus.Subscribe("authorIdentity.hardDeleted", blogModule.EventHandler.OnAuthorHardDeleted)
 	bus.Subscribe("authorFollower.created", authorModule.EventHandler.OnAuthorFollowerCountChanged)
 	bus.Subscribe("authorFollower.deleted", authorModule.EventHandler.OnAuthorFollowerCountChanged)

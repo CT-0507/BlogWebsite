@@ -22,6 +22,7 @@ func NewSagaModule(pool *pgxpool.Pool, txManageer database.TxManager, outboxRepo
 	registry.Register(flows.CreateBlogSaga.Name, flows.CreateBlogSaga.Steps)
 	registry.Register(flows.CreateAuthorSaga.Name, flows.CreateAuthorSaga.Steps)
 	registry.Register(flows.DeleteAuthorSaga.Name, flows.DeleteAuthorSaga.Steps)
+	registry.Register(flows.DeleteUserSaga.Name, flows.DeleteUserSaga.Steps)
 
 	orchestrator := infrastructure.NewOrchestrator(registry, txManageer, repo, outboxRepo)
 	return &SagaModule{

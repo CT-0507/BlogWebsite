@@ -34,3 +34,7 @@ type CreateBlogAuthorCacheSuccessContext struct {
 	AuthorID string
 	UserID   string
 }
+
+type DeleteBlogAuthorCacheContext struct {
+	AuthorID string
+}

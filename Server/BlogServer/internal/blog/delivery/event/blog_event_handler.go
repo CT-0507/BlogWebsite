@@ -84,16 +84,78 @@ func (e *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxE
 	return nil
 }
 
-func (e *EventHandler) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
-	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+func (e *EventHandler) OnDeleteBlogAuthorCache(c context.Context, evt *messaging.OutboxEvent) error {
 
-		var event domain.AuthorDeletedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+	var outboxPayload contracts.DeleteAuthorPayload
+	err := json.Unmarshal(evt.Payload, &outboxPayload)
+	if err != nil {
+		return err
+	}
+
+	err = e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		err := e.repo.UpdateBlogStatusForDeletedAuthor(c, outboxPayload.AuthorID)
+		if err != nil {
 			return err
 		}
-		return e.repo.UpdateBlogStatusForDeletedAuthor(c, event.AuthorID)
+
+		err = e.repo.MarkAuthorCacheAsDeleted(c, outboxPayload.AuthorID)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogAuthorCacheContext{
+			AuthorID: outboxPayload.AuthorID,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "DeleteBlogAuthorCache.Success",
+			Payload:   payload,
+			Context:   &context,
+		})
 	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: "DeleteBlogAuthorCache.Failed",
+			Payload:   b,
+			Error:     evt.Error,
+		})
+		if err1 != nil {
+			return err1
+		}
+		return err
+	}
+	return nil
 }
+
+// func (e *EventHandler) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+// 	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+// 		var event domain.AuthorDeletedEvent
+// 		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+// 			return err
+// 		}
+// 		return e.repo.UpdateBlogStatusForDeletedAuthor(c, event.AuthorID)
+// 	})
+// }
 
 func (e *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
 	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {

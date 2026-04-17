@@ -507,6 +507,17 @@ func (q *Queries) ListBlogsByAuthorSlug(ctx context.Context, arg ListBlogsByAuth
 	return items, nil
 }
 
+const markAuthorCacheAsDeleted = `-- name: MarkAuthorCacheAsDeleted :exec
+UPDATE blogs.idx_user_author_profile
+SET status = 'deleted', deleted_at = NOW()
+WHERE author_id = $1
+`
+
+func (q *Queries) MarkAuthorCacheAsDeleted(ctx context.Context, authorID string) error {
+	_, err := q.db.Exec(ctx, markAuthorCacheAsDeleted, authorID)
+	return err
+}
+
 const updateBlog = `-- name: UpdateBlog :one
 UPDATE blogs.blogs
     SET title = $1,
@@ -530,7 +541,8 @@ func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (int64, 
 
 const updateBlogStatusForDeletedAuthor = `-- name: UpdateBlogStatusForDeletedAuthor :exec
 UPDATE blogs.blogs
-SET status = 'author_deleted'
+SET status = 'author_deleted',
+deleted_at = NOW()
 WHERE blogs.author_id = $1
 `
 

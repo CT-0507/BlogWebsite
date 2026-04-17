@@ -138,21 +138,7 @@ func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, author
 
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		// err = u.repo.DeleteAuthorProfile(ctx, authorID, deletedBy)
-		// if err != nil {
-		// 	return err
-		// }
-
-		// event := &contracts.AuthorDeletedEvent{
-		// 	AuthorID: authorID,
-		// }
-
-		// payload, err := json.Marshal(event)
-		// if err != nil {
-		// 	return err
-		// }
-
-		eventPayload := &contracts.AuthorDeletePayload{
+		eventPayload := &contracts.DeleteAuthorKickstartPayload{
 			AuthorID: author.AuthorID,
 			UserID:   author.UserID,
 			Status:   author.Status,
@@ -164,10 +150,11 @@ func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, author
 			return err
 		}
 
-		eventContext := &contracts.AuthorDeleteContext{
+		eventContext := &contracts.DeleteAuthorKickstartContext{
 			AuthorID: author.AuthorID,
 			UserID:   author.UserID,
 			Status:   "deleted",
+			Avatar:   author.Avatar,
 		}
 
 		context, err := json.Marshal(eventContext)

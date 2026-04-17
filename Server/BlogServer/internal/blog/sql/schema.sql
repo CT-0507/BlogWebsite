@@ -50,8 +50,10 @@ CREATE TABLE blogs.idx_user_author_profile (
     author_id TEXT NOT NULL,
     slug TEXT NOT NULL,
     display_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
 
     UNIQUE(user_id),
     UNIQUE(user_id, author_id)

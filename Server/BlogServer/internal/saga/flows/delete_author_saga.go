@@ -12,7 +12,7 @@ var DeleteAuthorSaga = domain.SagaDefinition{
 		},
 		{
 			ActionType:     "DeleteBlogAuthorCache",
-			CompensateType: "RestoreBlogAuthorCache",
+			CompensateType: "",
 			MaxRetries:     2,
 		},
 	},
