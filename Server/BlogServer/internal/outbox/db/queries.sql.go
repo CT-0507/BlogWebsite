@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getUnprocessedEvent = `-- name: GetUnprocessedEvent :many
@@ -52,15 +53,17 @@ func (q *Queries) GetUnprocessedEvent(ctx context.Context) ([]OutboxOutboxEvent,
 
 const insertRecord = `-- name: InsertRecord :exec
 INSERT INTO outbox.outbox_events
-    (saga_id, event_type, payload, context)
-VALUES ($1, $2, $3, $4)
+    (saga_id, event_type, payload, retry_count, context, error)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type InsertRecordParams struct {
-	SagaID    *uuid.UUID
-	EventType string
-	Payload   []byte
-	Context   []byte
+	SagaID     *uuid.UUID
+	EventType  string
+	Payload    []byte
+	RetryCount int32
+	Context    []byte
+	Error      pgtype.Text
 }
 
 func (q *Queries) InsertRecord(ctx context.Context, arg InsertRecordParams) error {
@@ -68,7 +71,9 @@ func (q *Queries) InsertRecord(ctx context.Context, arg InsertRecordParams) erro
 		arg.SagaID,
 		arg.EventType,
 		arg.Payload,
+		arg.RetryCount,
 		arg.Context,
+		arg.Error,
 	)
 	return err
 }

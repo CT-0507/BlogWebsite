@@ -2,8 +2,13 @@ package application
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/domain"
@@ -84,6 +89,51 @@ func (u *AuthUseCases) LogoutUser(c context.Context, userID uuid.UUID) error {
 	})
 }
 
-func (s *AuthUseCases) GetUserByID(c context.Context, userID uuid.UUID) (*domain.User, error) {
-	return s.repo.GetUserByID(c, userID)
+func (u *AuthUseCases) GetUserByID(c context.Context, userID uuid.UUID) (*domain.User, error) {
+	return u.repo.GetUserByID(c, userID)
+}
+
+func (u *AuthUseCases) DeleteUser(c context.Context, userID uuid.UUID, updatedBy uuid.UUID) error {
+
+	user, err := u.repo.GetUserByID(c, userID)
+	if err != nil {
+		return err
+	}
+
+	if user == nil {
+		return errors.New("User not found")
+	}
+
+	eventPayload := &contracts.DeleteUserSagaContext{
+		UserID:    userID,
+		UpdatedBy: updatedBy,
+	}
+
+	payload, err := json.Marshal(eventPayload)
+	if err != nil {
+		return err
+	}
+
+	eventContext := &contracts.DeleteUserSagaContext{
+		UserID:    userID,
+		UpdatedBy: updatedBy,
+	}
+
+	eContext, err := json.Marshal(eventContext)
+	if err != nil {
+		return err
+	}
+
+	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		sagaID := uuid.New()
+
+		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    &sagaID,
+			EventType: flows.DeleteAuthorSaga,
+			Payload:   payload,
+			Context:   &eContext,
+		})
+	})
+
 }

@@ -19,10 +19,10 @@ func NewSagaModule(pool *pgxpool.Pool, txManageer database.TxManager, outboxRepo
 
 	// Register in-memory definition
 	registry := infrastructure.NewRegistry()
-	registry.Register(flows.CreateBlogSaga.Name, flows.CreateBlogSaga.Steps)
-	registry.Register(flows.CreateAuthorSaga.Name, flows.CreateAuthorSaga.Steps)
-	registry.Register(flows.DeleteAuthorSaga.Name, flows.DeleteAuthorSaga.Steps)
-	registry.Register(flows.DeleteUserSaga.Name, flows.DeleteUserSaga.Steps)
+	registry.Register(flows.CreateBlogSagaDefinition.Name, flows.CreateBlogSagaDefinition.Steps)
+	registry.Register(flows.CreateAuthorSagaDefinition.Name, flows.CreateAuthorSagaDefinition.Steps)
+	registry.Register(flows.DeleteAuthorSagaDefinition.Name, flows.DeleteAuthorSagaDefinition.Steps)
+	registry.Register(flows.DeleteUserSagaDefinition.Name, flows.DeleteUserSagaDefinition.Steps)
 
 	orchestrator := infrastructure.NewOrchestrator(registry, txManageer, repo, outboxRepo)
 	return &SagaModule{

@@ -85,7 +85,6 @@ func (w *OutboxWorker) processBatch(ctx context.Context) {
 		}
 
 		if len(failedIds) > 0 {
-			log.Println(failedIds[0])
 			log.Println("Update retry")
 			err := w.outboxRepo.UpdateRetries(ctx, failedIds)
 			if err != nil {

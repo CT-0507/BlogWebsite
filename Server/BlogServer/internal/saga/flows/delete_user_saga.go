@@ -2,22 +2,35 @@ package flows
 
 import "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/domain"
 
-var DeleteUserSaga = domain.SagaDefinition{
-	Name: "create_blog_saga",
+const (
+	DeleteUserSaga                string = "saga.delete_user"
+	DeleteUser                    string = "cmd.DeleteUser"
+	DeleteUserSuccess             string = "evt.DeleteUser.Success"
+	DeleteUserFailed              string = "evt.DeleteUser.Failed"
+	DeleteAuthorProfile           string = "cmd.DeleteAuthorProfile"
+	DeleteAuthorProfileSuccess    string = "evt.DeleteAuthorProfile.Success"
+	DeleteAuthorProfileFailed     string = "evt.DeleteAuthorProfile.Failed"
+	DeleteUserCompensation        string = "cmd.DeleteUserCompensation"
+	DeleteUserCompensationSuccess string = "evt.DeleteUserCompensation.Success"
+	DeleteUserCompensationFailed  string = "evt.DeleteUserCompensation.Failed"
+)
+
+var DeleteUserSagaDefinition = domain.SagaDefinition{
+	Name: DeleteUserSaga,
 	Steps: []domain.Step{
 		{
-			ActionType:     "DeleteUser",
-			CompensateType: "DeleteUserCompensation",
-			MaxRetries:     2,
-		},
-		{
-			ActionType:     "DeleteAuthorProfile",
-			CompensateType: "DeleteAuthorProfileCompensation",
-			MaxRetries:     2,
-		},
-		{
-			ActionType:     "DeleteBlogAuthorCache",
+			ActionType:     DeleteUser,
 			CompensateType: "",
+			MaxRetries:     2,
+		},
+		{
+			ActionType:     DeleteAuthorProfile,
+			CompensateType: DeleteUserCompensation,
+			MaxRetries:     2,
+		},
+		{
+			ActionType:     DeleteBlogAuthorCache,
+			CompensateType: DeleteAuthorCompensation,
 			MaxRetries:     2,
 		},
 	},

@@ -8,6 +8,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/google/uuid"
 )
@@ -62,7 +63,7 @@ func (s *CreateBlogUseCases) CreateBlogStartSaga(c context.Context, blog *domain
 		sagaID := uuid.New()
 		err = s.outboxRepo.Insert(c, &messaging.OutboxEvent{
 			SagaID:    &sagaID,
-			EventType: "create_blog_saga",
+			EventType: flows.CreateBlogSaga,
 			Payload:   payloadMarshal,
 			Context:   &contextMarshal,
 		})

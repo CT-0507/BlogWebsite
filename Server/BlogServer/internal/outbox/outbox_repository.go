@@ -7,6 +7,7 @@ import (
 	outboxdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox/db"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -30,11 +31,22 @@ func (r *OutboxRepositoryImpl) Insert(ctx context.Context, event *messaging.Outb
 	}
 
 	q := outboxdb.New(db)
+
+	var err string = ""
+	if event.Error != nil {
+		err = *event.Error
+	}
+
 	return q.InsertRecord(ctx, outboxdb.InsertRecordParams{
-		SagaID:    event.SagaID,
-		EventType: event.EventType,
-		Payload:   event.Payload,
-		Context:   context,
+		SagaID:     event.SagaID,
+		EventType:  event.EventType,
+		Payload:    event.Payload,
+		Context:    context,
+		RetryCount: event.RetryCount,
+		Error: pgtype.Text{
+			Valid:  event.Error != nil,
+			String: err,
+		},
 	})
 }
 

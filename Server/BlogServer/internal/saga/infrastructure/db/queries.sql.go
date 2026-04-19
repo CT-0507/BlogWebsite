@@ -69,6 +69,66 @@ func (q *Queries) CreateSagaStep(ctx context.Context, arg CreateSagaStepParams) 
 	return err
 }
 
+const getCompensatingStep = `-- name: GetCompensatingStep :one
+SELECT id, saga_id, step_index, step_name, status, event_id, retry_count, next_retry_at, input, output, last_error, created_at, updated_at, compensated_at
+FROM saga.saga_steps
+WHERE saga_id = $1 AND status = 'compensating'
+ORDER BY step_index DESC
+LIMIT 1
+`
+
+func (q *Queries) GetCompensatingStep(ctx context.Context, sagaID uuid.UUID) (SagaSagaStep, error) {
+	row := q.db.QueryRow(ctx, getCompensatingStep, sagaID)
+	var i SagaSagaStep
+	err := row.Scan(
+		&i.ID,
+		&i.SagaID,
+		&i.StepIndex,
+		&i.StepName,
+		&i.Status,
+		&i.EventID,
+		&i.RetryCount,
+		&i.NextRetryAt,
+		&i.Input,
+		&i.Output,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CompensatedAt,
+	)
+	return i, err
+}
+
+const getLastCompletedStep = `-- name: GetLastCompletedStep :one
+SELECT id, saga_id, step_index, step_name, status, event_id, retry_count, next_retry_at, input, output, last_error, created_at, updated_at, compensated_at
+FROM saga.saga_steps
+WHERE saga_id = $1 AND status = 'completed'
+ORDER BY step_index DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLastCompletedStep(ctx context.Context, sagaID uuid.UUID) (SagaSagaStep, error) {
+	row := q.db.QueryRow(ctx, getLastCompletedStep, sagaID)
+	var i SagaSagaStep
+	err := row.Scan(
+		&i.ID,
+		&i.SagaID,
+		&i.StepIndex,
+		&i.StepName,
+		&i.Status,
+		&i.EventID,
+		&i.RetryCount,
+		&i.NextRetryAt,
+		&i.Input,
+		&i.Output,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CompensatedAt,
+	)
+	return i, err
+}
+
 const getSagaByID = `-- name: GetSagaByID :one
 SELECT id, saga_type, status, current_step, context, error, created_at, updated_at
 FROM saga.sagas
@@ -154,6 +214,28 @@ func (q *Queries) InsertDLQ(ctx context.Context, arg InsertDLQParams) error {
 		arg.Output,
 		arg.LastError,
 	)
+	return err
+}
+
+const updateLastCompetedStepStatus = `-- name: UpdateLastCompetedStepStatus :exec
+UPDATE saga.saga_steps 
+SET status = $1
+WHERE id = (
+  SELECT i.id
+  FROM saga.saga_steps i
+  WHERE i.saga_id = $2 AND i.status = 'completed'
+  ORDER BY i.step_index DESC
+  LIMIT 1
+)
+`
+
+type UpdateLastCompetedStepStatusParams struct {
+	Status string
+	SagaID uuid.UUID
+}
+
+func (q *Queries) UpdateLastCompetedStepStatus(ctx context.Context, arg UpdateLastCompetedStepStatusParams) error {
+	_, err := q.db.Exec(ctx, updateLastCompetedStepStatus, arg.Status, arg.SagaID)
 	return err
 }
 

@@ -41,22 +41,6 @@ func UUIDPtr(u *uuid.UUID) *string {
 	return &s
 }
 
-func UUIDFromStringPtr(s *string) (pgtype.UUID, error) {
-	if s == nil {
-		return pgtype.UUID{Valid: false}, nil
-	}
-
-	u, err := uuid.Parse(*s)
-	if err != nil {
-		return pgtype.UUID{}, err
-	}
-
-	return pgtype.UUID{
-		Bytes: u,
-		Valid: true,
-	}, nil
-}
-
 func HashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -75,4 +59,23 @@ func Truncate(s string, max int, withEllipsis bool) string {
 		result += "..."
 	}
 	return result
+}
+
+func DerefTextNullable(text pgtype.Text) *string {
+	if text.Valid {
+		return &text.String
+	}
+	return nil
+}
+
+func Deref[T any](v *T) T {
+	if v != nil {
+		return *v
+	}
+	var zero T
+	return zero
+}
+
+func StringPtr(s string) *string {
+	return &s
 }

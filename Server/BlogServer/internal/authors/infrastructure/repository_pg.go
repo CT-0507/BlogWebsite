@@ -34,17 +34,17 @@ func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author 
 			Valid:  author.DisplayName != "",
 		},
 		Avatar: pgtype.Text{
-			String: *author.Avatar,
+			String: utils.Deref(author.Avatar),
 			Valid:  author.Avatar != nil,
 		},
 		Slug: author.Slug,
 		SocialLink: pgtype.Text{
-			String: *author.SocialLink,
+			String: utils.Deref(author.SocialLink),
 			Valid:  author.SocialLink != nil,
 		},
 		Status: author.Status,
 		Email: pgtype.Text{
-			String: *author.Email,
+			String: utils.Deref(author.Email),
 			Valid:  author.Email != nil,
 		},
 		CreatedBy: createdBy,
@@ -130,7 +130,7 @@ func (r *AuthorProfileRepository) UpdateAuthorStatus(c context.Context, authorID
 	q := authordb.New(db)
 
 	return q.UpdateAuthorStatus(c, authordb.UpdateAuthorStatusParams{
-		Status:    status,
+		Column1:   status,
 		UpdatedBy: userID,
 		AuthorID:  authorID,
 	})

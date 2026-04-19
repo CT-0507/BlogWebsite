@@ -18,4 +18,7 @@ type SagaRepository interface {
 	UpdateSagaContext(ctx context.Context, sagaID uuid.UUID, context []byte) error
 	UpdateSagaStatus(ctx context.Context, sagaID uuid.UUID, status SagaStatus) error
 	InsertDLQ(ctx context.Context, step *SagaStep, err string) error
+	GetLastCompletedStep(ctx context.Context, sagaID uuid.UUID) (*SagaStep, error)
+	UpdateLastCompetedStepStatus(ctx context.Context, sagaID uuid.UUID, status StepStatus) error
+	GetCompensatingStep(ctx context.Context, sagaID uuid.UUID) (*SagaStep, error)
 }

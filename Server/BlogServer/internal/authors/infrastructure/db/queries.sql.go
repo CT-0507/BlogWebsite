@@ -481,27 +481,27 @@ func (q *Queries) UpdateAuthorSlug(ctx context.Context, arg UpdateAuthorSlugPara
 
 const updateAuthorStatus = `-- name: UpdateAuthorStatus :exec
 UPDATE authors.authors
-    SET status = $1,
+    SET status = $1::varchar(50),
     updated_at = NOW(),
     updated_by = $2,
     deleted_at = CASE
-        WHEN $1 = 'deleted' THEN NOW()
+        WHEN $1::varchar(50) = 'deleted' THEN NOW()
         ELSE deleted_at
     END,
     deleted_by = CASE
-        WHEN $1 = 'deleted' AND deleted_by IS NULL THEN $2
+        WHEN $1::varchar(50) = 'deleted' AND deleted_by IS NULL THEN $2
         ELSE deleted_by
     END
 WHERE author_id = $3
 `
 
 type UpdateAuthorStatusParams struct {
-	Status    string
+	Column1   string
 	UpdatedBy string
 	AuthorID  string
 }
 
 func (q *Queries) UpdateAuthorStatus(ctx context.Context, arg UpdateAuthorStatusParams) error {
-	_, err := q.db.Exec(ctx, updateAuthorStatus, arg.Status, arg.UpdatedBy, arg.AuthorID)
+	_, err := q.db.Exec(ctx, updateAuthorStatus, arg.Column1, arg.UpdatedBy, arg.AuthorID)
 	return err
 }

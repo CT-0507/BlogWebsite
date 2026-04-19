@@ -10,6 +10,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
@@ -117,7 +118,7 @@ func (e *EventHandler) OnAuthorCreate(c context.Context, evt *messaging.OutboxEv
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "CreateBlogAuthorCache",
+			EventType: flows.CreateAuthorSuccess,
 			Payload:   payload,
 			Context:   &context,
 		})
@@ -132,14 +133,14 @@ func (e *EventHandler) OnAuthorCreate(c context.Context, evt *messaging.OutboxEv
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "CreateAuthor.Failed",
+			EventType: flows.CreateAuthorFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }
@@ -178,7 +179,7 @@ func (e *EventHandler) OnCreateAuthorCompensation(c context.Context, evt *messag
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "CreateAuthorCompesation.Success",
+			EventType: flows.CreateAuthorCompensationSuccess,
 			Payload:   payload,
 		})
 	})
@@ -192,14 +193,14 @@ func (e *EventHandler) OnCreateAuthorCompensation(c context.Context, evt *messag
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "CreateAuthorCompesation.Failed",
+			EventType: flows.CreateAuthorCompensationFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }
@@ -251,7 +252,7 @@ func (e *EventHandler) OnDeleteAuthor(c context.Context, evt *messaging.OutboxEv
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "DeleteAuthor.Success",
+			EventType: flows.DeleteAuthorSuccess,
 			Payload:   payload,
 			Context:   &context,
 		})
@@ -266,19 +267,19 @@ func (e *EventHandler) OnDeleteAuthor(c context.Context, evt *messaging.OutboxEv
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "DeleteAuthor.Failed",
+			EventType: flows.DeleteAuthorFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }
 
-func (e *EventHandler) OnRestoreAuthor(c context.Context, evt *messaging.OutboxEvent) error {
+func (e *EventHandler) OnDeleteAuthorCompensation(c context.Context, evt *messaging.OutboxEvent) error {
 	ctx, cancel := context.WithTimeout(c, time.Second)
 	defer cancel()
 
@@ -311,7 +312,7 @@ func (e *EventHandler) OnRestoreAuthor(c context.Context, evt *messaging.OutboxE
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "RestoreAuthor.Success",
+			EventType: flows.DeleteAuthorCompensationSuccess,
 			Payload:   payload,
 		})
 	})
@@ -325,14 +326,14 @@ func (e *EventHandler) OnRestoreAuthor(c context.Context, evt *messaging.OutboxE
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "RestoreAuthor.Failed",
+			EventType: flows.DeleteAuthorCompensationFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }
@@ -389,7 +390,7 @@ func (e *EventHandler) OnBlogCreated(ctx context.Context, evt *messaging.OutboxE
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "InceaseAuthorBlogCount.Success",
+			EventType: flows.InceaseAuthorBlogCountSuccess,
 			Payload:   evt.Payload,
 			Context:   &contextMarshal,
 		})
@@ -402,14 +403,14 @@ func (e *EventHandler) OnBlogCreated(ctx context.Context, evt *messaging.OutboxE
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "InceaseAuthorBlogCount.Failed",
+			EventType: flows.InceaseAuthorBlogCountFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }

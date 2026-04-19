@@ -3,13 +3,13 @@ package event
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
@@ -57,7 +57,7 @@ func (e *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxE
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "CreateBlogAuthorCache.Success",
+			EventType: flows.CreateBlogAuthorCacheSuccess,
 			Payload:   payload,
 			Context:   &context,
 		})
@@ -72,14 +72,14 @@ func (e *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxE
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "CreateBlogAuthorCache.Failed",
+			EventType: flows.CreateBlogAuthorCacheFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (e *EventHandler) OnDeleteBlogAuthorCache(c context.Context, evt *messaging
 
 		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "DeleteBlogAuthorCache.Success",
+			EventType: flows.DeleteBlogAuthorCacheSuccess,
 			Payload:   payload,
 			Context:   &context,
 		})
@@ -134,14 +134,14 @@ func (e *EventHandler) OnDeleteBlogAuthorCache(c context.Context, evt *messaging
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "DeleteBlogAuthorCache.Failed",
+			EventType: flows.DeleteBlogAuthorCacheFailed,
 			Payload:   b,
 			Error:     evt.Error,
 		})
 		if err1 != nil {
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }
@@ -215,17 +215,11 @@ func (e *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 
 		payloadMarshal, _ := json.Marshal(payload)
 		contextMarshal, _ := json.Marshal(context)
-		// Save event to outbox table
-		// event := &contracts.BlogCreatedEvent{
-		// 	BlogID:    insertedBlog.BlogID,
-		// 	AuthorID:  authorID,
-		// 	BlogTitle: insertedBlog.Title,
-		// }
 
 		// Proceed next step
 		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "InceaseAuthorBlogCount",
+			EventType: flows.CreateBlogSuccess,
 			Payload:   payloadMarshal,
 			Context:   &contextMarshal,
 		})
@@ -262,15 +256,14 @@ func (e *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "CreateBlog.Failed",
+			EventType: flows.CreateBlogFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
-			log.Println(err1)
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }
@@ -317,7 +310,7 @@ func (s *EventHandler) OnBlogPosted(c context.Context, evt *messaging.OutboxEven
 	})
 }
 
-func (e *EventHandler) OnDeleteBlog(c context.Context, evt *messaging.OutboxEvent) error {
+func (e *EventHandler) OnCreateBlogCompensation(c context.Context, evt *messaging.OutboxEvent) error {
 	ctx, cancel := context.WithTimeout(c, time.Second)
 	defer cancel()
 
@@ -339,7 +332,7 @@ func (e *EventHandler) OnDeleteBlog(c context.Context, evt *messaging.OutboxEven
 		b, _ := json.Marshal(m)
 		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "DeleteBlog.Failed",
+			EventType: flows.CreateBlogCompensationSuccess,
 			Payload:   b,
 		})
 		if err != nil {
@@ -358,15 +351,14 @@ func (e *EventHandler) OnDeleteBlog(c context.Context, evt *messaging.OutboxEven
 		b, _ := json.Marshal(m)
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "DeleteBlog.Failed",
+			EventType: flows.CreateBlogCompensationFailed,
 			Payload:   b,
-			Error:     evt.Error,
+			Error:     utils.StringPtr(err.Error()),
 		})
 		if err1 != nil {
-			log.Println(err1)
 			return err1
 		}
-		return err
+		return nil
 	}
 	return nil
 }

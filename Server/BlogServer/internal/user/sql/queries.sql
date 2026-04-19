@@ -139,3 +139,12 @@ UPDATE users.notifications
     updated_at = NOW(),
     updated_by = $2
 WHERE notification_id = ANY(sqlc.arg(ids)::int[]);
+
+-- name: MarkUserAsDeleted :exec
+UPDATE users.users
+SET status = 'deleted',
+    updated_at = NOW(),
+    updated_by = $1,
+    deleted_at = NOW(),
+    deleted_by = $1
+WHERE users.user_id = $2;

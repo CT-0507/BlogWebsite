@@ -392,6 +392,26 @@ func (q *Queries) ListWithDeleteUserUsers(ctx context.Context) ([]ListWithDelete
 	return items, nil
 }
 
+const markUserAsDeleted = `-- name: MarkUserAsDeleted :exec
+UPDATE users.users
+SET status = 'deleted',
+    updated_at = NOW(),
+    updated_by = $1,
+    deleted_at = NOW(),
+    deleted_by = $1
+WHERE users.user_id = $2
+`
+
+type MarkUserAsDeletedParams struct {
+	UpdatedBy *uuid.UUID
+	UserID    uuid.UUID
+}
+
+func (q *Queries) MarkUserAsDeleted(ctx context.Context, arg MarkUserAsDeletedParams) error {
+	_, err := q.db.Exec(ctx, markUserAsDeleted, arg.UpdatedBy, arg.UserID)
+	return err
+}
+
 const updateLastLogout = `-- name: UpdateLastLogout :exec
 UPDATE users.users
     SET last_logout = NOW(),

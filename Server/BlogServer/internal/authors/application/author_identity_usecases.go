@@ -9,6 +9,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
@@ -98,7 +99,7 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *d
 		sagaID := uuid.New()
 
 		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType: "CreateAuthor",
+			EventType: flows.CreateAuthorSaga,
 			SagaID:    &sagaID,
 			Payload:   payload,
 			Context:   &context,
@@ -166,7 +167,7 @@ func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, author
 
 		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    &sagaID,
-			EventType: "delete_author_saga",
+			EventType: flows.DeleteAuthorSaga,
 			Payload:   payload,
 			Context:   &context,
 		})

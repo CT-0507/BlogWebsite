@@ -79,13 +79,15 @@ func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 		return
 	}
 
+	log.Println(author)
+
 	if err := utils.ValidateStruct(messages.ENGLISH, author); err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 	var fileParams *domain.CreateUserFileStorageParams = nil
 	fileHeader, err := c.FormFile("avatar")
-	if err != nil {
+	if err != nil && err != http.ErrMissingFile {
 		c.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
