@@ -193,13 +193,51 @@ func main() {
 	bus.Subscribe(flows.DeleteAuthorCompensationSuccess, saga.Orchestrator.HandleCompensationSuccess)
 	bus.Subscribe(flows.DeleteAuthorCompensationFailed, saga.Orchestrator.HandleCompensationFailure)
 
+	// Delete user saga
+	bus.Subscribe(flows.DeleteUserSaga, saga.Orchestrator.StartSaga)
+
+	// Step 1
+	bus.Subscribe(flows.DeleteUser, userModule.EventHandler.OnDeleteUser)
+	bus.Subscribe(flows.DeleteUserSuccess, saga.Orchestrator.HandleEvent)
+	bus.Subscribe(flows.DeleteUserFailed, saga.Orchestrator.HandleFailure)
+
+	// Step 2
+	bus.Subscribe(flows.CleanUpAuthorProfile, authorModule.EventHandler.OnUserDeleted)
+	bus.Subscribe(flows.CleanUpAuthorProfileSuccess, saga.Orchestrator.HandleEvent)
+	bus.Subscribe(flows.CleanUpAuthorProfileFailed, saga.Orchestrator.HandleFailure)
+	// Step 1 Compensation
+	bus.Subscribe(flows.DeleteUserCompensation, authorModule.EventHandler.OnUserDeletedCompensation)
+	bus.Subscribe(flows.DeleteUserCompensationSuccess, saga.Orchestrator.HandleCompensationSuccess)
+	bus.Subscribe(flows.DeleteUserCompensationFailed, saga.Orchestrator.HandleCompensationFailure)
+
+	// Step Compensation
+	bus.Subscribe(flows.CleanUpAuthorProfileCompensation, authorModule.EventHandler.OnUserDeletedCompensation)
+	bus.Subscribe(flows.CleanUpAuthorProfileCompensationSuccess, saga.Orchestrator.HandleCompensationSuccess)
+	bus.Subscribe(flows.CleanUpAuthorProfileCompensationFailed, saga.Orchestrator.HandleCompensationFailure)
+
+	// Delete Blog Saga
+	bus.Subscribe(flows.DeleteBlogSaga, saga.Orchestrator.StartSaga)
+
+	// Step 1
+	bus.Subscribe(flows.DeleteBlog, blogModule.EventHandler.OnDeleteBlog)
+	bus.Subscribe(flows.DeleteBlogSuccess, saga.Orchestrator.HandleEvent)
+	bus.Subscribe(flows.DeleteBlogFailed, saga.Orchestrator.HandleFailure)
+
+	// Step 2
+	bus.Subscribe(flows.DecreaseAuthorBlogCount, authorModule.EventHandler.OnDecreaseAuthorBlogCount)
+	bus.Subscribe(flows.DecreaseAuthorBlogCountSuccess, saga.Orchestrator.HandleEvent)
+	bus.Subscribe(flows.DecreaseAuthorBlogCountFailed, saga.Orchestrator.HandleFailure)
+
+	// Step 1 compensation
+	bus.Subscribe(flows.DeleteBlogCompensation, blogModule.EventHandler.OnDeleteBlogCompensation)
+	bus.Subscribe(flows.DeleteBlogCompensationSuccess, saga.Orchestrator.HandleCompensationSuccess)
+	bus.Subscribe(flows.DeleteBlogCompensationFailed, saga.Orchestrator.HandleCompensationFailure)
+
 	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
 	bus.Subscribe("authorIdentity.created", blogModule.EventHandler.OnAuthorCreated)
 	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnDeleteBlogAuthorCache)
 	bus.Subscribe("authorIdentity.hardDeleted", blogModule.EventHandler.OnAuthorHardDeleted)
-	bus.Subscribe("authorFollower.created", authorModule.EventHandler.OnAuthorFollowerCountChanged)
-	bus.Subscribe("authorFollower.deleted", authorModule.EventHandler.OnAuthorFollowerCountChanged)
 
 	worker := outbox.NewOutboxWorker(txManager, bus, outboxRepo)
 
