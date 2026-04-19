@@ -42,6 +42,7 @@ type AuthorsAuthorFollower struct {
 	AuthorID  string
 	UserID    string
 	CreatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
 }
 
 type AuthorsAuthorProfile struct {
@@ -84,7 +85,7 @@ type UsersUser struct {
 	FirstName    string
 	LastName     string
 	Role         string
-	Active       pgtype.Text
+	Status       pgtype.Text
 	Points       int32
 	TokenVersion pgtype.Int4
 	LastLogout   pgtype.Timestamptz

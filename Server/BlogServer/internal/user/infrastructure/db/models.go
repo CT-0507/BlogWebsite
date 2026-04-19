@@ -40,7 +40,7 @@ type UsersUser struct {
 	FirstName    string
 	LastName     string
 	Role         string
-	Active       pgtype.Text
+	Status       pgtype.Text
 	Points       int32
 	TokenVersion pgtype.Int4
 	LastLogout   pgtype.Timestamptz

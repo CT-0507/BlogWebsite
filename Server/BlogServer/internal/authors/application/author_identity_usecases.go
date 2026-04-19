@@ -140,10 +140,11 @@ func (u *AuthorIdentityUsecases) DeleteAuthorProfile(ctx context.Context, author
 	return u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
 		eventPayload := &contracts.DeleteAuthorKickstartPayload{
-			AuthorID: author.AuthorID,
-			UserID:   author.UserID,
-			Status:   author.Status,
-			Avatar:   author.Avatar,
+			AuthorID:  author.AuthorID,
+			UserID:    author.UserID,
+			Status:    author.Status,
+			Avatar:    author.Avatar,
+			UpdatedBy: deletedBy,
 		}
 
 		payload, err := json.Marshal(eventPayload)

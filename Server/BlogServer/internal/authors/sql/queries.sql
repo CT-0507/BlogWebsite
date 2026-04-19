@@ -148,3 +148,13 @@ WHERE author_id = $2;
 UPDATE authors.authors
 SET follower_count = follower_count + $1
 WHERE author_id = $2;
+
+-- name: MarkAuthorFollowersDeletedByUserID :exec
+UPDATE authors.author_followers
+SET deleted_at = NOW()
+WHERE user_id = $1;
+
+-- name: RestoreAuthorFollowersByUserID :exec
+UPDATE authors.author_followers
+SET deleted_at = NULL
+WHERE user_id = $1;

@@ -25,7 +25,7 @@ type User struct {
 	LastName     string      `json:"last_name"`
 	Roles        []string    `json:"roles"`
 	Email        string      `json:"email"`
-	Active       string      `json:"active"`
+	Status       string      `json:"status"`
 	ProfileData  ProfileData `json:"profileData"`
 	Token        string      `json:"token"`
 	TokenVersion int         `json:"token_version"`

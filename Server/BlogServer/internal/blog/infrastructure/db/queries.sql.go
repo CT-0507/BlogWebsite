@@ -112,7 +112,8 @@ func (q *Queries) DeleteAuthorHardDeletedBlogs(ctx context.Context, authorID str
 const deleteBlog = `-- name: DeleteBlog :one
 UPDATE blogs.blogs
     SET deleted_by = $1,
-    deleted_at = NOW()
+    deleted_at = NOW(),
+    status = 'deleted'
 WHERE blog_id = $2
 RETURNING blog_id
 `
@@ -515,6 +516,24 @@ WHERE author_id = $1
 
 func (q *Queries) MarkAuthorCacheAsDeleted(ctx context.Context, authorID string) error {
 	_, err := q.db.Exec(ctx, markAuthorCacheAsDeleted, authorID)
+	return err
+}
+
+const restoreBlog = `-- name: RestoreBlog :exec
+UPDATE blogs.blogs
+SET status = $1,
+deleted_at = null,
+deleted_by = null
+WHERE blog_id = $2
+`
+
+type RestoreBlogParams struct {
+	Status string
+	BlogID int64
+}
+
+func (q *Queries) RestoreBlog(ctx context.Context, arg RestoreBlogParams) error {
+	_, err := q.db.Exec(ctx, restoreBlog, arg.Status, arg.BlogID)
 	return err
 }
 

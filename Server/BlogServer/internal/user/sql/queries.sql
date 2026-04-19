@@ -148,3 +148,12 @@ SET status = 'deleted',
     deleted_at = NOW(),
     deleted_by = $1
 WHERE users.user_id = $2;
+
+-- name: RestoreUserByID :exec
+UPDATE users.users
+SET status = $1,
+    updated_at = NOW(),
+    updated_by = $2,
+    deleted_at = NULL,
+    deleted_by = NULL
+WHERE users.user_id = $3;

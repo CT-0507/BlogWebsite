@@ -356,6 +356,28 @@ func (q *Queries) ListAuthorProfies(ctx context.Context, arg ListAuthorProfiesPa
 	return items, nil
 }
 
+const markAuthorFollowersDeletedByUserID = `-- name: MarkAuthorFollowersDeletedByUserID :exec
+UPDATE authors.author_followers
+SET deleted_at = NOW()
+WHERE user_id = $1
+`
+
+func (q *Queries) MarkAuthorFollowersDeletedByUserID(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, markAuthorFollowersDeletedByUserID, userID)
+	return err
+}
+
+const restoreAuthorFollowersByUserID = `-- name: RestoreAuthorFollowersByUserID :exec
+UPDATE authors.author_followers
+SET deleted_at = NULL
+WHERE user_id = $1
+`
+
+func (q *Queries) RestoreAuthorFollowersByUserID(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, restoreAuthorFollowersByUserID, userID)
+	return err
+}
+
 const updateAuthorBlogCount = `-- name: UpdateAuthorBlogCount :exec
 UPDATE authors.authors
 SET blog_count = blog_count + $1

@@ -22,7 +22,7 @@ func NewBlogModule(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo 
 	createBlog := application.NewCreateBlogUseCases(txManager, repo, outboxRepo)
 	getBlog := application.NewGetBlogUseCases(txManager, repo)
 	listBlogs := application.NewListBlogsUseCases(txManager, repo)
-	deleteBlog := application.NewDeleteBlogUseCases(txManager, repo)
+	deleteBlog := application.NewDeleteBlogUseCases(txManager, repo, outboxRepo)
 
 	handler := http.NewBlogHandler(createBlog, getBlog, listBlogs, deleteBlog)
 

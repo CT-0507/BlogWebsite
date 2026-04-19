@@ -15,7 +15,7 @@ const (
 	CreateAuthorCompensationFailed  string = "evt.CreateAuthorCompensation.Failed"
 )
 
-var CreateAuthorSagaDefinition = domain.SagaDefinition{
+var CreateAuthorSagaDefinition = &domain.SagaDefinition{
 	Name: CreateAuthorSaga,
 	Steps: []domain.Step{
 		{

@@ -2,12 +2,9 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
@@ -34,22 +31,7 @@ func (u *FollowerUsecases) FollowAuthor(ctx context.Context, userID string, auth
 			}
 		}
 
-		event := &contracts.AuthorFollowedEvent{
-			AuthorID:    authorID,
-			UserID:      userID,
-			IsIncrement: true,
-		}
-
-		payload, err := json.Marshal(event)
-		if err != nil {
-			return err
-		}
-
-		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType:  event.EventName(),
-			Payload:    payload,
-			RetryCount: 1,
-		})
+		return u.repo.UpdateAuthorFollowerCount(ctx, authorID, true)
 	})
 }
 
@@ -62,22 +44,7 @@ func (u *FollowerUsecases) UnfollowAuthor(ctx context.Context, userID string, au
 			}
 		}
 
-		event := &contracts.AuthorUnfollowedEvent{
-			AuthorID:    authorID,
-			UserID:      userID,
-			IsIncrement: false,
-		}
-
-		payload, err := json.Marshal(event)
-		if err != nil {
-			return err
-		}
-
-		return u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType:  event.EventName(),
-			Payload:    payload,
-			RetryCount: 1,
-		})
+		return u.repo.UpdateAuthorFollowerCount(ctx, authorID, false)
 	})
 }
 

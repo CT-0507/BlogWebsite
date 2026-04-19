@@ -199,7 +199,7 @@ func (r *UserRepository) UpdateNotificationByID(c context.Context, notificationI
 	})
 }
 
-func (r *UserRepository) MarkUserAsDeleted(c context.Context, userID uuid.UUID, updatedBy *uuid.UUID) error {
+func (r *UserRepository) MarkUserAsDeleted(c context.Context, userID uuid.UUID, updatedBy uuid.UUID) error {
 
 	db := utils.GetExecutor(c, r.pool)
 
@@ -207,6 +207,18 @@ func (r *UserRepository) MarkUserAsDeleted(c context.Context, userID uuid.UUID, 
 
 	return q.MarkUserAsDeleted(c, userdb.MarkUserAsDeletedParams{
 		UserID:    userID,
-		UpdatedBy: updatedBy,
+		UpdatedBy: &updatedBy,
+	})
+}
+
+func (r *UserRepository) RestoreUserByID(c context.Context, userID uuid.UUID, updatedBy uuid.UUID) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := userdb.New(db)
+
+	return q.RestoreUserByID(c, userdb.RestoreUserByIDParams{
+		UserID:    userID,
+		UpdatedBy: &updatedBy,
 	})
 }

@@ -39,19 +39,26 @@ type DeleteAuthorKickstartContext struct {
 }
 
 type DeleteAuthorKickstartPayload struct {
-	AuthorID string
-	UserID   string
-	Status   string
-	Avatar   *string
+	AuthorID  string
+	UserID    string
+	Status    string
+	Avatar    *string
+	UpdatedBy string
 }
 
 type DeleteAuthorContext struct {
-	AuthorID       string
-	PreviousStatus string
-	Avatar         *string
+	UserID            string
+	AuthorID          string
+	PreviousStatus    string
+	Avatar            *string
+	FollowedAuthorIDs []string
 }
 
 type DeleteAuthorPayload struct {
+	AuthorID string
+}
+
+type DecreaseAuthorBlogCountContext struct {
 	AuthorID string
 }
 

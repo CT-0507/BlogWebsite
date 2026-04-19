@@ -104,9 +104,10 @@ func (u *AuthUseCases) DeleteUser(c context.Context, userID uuid.UUID, updatedBy
 		return errors.New("User not found")
 	}
 
-	eventPayload := &contracts.DeleteUserSagaContext{
+	eventPayload := &contracts.DeleteUserSagaPayload{
 		UserID:    userID,
 		UpdatedBy: updatedBy,
+		Status:    user.Status,
 	}
 
 	payload, err := json.Marshal(eventPayload)

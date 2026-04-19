@@ -216,3 +216,15 @@ func (r *BlogRepository) MarkAuthorCacheAsDeleted(c context.Context, authorID st
 
 	return q.MarkAuthorCacheAsDeleted(c, authorID)
 }
+
+func (r *BlogRepository) RestoreBlog(c context.Context, blogID int64, PreviousStatus string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.RestoreBlog(c, blogdb.RestoreBlogParams{
+		BlogID: blogID,
+		Status: PreviousStatus,
+	})
+}

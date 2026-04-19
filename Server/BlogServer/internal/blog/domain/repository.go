@@ -21,4 +21,5 @@ type BlogRepository interface {
 	DeleteAuthorHardDeletedBlogs(c context.Context, authorID string) error
 	DeleteAuthorCache(c context.Context, authorID string) error
 	MarkAuthorCacheAsDeleted(c context.Context, authorID string) error
+	RestoreBlog(c context.Context, blogID int64, PreviousStatus string) error
 }

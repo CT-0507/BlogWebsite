@@ -39,4 +39,9 @@ type AuthorProfileRepository interface {
 	// GetTrendingAuthors
 	UpdateAuthorBlogCount(c context.Context, authorID string, isIncrement bool) error
 	UpdateAuthorFollowerCount(c context.Context, authorID string, isIncrement bool) error
+
+	// Event
+
+	MarkAuthorFollowersDeletedByUserID(c context.Context, userID string) error
+	RestoreAuthorFollowersByUserID(c context.Context, userID string) error
 }

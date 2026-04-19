@@ -92,6 +92,28 @@ func (e *EventHandler) OnDeleteBlogAuthorCache(c context.Context, evt *messaging
 		return err
 	}
 
+	if outboxPayload.AuthorID == "" {
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogAuthorCacheContext{
+			AuthorID: outboxPayload.AuthorID,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(c, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogAuthorCacheSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	}
+
 	err = e.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
 		err := e.repo.UpdateBlogStatusForDeletedAuthor(c, outboxPayload.AuthorID)
@@ -314,7 +336,7 @@ func (e *EventHandler) OnCreateBlogCompensation(c context.Context, evt *messagin
 	ctx, cancel := context.WithTimeout(c, time.Second)
 	defer cancel()
 
-	var payload contracts.DeleteBlogPayload
+	var payload contracts.CreateBlogCompensationPayload
 	err := json.Unmarshal(evt.Payload, &payload)
 	if err != nil {
 		return err
@@ -352,6 +374,124 @@ func (e *EventHandler) OnCreateBlogCompensation(c context.Context, evt *messagin
 		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
 			EventType: flows.CreateBlogCompensationFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
+}
+
+func (e *EventHandler) OnDeleteBlog(c context.Context, evt *messaging.OutboxEvent) error {
+
+	var outboxPayload contracts.DeleteBlogKickstartPayload
+	err := json.Unmarshal(evt.Payload, &outboxPayload)
+	if err != nil {
+		return err
+	}
+
+	err = e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		_, err := e.repo.Delete(ctx, outboxPayload.BlogID, outboxPayload.DeletedBy)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := &contracts.DeleteBlogPayload{
+			AuthorID: outboxPayload.AuthorID,
+		}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogContext{
+			BlogID:         outboxPayload.BlogID,
+			PreviousStatus: outboxPayload.Status,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
+}
+
+func (e *EventHandler) OnDeleteBlogCompensation(c context.Context, evt *messaging.OutboxEvent) error {
+
+	var outboxPayload contracts.DeleteBlogContext
+	err := json.Unmarshal(evt.Payload, &outboxPayload)
+	if err != nil {
+		return err
+	}
+
+	err = e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		err := e.repo.RestoreBlog(ctx, outboxPayload.BlogID, outboxPayload.PreviousStatus)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogContext{
+			BlogID:         outboxPayload.BlogID,
+			PreviousStatus: outboxPayload.PreviousStatus,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogFailed,
 			Payload:   b,
 			Error:     utils.StringPtr(err.Error()),
 		})

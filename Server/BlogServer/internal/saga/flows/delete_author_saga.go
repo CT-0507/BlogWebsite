@@ -15,7 +15,7 @@ const (
 	DeleteAuthorCompensationFailed  string = "evt.DeleteAuthorCompensation.Failed"
 )
 
-var DeleteAuthorSagaDefinition = domain.SagaDefinition{
+var DeleteAuthorSagaDefinition = &domain.SagaDefinition{
 	Name: DeleteAuthorSaga,
 	Steps: []domain.Step{
 		{

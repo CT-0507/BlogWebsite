@@ -26,7 +26,7 @@ type BlogCreatedSagaPayload struct {
 	UrlSlug  string
 }
 
-type DeleteBlogPayload struct {
+type CreateBlogCompensationPayload struct {
 	BlogID int64
 }
 
@@ -36,5 +36,27 @@ type CreateBlogAuthorCacheSuccessContext struct {
 }
 
 type DeleteBlogAuthorCacheContext struct {
+	AuthorID string
+}
+
+type DeleteBlogKickstartPayload struct {
+	BlogID    int64
+	Status    string
+	DeletedBy string
+	AuthorID  string
+}
+
+type DeleteBlogKickstartContext struct {
+	BlogID    int64
+	Status    string
+	DeletedBy string
+}
+
+type DeleteBlogContext struct {
+	BlogID         int64
+	PreviousStatus string
+}
+
+type DeleteBlogPayload struct {
 	AuthorID string
 }

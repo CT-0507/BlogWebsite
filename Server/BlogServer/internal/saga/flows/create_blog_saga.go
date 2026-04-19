@@ -15,7 +15,7 @@ const (
 	CreateBlogCompensationFailed  string = "evt.CreateBlogCompensation.Failed"
 )
 
-var CreateBlogSagaDefinition = domain.SagaDefinition{
+var CreateBlogSagaDefinition = &domain.SagaDefinition{
 	Name: CreateBlogSaga,
 	Steps: []domain.Step{
 		{

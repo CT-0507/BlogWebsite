@@ -10,12 +10,17 @@ type DeleteUserSagaContext struct {
 type DeleteUserSagaPayload struct {
 	UserID    uuid.UUID
 	UpdatedBy uuid.UUID
+	Status    string
 }
 
 type DeleteUserContext struct {
+	UserID         uuid.UUID
+	PreviousStatus string
 }
 
 type DeleteUserPayload struct {
+	UserID    uuid.UUID
+	UpdatedBy uuid.UUID
 }
 
 type DeleteAuthorProfileContext struct {

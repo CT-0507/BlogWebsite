@@ -267,3 +267,19 @@ func (r *AuthorProfileRepository) UpdateAuthorFollowerCount(c context.Context, a
 		},
 	})
 }
+
+func (r *AuthorProfileRepository) MarkAuthorFollowersDeletedByUserID(c context.Context, userID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.MarkAuthorFollowersDeletedByUserID(c, userID)
+}
+
+func (r *AuthorProfileRepository) RestoreAuthorFollowersByUserID(c context.Context, userID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.RestoreAuthorFollowersByUserID(c, userID)
+}
