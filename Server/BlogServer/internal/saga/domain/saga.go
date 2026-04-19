@@ -18,10 +18,11 @@ const (
 type StepStatus string
 
 const (
-	StepPending     StepStatus = "pending"
-	StepCompleted   StepStatus = "completed"
-	StepFailed      StepStatus = "failed"
-	StepCompensated StepStatus = "compensated"
+	StepPending      StepStatus = "pending"
+	StepCompleted    StepStatus = "completed"
+	StepFailed       StepStatus = "failed"
+	StepCompensating StepStatus = "compensating"
+	StepCompensated  StepStatus = "compensated"
 )
 
 type Saga struct {

@@ -54,6 +54,7 @@ CREATE TABLE authors.author_followers (
     user_id         VARCHAR(50) NOT NULL,
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ,
 
     CONSTRAINT fk_followers_author
         FOREIGN KEY (author_id)

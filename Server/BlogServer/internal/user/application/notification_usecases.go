@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
@@ -34,7 +35,14 @@ func (u *NotificationUseCases) UpdateNotificationStatus(c context.Context, notID
 
 func (u *NotificationUseCases) CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*domain.Notification, error) {
 	systemId := uuid.MustParse(config.SYSTEM_ID)
-	not, err := u.repo.CreateNotification(c, content, userID, systemId)
+
+	contentObject := map[string]interface{}{
+		"content": content,
+	}
+
+	contentMarshal, _ := json.Marshal(contentObject)
+
+	not, err := u.repo.CreateNotification(c, contentMarshal, userID, systemId)
 	if err != nil {
 		return nil, err
 	}

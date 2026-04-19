@@ -104,3 +104,11 @@ func (m *MockAuthorProfileRepository) UpdateAuthorBlogCount(c context.Context, a
 func (m *MockAuthorProfileRepository) UpdateAuthorFollowerCount(c context.Context, authorID string, isIncrement bool) error {
 	return nil
 }
+
+func (m *MockAuthorProfileRepository) MarkAuthorFollowersDeletedByUserID(c context.Context, userID string) error {
+	return nil
+}
+
+func (m *MockAuthorProfileRepository) RestoreAuthorFollowersByUserID(c context.Context, userID string) error {
+	return nil
+}

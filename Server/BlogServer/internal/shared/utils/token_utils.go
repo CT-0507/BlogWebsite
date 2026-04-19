@@ -24,13 +24,13 @@ var SECRET_REFRESH_KEY = os.Getenv("SECRET_REFRESH_KEY")
 func GenerateAllTokens(username, firstName, lastName, userID string, roles []string, tokenVer int) (string, string, error) {
 
 	signedToken, err := GenerateToken(
-		username, firstName, lastName, userID, roles, tokenVer, time.Now(), time.Now().Add(30*time.Minute), SECRET_KEY)
+		username, firstName, lastName, userID, roles, tokenVer, time.Now(), time.Now().Add(2*time.Hour), SECRET_KEY)
 	if err != nil {
 		return "", "", err
 	}
 
 	signedRefreshToken, err := GenerateToken(
-		username, firstName, lastName, userID, roles, tokenVer, time.Now(), time.Now().Add(2*time.Hour), SECRET_REFRESH_KEY)
+		username, firstName, lastName, userID, roles, tokenVer, time.Now(), time.Now().Add(4*time.Hour), SECRET_REFRESH_KEY)
 	if err != nil {
 		return "", "", err
 	}

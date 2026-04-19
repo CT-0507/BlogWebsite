@@ -115,7 +115,7 @@ func (o *Orchestrator) HandleEvent(ctx context.Context, evt *messaging.OutboxEve
 		nextStep := &domain.SagaStep{
 			SagaID:    *evt.SagaID,
 			StepIndex: currentStep + 1,
-			StepName:  nextStepDef.Name,
+			StepName:  nextStepDef.ActionType,
 			EventID:   evt.ID,
 			Input:     evt.Payload,
 		}
@@ -144,47 +144,62 @@ func (o *Orchestrator) HandleEvent(ctx context.Context, evt *messaging.OutboxEve
 	})
 }
 
-const MaxRetries = 3
-
 func (o *Orchestrator) HandleFailure(ctx context.Context, e *messaging.OutboxEvent) error {
 	return o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
+		// 1. Get saga context
 		instance, err := o.repo.GetSagaByID(ctx, *e.SagaID)
 		if err != nil {
 			return err
 		}
 
+		// 2. Get current step to check retry count
 		currentStep, err := o.repo.GetStepByIndex(ctx, *e.SagaID, instance.CurrentStep)
 		if err != nil {
 			return err
 		}
-		currentStep.RetryCount++
 
 		stepDef := o.registry.GetStepByIndex(instance.Type, instance.CurrentStep)
 
 		if currentStep.RetryCount >= stepDef.MaxRetries {
-			// DLQ insert
-			// o.repo.InsertDLQ(ctx, evt, err)
-
-			// // mark saga failed
-			// o.repo.MarkSagaFailed(ctx, evt.SagaID)
-			// return nil
-			o.StartCompensation(ctx, instance)
+			err = o.StartCompensation(ctx, instance)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 
+		// 3. Update step status
 		err = o.repo.UpdateStepRetryCount(ctx, *e.SagaID, instance.CurrentStep, "retrying", *e.Error)
 		if err != nil {
 			return err
 		}
 
-		// re-enqueue event
-		o.outboxRepo.Insert(ctx, e)
-		return nil
+		// 4. re-enqueue event
+		return o.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    e.SagaID,
+			EventType: stepDef.ActionType,
+			Payload:   currentStep.Input,
+		})
+
 	})
 }
 
 func (o *Orchestrator) StartCompensation(ctx context.Context, instance *domain.Saga) error {
 	return o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+
+		if instance.CurrentStep == 0 {
+			// nothing to compensate
+			err := o.repo.UpdateSagaStatus(ctx, instance.ID, domain.SagaFailed)
+			if err != nil {
+				return err
+			}
+			err = o.repo.UpdateStepStatus(ctx, instance.ID, instance.CurrentStep, domain.StepFailed)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
 
 		// 1. mark saga as compensating
 		err := o.repo.UpdateSagaStatus(ctx, instance.ID, "compensating")
@@ -192,23 +207,32 @@ func (o *Orchestrator) StartCompensation(ctx context.Context, instance *domain.S
 			return err
 		}
 
-		// 2. find last completed step
+		// 2. mark current step as failed
+		err = o.repo.UpdateStepStatus(ctx, instance.ID, instance.CurrentStep, domain.StepFailed)
+		if err != nil {
+			return err
+		}
+
+		// 3. find last completed step
 		step, err := o.repo.GetStepByIndex(ctx, instance.ID, instance.CurrentStep-1)
 		if err != nil {
 			return err
 		}
 
-		if step == nil {
-			// nothing to compensate
-			o.repo.UpdateSagaStatus(ctx, instance.ID, "failed")
+		// 4. Update Step status as compensating
+		err = o.repo.UpdateStepStatus(ctx, instance.ID, instance.CurrentStep-1, domain.StepCompensating)
+		if err != nil {
+			return err
 		}
+
+		compensationEventName := o.registry.GetStepByIndex(instance.Type, instance.CurrentStep).CompensateType
 
 		// 3. enqueue compensation event
 		event := messaging.OutboxEvent{
 			ID:        uuid.New(),
 			SagaID:    &instance.ID,
-			EventType: step.StepName,
-			Payload:   *step.Output, // usually use response data
+			EventType: compensationEventName,
+			Payload:   *step.Output,
 		}
 
 		err = o.outboxRepo.Insert(ctx, &event)
@@ -219,7 +243,7 @@ func (o *Orchestrator) StartCompensation(ctx context.Context, instance *domain.S
 	})
 }
 
-func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt messaging.OutboxEvent) error {
+func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt *messaging.OutboxEvent) error {
 	return o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
 		instance, err := o.repo.GetSagaByID(ctx, *evt.SagaID)
@@ -228,30 +252,27 @@ func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt messag
 		}
 
 		// 1. mark step compensated
-		err = o.repo.UpdateStepStatus(ctx, *evt.SagaID, instance.CurrentStep, domain.SagaStatus(domain.StepCompensated))
+		err = o.repo.UpdateLastCompetedStepStatus(ctx, *evt.SagaID, domain.StepCompensated)
 		if err != nil {
 			return err
 		}
 
 		// 2. find previous completed step
-		prevStep, err := o.repo.GetStepByIndex(ctx, *evt.SagaID, instance.CurrentStep-1)
+		prevStep, err := o.repo.GetLastCompletedStep(ctx, *evt.SagaID)
 		if err != nil {
 			return err
 		}
 
 		if prevStep == nil {
 			// done compensating
-			o.repo.UpdateSagaStatus(ctx, *evt.SagaID, "failed")
+			err := o.repo.UpdateSagaStatus(ctx, *evt.SagaID, domain.SagaFailed)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 
-		// Update saga current step
-		err = o.repo.UpdateSagaCurrentStep(ctx, instance.ID, instance.CurrentStep-1)
-		if err != nil {
-			return err
-		}
-
-		prevStepDef := o.registry.GetStepByIndex(instance.Type, instance.CurrentStep-1)
+		prevStepDef := o.registry.GetStepByIndex(instance.Type, prevStep.StepIndex)
 
 		// 3. enqueue next compensation
 		event := messaging.OutboxEvent{
@@ -270,38 +291,43 @@ func (o *Orchestrator) HandleCompensationSuccess(ctx context.Context, evt messag
 	})
 }
 
-func (o *Orchestrator) HandleCompensationFailure(ctx context.Context, evt messaging.OutboxEvent) {
+func (o *Orchestrator) HandleCompensationFailure(ctx context.Context, evt *messaging.OutboxEvent) error {
 
 	instance, err := o.repo.GetSagaByID(ctx, *evt.SagaID)
 	if err != nil {
-		return
+		return err
 	}
 
-	currentStep, err := o.repo.GetStepByIndex(ctx, *evt.SagaID, instance.CurrentStep)
+	compensatingStep, err := o.repo.GetCompensatingStep(ctx, *evt.SagaID)
 	if err != nil {
-		return
+		return err
 	}
 
-	o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+	return o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		currentStep.RetryCount++
+		prevStepDef := o.registry.GetStepByIndex(instance.Type, compensatingStep.StepIndex)
 
-		prevStepDef := o.registry.GetStepByIndex(instance.Type, instance.CurrentStep-1)
-
-		if currentStep.RetryCount >= prevStepDef.MaxRetries {
+		if compensatingStep.RetryCount >= prevStepDef.MaxRetries {
 			// send to DLQ
-			o.repo.InsertDLQ(ctx, currentStep, *evt.Error)
+			err = o.repo.InsertDLQ(ctx, compensatingStep, *evt.Error)
+			if err != nil {
+				return err
+			}
 
 			// saga stuck → manual intervention
-			o.repo.UpdateSagaStatus(ctx, instance.ID, domain.SagaFailed)
+			err = o.repo.UpdateSagaStatus(ctx, instance.ID, domain.SagaFailed)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 
-		err := o.repo.UpdateStepRetryCount(ctx, currentStep.SagaID, currentStep.StepIndex, domain.StepPending, *evt.Error)
+		err := o.repo.UpdateStepRetryCount(ctx, compensatingStep.SagaID, compensatingStep.StepIndex, domain.StepCompensating, *evt.Error)
 		if err != nil {
 			return err
 		}
 		// retry
-		return o.outboxRepo.Insert(ctx, &evt)
+		return o.outboxRepo.Insert(ctx, evt)
 	})
+
 }

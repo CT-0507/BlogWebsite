@@ -10,7 +10,7 @@ CREATE TABLE users.users (
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     role VARCHAR(10) NOT NULL DEFAULT 'user',
-    active VARCHAR DEFAULT 'normal',
+    status VARCHAR DEFAULT 'active',
     points INTEGER NOT NULL DEFAULT 0,
     -- refresh_token_id TEXT NOT REFERENCES users.refresh_tokens(token_id),
     token_version INT DEFAULT 0,
@@ -36,7 +36,7 @@ CREATE TABLE users.refresh_tokens (
 CREATE TABLE users.notifications (
     notification_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id UUID REFERENCES users.users(user_id),
-    content TEXT NOT NULL,
+    content JSONB NOT NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

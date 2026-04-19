@@ -87,7 +87,7 @@ func (r *SagaRepository) GetStepByIndex(ctx context.Context, sagaID uuid.UUID, s
 	return mapStepToDomainStep(&step), nil
 }
 
-func (r *SagaRepository) UpdateStepStatus(ctx context.Context, sagaID uuid.UUID, stepIndex int32, status domain.SagaStatus) error {
+func (r *SagaRepository) UpdateStepStatus(ctx context.Context, sagaID uuid.UUID, stepIndex int32, status domain.StepStatus) error {
 
 	db := utils.GetExecutor(ctx, r.pool)
 
@@ -185,4 +185,44 @@ func (r *SagaRepository) InsertDLQ(ctx context.Context, step *domain.SagaStep, e
 			String: err,
 		},
 	})
+}
+
+func (r *SagaRepository) GetLastCompletedStep(ctx context.Context, sagaID uuid.UUID) (*domain.SagaStep, error) {
+
+	db := utils.GetExecutor(ctx, r.pool)
+
+	q := sagadb.New(db)
+
+	sagaStep, err := q.GetLastCompletedStep(ctx, sagaID)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapStepToDomainStep(&sagaStep), nil
+}
+
+func (r *SagaRepository) UpdateLastCompetedStepStatus(ctx context.Context, sagaID uuid.UUID, status domain.StepStatus) error {
+
+	db := utils.GetExecutor(ctx, r.pool)
+
+	q := sagadb.New(db)
+
+	return q.UpdateLastCompetedStepStatus(ctx, sagadb.UpdateLastCompetedStepStatusParams{
+		SagaID: sagaID,
+		Status: string(status),
+	})
+}
+
+func (r *SagaRepository) GetCompensatingStep(ctx context.Context, sagaID uuid.UUID) (*domain.SagaStep, error) {
+
+	db := utils.GetExecutor(ctx, r.pool)
+
+	q := sagadb.New(db)
+
+	sagaStep, err := q.GetCompensatingStep(ctx, sagaID)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapStepToDomainStep(&sagaStep), nil
 }

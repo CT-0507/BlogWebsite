@@ -40,7 +40,9 @@ type BlogsIdxUserAuthorProfile struct {
 	AuthorID    string
 	Slug        string
 	DisplayName string
+	Status      string
 	CreatedAt   pgtype.Timestamptz
+	DeletedAt   pgtype.Timestamptz
 }
 
 type BlogsTag struct {
@@ -58,7 +60,7 @@ type BlogsTag struct {
 type UsersNotification struct {
 	NotificationID int64
 	UserID         *uuid.UUID
-	Content        string
+	Content        []byte
 	IsRead         bool
 	CreatedAt      pgtype.Timestamptz
 	CreatedBy      *uuid.UUID
@@ -86,7 +88,7 @@ type UsersUser struct {
 	FirstName    string
 	LastName     string
 	Role         string
-	Active       pgtype.Text
+	Status       pgtype.Text
 	Points       int32
 	TokenVersion pgtype.Int4
 	LastLogout   pgtype.Timestamptz

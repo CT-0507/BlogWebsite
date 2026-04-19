@@ -62,3 +62,28 @@ INSERT INTO saga.dead_letter_queue (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8
 );
+
+-- name: GetLastCompletedStep :one
+SELECT *
+FROM saga.saga_steps
+WHERE saga_id = $1 AND status = 'completed'
+ORDER BY step_index DESC
+LIMIT 1;
+
+-- name: UpdateLastCompetedStepStatus :exec
+UPDATE saga.saga_steps 
+SET status = $1
+WHERE id = (
+  SELECT i.id
+  FROM saga.saga_steps i
+  WHERE i.saga_id = $2 AND i.status = 'completed'
+  ORDER BY i.step_index DESC
+  LIMIT 1
+);
+
+-- name: GetCompensatingStep :one
+SELECT *
+FROM saga.saga_steps
+WHERE saga_id = $1 AND status = 'compensating'
+ORDER BY step_index DESC
+LIMIT 1;

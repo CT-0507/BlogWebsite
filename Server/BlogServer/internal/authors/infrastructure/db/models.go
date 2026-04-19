@@ -42,6 +42,7 @@ type AuthorsAuthorFollower struct {
 	AuthorID  string
 	UserID    string
 	CreatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
 }
 
 type AuthorsAuthorProfile struct {
@@ -56,7 +57,7 @@ type AuthorsAuthorProfile struct {
 type UsersNotification struct {
 	NotificationID int64
 	UserID         *uuid.UUID
-	Content        string
+	Content        []byte
 	IsRead         bool
 	CreatedAt      pgtype.Timestamptz
 	CreatedBy      *uuid.UUID
@@ -84,7 +85,7 @@ type UsersUser struct {
 	FirstName    string
 	LastName     string
 	Role         string
-	Active       pgtype.Text
+	Status       pgtype.Text
 	Points       int32
 	TokenVersion pgtype.Int4
 	LastLogout   pgtype.Timestamptz

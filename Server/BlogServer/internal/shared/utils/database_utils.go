@@ -21,3 +21,9 @@ func GetExecutor(ctx context.Context, db DBTX) DBTX {
 	}
 	return db
 }
+func GetExecutorA(ctx context.Context) DBTX {
+	if tx, ok := ctx.Value(database.TxKey{}).(pgx.Tx); ok {
+		return tx
+	}
+	return nil
+}

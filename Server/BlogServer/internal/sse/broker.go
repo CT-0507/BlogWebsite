@@ -84,7 +84,7 @@ func (b *Broker) Subscribe(client *Client, topic string) {
 	client.Topics[topic] = true
 }
 
-func (b *Broker) PublishCache(topic, event string, data Cache) {
+func (b *Broker) PublishCache(topic, event string, data *Cache) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
@@ -93,7 +93,7 @@ func (b *Broker) PublishCache(topic, event string, data Cache) {
 	msg := Message{
 		Event: topic,
 		Data: Content{
-			Cache: &data,
+			Cache: data,
 		},
 	}
 	for _, client := range subs {
@@ -107,7 +107,7 @@ func (b *Broker) PublishCache(topic, event string, data Cache) {
 	}
 }
 
-func (b *Broker) PublishEvent(topic, event string, data interface{}) {
+func (b *Broker) PublishEvent(topic, event string, data *interface{}) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
@@ -116,7 +116,7 @@ func (b *Broker) PublishEvent(topic, event string, data interface{}) {
 	msg := Message{
 		Event: event,
 		Data: Content{
-			Event: &data,
+			Event: data,
 		},
 	}
 	for _, client := range subs {

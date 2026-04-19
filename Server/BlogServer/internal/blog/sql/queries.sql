@@ -119,7 +119,8 @@ RETURNING blog_id;
 -- name: DeleteBlog :one
 UPDATE blogs.blogs
     SET deleted_by = $1,
-    deleted_at = NOW()
+    deleted_at = NOW(),
+    status = 'deleted'
 WHERE blog_id = $2
 RETURNING blog_id;
 
@@ -140,7 +141,8 @@ WHERE user_id = $1;
 
 -- name: UpdateBlogStatusForDeletedAuthor :exec
 UPDATE blogs.blogs
-SET status = 'author_deleted'
+SET status = 'author_deleted',
+deleted_at = NOW()
 WHERE blogs.author_id = $1;
 
 -- name: DeleteAuthorHardDeletedBlogs :exec
@@ -150,3 +152,15 @@ WHERE author_id = $1;
 -- name: DeleteAuthorCache :exec
 DELETE FROM blogs.idx_user_author_profile
 WHERE author_id = $1;
+
+-- name: MarkAuthorCacheAsDeleted :exec
+UPDATE blogs.idx_user_author_profile
+SET status = 'deleted', deleted_at = NOW()
+WHERE author_id = $1;
+
+-- name: RestoreBlog :exec
+UPDATE blogs.blogs
+SET status = $1,
+deleted_at = null,
+deleted_by = null
+WHERE blog_id = $2;

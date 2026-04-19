@@ -117,6 +117,15 @@ INSERT INTO users.notifications (
 VALUES ($1, $2, $3, $3)
 RETURNING *;
 
+-- name: CreateNotifications :copyfrom
+INSERT INTO users.notifications (
+    user_id,
+    content,
+    created_by,
+    updated_by
+)
+VALUES ($1, $2, $3, $3);
+
 -- name: UpdateNotification :exec
 UPDATE users.notifications 
     SET is_read = $2,
@@ -130,3 +139,21 @@ UPDATE users.notifications
     updated_at = NOW(),
     updated_by = $2
 WHERE notification_id = ANY(sqlc.arg(ids)::int[]);
+
+-- name: MarkUserAsDeleted :exec
+UPDATE users.users
+SET status = 'deleted',
+    updated_at = NOW(),
+    updated_by = $1,
+    deleted_at = NOW(),
+    deleted_by = $1
+WHERE users.user_id = $2;
+
+-- name: RestoreUserByID :exec
+UPDATE users.users
+SET status = $1,
+    updated_at = NOW(),
+    updated_by = $2,
+    deleted_at = NULL,
+    deleted_by = NULL
+WHERE users.user_id = $3;

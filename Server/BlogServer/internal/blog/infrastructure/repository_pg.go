@@ -14,7 +14,7 @@ type BlogRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewBlogRepository(pool *pgxpool.Pool) domain.BlogRepository {
+func NewBlogRepository(pool *pgxpool.Pool) *BlogRepository {
 	return &BlogRepository{
 		pool: pool,
 	}
@@ -206,4 +206,25 @@ func (r *BlogRepository) DeleteAuthorCache(c context.Context, authorID string) e
 	q := blogdb.New(db)
 
 	return q.DeleteAuthorCache(c, authorID)
+}
+
+func (r *BlogRepository) MarkAuthorCacheAsDeleted(c context.Context, authorID string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.MarkAuthorCacheAsDeleted(c, authorID)
+}
+
+func (r *BlogRepository) RestoreBlog(c context.Context, blogID int64, PreviousStatus string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.RestoreBlog(c, blogdb.RestoreBlogParams{
+		BlogID: blogID,
+		Status: PreviousStatus,
+	})
 }

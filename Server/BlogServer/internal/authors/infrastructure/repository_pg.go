@@ -34,18 +34,18 @@ func (r *AuthorProfileRepository) CreateAuthorProfile(c context.Context, author 
 			Valid:  author.DisplayName != "",
 		},
 		Avatar: pgtype.Text{
-			String: author.Avatar,
-			Valid:  author.Avatar != "",
+			String: utils.Deref(author.Avatar),
+			Valid:  author.Avatar != nil,
 		},
 		Slug: author.Slug,
 		SocialLink: pgtype.Text{
-			String: author.SocialLink,
-			Valid:  author.SocialLink != "",
+			String: utils.Deref(author.SocialLink),
+			Valid:  author.SocialLink != nil,
 		},
 		Status: author.Status,
 		Email: pgtype.Text{
-			String: author.Email,
-			Valid:  author.Email != "",
+			String: utils.Deref(author.Email),
+			Valid:  author.Email != nil,
 		},
 		CreatedBy: createdBy,
 	})
@@ -130,7 +130,7 @@ func (r *AuthorProfileRepository) UpdateAuthorStatus(c context.Context, authorID
 	q := authordb.New(db)
 
 	return q.UpdateAuthorStatus(c, authordb.UpdateAuthorStatusParams{
-		Status:    status,
+		Column1:   status,
 		UpdatedBy: userID,
 		AuthorID:  authorID,
 	})
@@ -266,4 +266,20 @@ func (r *AuthorProfileRepository) UpdateAuthorFollowerCount(c context.Context, a
 			Int32: value,
 		},
 	})
+}
+
+func (r *AuthorProfileRepository) MarkAuthorFollowersDeletedByUserID(c context.Context, userID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.MarkAuthorFollowersDeletedByUserID(c, userID)
+}
+
+func (r *AuthorProfileRepository) RestoreAuthorFollowersByUserID(c context.Context, userID string) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	return q.RestoreAuthorFollowersByUserID(c, userID)
 }

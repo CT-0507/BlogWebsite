@@ -17,7 +17,7 @@ func UserDTOToUser(userDTO *userdb.UsersUser) *domain.User {
 		LastName:     userDTO.LastName,
 		Roles:        []string{userDTO.Role},
 		TokenVersion: int(userDTO.TokenVersion.Int32),
-		Active:       userDTO.Active.String,
+		Status:       userDTO.Status.String,
 		Audit: model.Audit{
 			CreatedAt: userDTO.CreatedAt.Time,
 			CreatedBy: utils.UUIDPtr(userDTO.CreatedBy),

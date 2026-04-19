@@ -1,25 +1,18 @@
 package user
 
 import (
-	"context"
-
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/outbox"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/application"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/delivery/event"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/delivery/http"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/infrastructure"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type EventHandler func(ctx context.Context, evt *messaging.OutboxEvent) error
-
-type EventHandlers struct {
-}
-
 type UserModule struct {
-	Handler       *http.UserHandler
-	EventHandlers *EventHandlers
+	Handler      *http.UserHandler
+	EventHandler *event.EventHandler
 }
 
 func New(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo outbox.OutboxRepository) *UserModule {
@@ -32,8 +25,10 @@ func New(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo outbox.Out
 
 	handler := http.New(authUsecases, profileUsecases, notificationUsecases)
 
+	eventHandler := event.New(txManager, repo, outboxRepo)
+
 	return &UserModule{
-		Handler:       handler,
-		EventHandlers: nil,
+		Handler:      handler,
+		EventHandler: eventHandler,
 	}
 }

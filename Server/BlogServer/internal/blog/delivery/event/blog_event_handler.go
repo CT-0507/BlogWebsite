@@ -9,6 +9,8 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 )
@@ -27,45 +29,172 @@ func NewEventHandler(txManager database.TxManager, repo domain.BlogRepository, o
 	}
 }
 
-func (u *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxEvent) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
+func (e *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxEvent) error {
 
-		var event domain.AuthorCreatedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
+	var stepPayload contracts.CreateBlogAuthorCachePayload
+	_ = json.Unmarshal(evt.Payload, &stepPayload)
 
-		return u.repo.CreateUserIDAuthorProfileIDCacheRecord(c, event.UserID, event.AuthorID, event.Slug, event.DisplayName)
-	})
-}
+	err := e.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-func (u *EventHandler) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-
-		var event domain.AuthorDeletedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
-		return u.repo.UpdateBlogStatusForDeletedAuthor(c, event.AuthorID)
-	})
-}
-
-func (u *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-
-		var event domain.AuthorDeletedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
-		err := u.repo.DeleteAuthorCache(c, event.AuthorID)
+		err := e.repo.CreateUserIDAuthorProfileIDCacheRecord(c, stepPayload.UserID, stepPayload.AuthorID, stepPayload.Slug, stepPayload.DisplayName)
 		if err != nil {
 			return err
 		}
-		return u.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
+
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.CreateBlogAuthorCacheSuccessContext{
+			UserID:   stepPayload.UserID,
+			AuthorID: stepPayload.AuthorID,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.CreateBlogAuthorCacheSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.CreateBlogAuthorCacheFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
+}
+
+func (e *EventHandler) OnDeleteBlogAuthorCache(c context.Context, evt *messaging.OutboxEvent) error {
+
+	var outboxPayload contracts.DeleteAuthorPayload
+	err := json.Unmarshal(evt.Payload, &outboxPayload)
+	if err != nil {
+		return err
+	}
+
+	if outboxPayload.AuthorID == "" {
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogAuthorCacheContext{
+			AuthorID: outboxPayload.AuthorID,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(c, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogAuthorCacheSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	}
+
+	err = e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		err := e.repo.UpdateBlogStatusForDeletedAuthor(c, outboxPayload.AuthorID)
+		if err != nil {
+			return err
+		}
+
+		err = e.repo.MarkAuthorCacheAsDeleted(c, outboxPayload.AuthorID)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogAuthorCacheContext{
+			AuthorID: outboxPayload.AuthorID,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogAuthorCacheSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogAuthorCacheFailed,
+			Payload:   b,
+			Error:     evt.Error,
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
+}
+
+// func (e *EventHandler) OnAuthorDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+// 	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+// 		var event domain.AuthorDeletedEvent
+// 		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+// 			return err
+// 		}
+// 		return e.repo.UpdateBlogStatusForDeletedAuthor(c, event.AuthorID)
+// 	})
+// }
+
+func (e *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		var event domain.AuthorDeletedEvent
+		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+			return err
+		}
+		err := e.repo.DeleteAuthorCache(c, event.AuthorID)
+		if err != nil {
+			return err
+		}
+		return e.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
 	})
 }
 
-func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent) error {
+func (e *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent) error {
 
 	ctx, cancel := context.WithTimeout(c, 3*time.Second)
 	defer cancel()
@@ -76,9 +205,9 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 		return err
 	}
 
-	return s.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+	err = e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		insertedBlog, err := s.repo.Create(ctx, &domain.Blog{
+		insertedBlog, err := e.repo.Create(ctx, &domain.Blog{
 			AuthorID: payload.AuthorID,
 			Title:    payload.Title,
 			Content:  payload.Content,
@@ -86,12 +215,6 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 			URLSlug:  payload.UrlSlug,
 		})
 		if err != nil {
-			// Fail to create blog
-			err = s.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-				SagaID:    evt.SagaID,
-				EventType: "CreateBlog.Failed",
-				Error:     evt.Error,
-			})
 			return err
 		}
 
@@ -109,21 +232,16 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 			"UserID":           payload.UserID,
 			"TruncatedTitle":   truncatedTitle,
 			"TruncatedContent": truncatedContent,
+			"UrlSlug":          payload.UrlSlug,
 		}
 
 		payloadMarshal, _ := json.Marshal(payload)
 		contextMarshal, _ := json.Marshal(context)
-		// Save event to outbox table
-		// event := &contracts.BlogCreatedEvent{
-		// 	BlogID:    insertedBlog.BlogID,
-		// 	AuthorID:  authorID,
-		// 	BlogTitle: insertedBlog.Title,
-		// }
 
 		// Proceed next step
-		err = s.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			SagaID:    evt.SagaID,
-			EventType: "InceaseAuthorBlogCount",
+			EventType: flows.CreateBlogSuccess,
 			Payload:   payloadMarshal,
 			Context:   &contextMarshal,
 		})
@@ -139,7 +257,7 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 		}
 
 		blogCreatedEvtPayload, _ := json.Marshal(blogCreatedEvt)
-		err = s.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			EventType: "blog.created",
 			Payload:   blogCreatedEvtPayload,
 		})
@@ -150,6 +268,26 @@ func (s *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 
 		return nil
 	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx = context.WithValue(ctx, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.CreateBlogFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
 }
 
 // Handle blog posted event for event bus
@@ -192,4 +330,175 @@ func (s *EventHandler) OnBlogPosted(c context.Context, evt *messaging.OutboxEven
 		// }
 		return nil
 	})
+}
+
+func (e *EventHandler) OnCreateBlogCompensation(c context.Context, evt *messaging.OutboxEvent) error {
+	ctx, cancel := context.WithTimeout(c, time.Second)
+	defer cancel()
+
+	var payload contracts.CreateBlogCompensationPayload
+	err := json.Unmarshal(evt.Payload, &payload)
+	if err != nil {
+		return err
+	}
+
+	err = e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
+
+		_, err := e.repo.Delete(ctx, payload.BlogID, config.SYSTEM_ID)
+		if err != nil {
+			return err
+		}
+
+		// empty payload
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.CreateBlogCompensationSuccess,
+			Payload:   b,
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx = context.WithValue(ctx, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.CreateBlogCompensationFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
+}
+
+func (e *EventHandler) OnDeleteBlog(c context.Context, evt *messaging.OutboxEvent) error {
+
+	var outboxPayload contracts.DeleteBlogKickstartPayload
+	err := json.Unmarshal(evt.Payload, &outboxPayload)
+	if err != nil {
+		return err
+	}
+
+	err = e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		_, err := e.repo.Delete(ctx, outboxPayload.BlogID, outboxPayload.DeletedBy)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := &contracts.DeleteBlogPayload{
+			AuthorID: outboxPayload.AuthorID,
+		}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogContext{
+			BlogID:         outboxPayload.BlogID,
+			PreviousStatus: outboxPayload.Status,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
+}
+
+func (e *EventHandler) OnDeleteBlogCompensation(c context.Context, evt *messaging.OutboxEvent) error {
+
+	var outboxPayload contracts.DeleteBlogContext
+	err := json.Unmarshal(evt.Payload, &outboxPayload)
+	if err != nil {
+		return err
+	}
+
+	err = e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+
+		err := e.repo.RestoreBlog(ctx, outboxPayload.BlogID, outboxPayload.PreviousStatus)
+		if err != nil {
+			return err
+		}
+
+		eventPayload := map[string]any{}
+
+		payload, err := json.Marshal(eventPayload)
+		if err != nil {
+			return err
+		}
+
+		eventContext := &contracts.DeleteBlogContext{
+			BlogID:         outboxPayload.BlogID,
+			PreviousStatus: outboxPayload.PreviousStatus,
+		}
+
+		context, _ := json.Marshal(eventContext)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogSuccess,
+			Payload:   payload,
+			Context:   &context,
+		})
+	})
+
+	// Signal failed saga step
+	if err != nil {
+
+		ctx := context.WithValue(c, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.DeleteBlogFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
 }

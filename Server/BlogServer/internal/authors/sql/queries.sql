@@ -59,9 +59,17 @@ WHERE author_id = $3;
 
 -- name: UpdateAuthorStatus :exec
 UPDATE authors.authors
-    SET status = $1,
+    SET status = $1::varchar(50),
     updated_at = NOW(),
-    updated_by = $2
+    updated_by = $2,
+    deleted_at = CASE
+        WHEN $1::varchar(50) = 'deleted' THEN NOW()
+        ELSE deleted_at
+    END,
+    deleted_by = CASE
+        WHEN $1::varchar(50) = 'deleted' AND deleted_by IS NULL THEN $2
+        ELSE deleted_by
+    END
 WHERE author_id = $3;
 
 -- name: UpdateAuthorProfileDeleteAt :exec
@@ -140,3 +148,13 @@ WHERE author_id = $2;
 UPDATE authors.authors
 SET follower_count = follower_count + $1
 WHERE author_id = $2;
+
+-- name: MarkAuthorFollowersDeletedByUserID :exec
+UPDATE authors.author_followers
+SET deleted_at = NOW()
+WHERE user_id = $1;
+
+-- name: RestoreAuthorFollowersByUserID :exec
+UPDATE authors.author_followers
+SET deleted_at = NULL
+WHERE user_id = $1;

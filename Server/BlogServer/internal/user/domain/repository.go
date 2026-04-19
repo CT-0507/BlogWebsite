@@ -16,7 +16,9 @@ type UserRepository interface {
 	UpdateData(c context.Context, userID uuid.UUID, user *User, updatedBy *uuid.UUID) error
 	UpdatePassword(c context.Context, userID uuid.UUID, hashedPassword string, updatedBy *uuid.UUID) error
 	GetNotificationsByUserID(c context.Context, userID uuid.UUID) ([]Notification, error)
-	CreateNotification(c context.Context, content string, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error)
+	CreateNotification(c context.Context, content []byte, userID uuid.UUID, createdBy uuid.UUID) (*Notification, error)
+	CreateNotifications(c context.Context, nots []Notification) error
 	UpdateNotificationByID(c context.Context, notificationID int64, status bool, updatedBy *uuid.UUID) error
-	// Delete(c context.Context, id int64) (*int64, error)
+	MarkUserAsDeleted(c context.Context, userID uuid.UUID, updatedBy uuid.UUID) error
+	RestoreUserByID(c context.Context, userID uuid.UUID, updatedBy uuid.UUID) error
 }

@@ -153,7 +153,7 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 		LastName:    foundUser.LastName,
 		Email:       foundUser.Email,
 		Roles:       foundUser.Roles,
-		Active:      foundUser.Active,
+		Status:      foundUser.Status,
 		AccessToken: token,
 	})
 }
@@ -220,7 +220,7 @@ func (h *UserHandler) getUserById(c *gin.Context) {
 		LastName:  foundUser.LastName,
 		Email:     foundUser.Email,
 		Roles:     foundUser.Roles,
-		Active:    foundUser.Active,
+		Status:    foundUser.Status,
 	})
 }
 

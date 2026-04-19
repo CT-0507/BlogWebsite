@@ -11,7 +11,7 @@ type ProfileData struct {
 type Notification struct {
 	NotificationID int64  `json:"notificationId"`
 	UserID         string `json:"userId"`
-	Content        string `json:"content"`
+	Content        []byte `json:"content"`
 	IsRead         bool   `json:"isRead"`
 
 	model.Audit
@@ -25,7 +25,7 @@ type User struct {
 	LastName     string      `json:"last_name"`
 	Roles        []string    `json:"roles"`
 	Email        string      `json:"email"`
-	Active       string      `json:"active"`
+	Status       string      `json:"status"`
 	ProfileData  ProfileData `json:"profileData"`
 	Token        string      `json:"token"`
 	TokenVersion int         `json:"token_version"`

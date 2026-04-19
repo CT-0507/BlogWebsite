@@ -3,7 +3,7 @@ package saga
 import (
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/domain"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows/create_blog"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/infrastructure"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,7 +19,11 @@ func NewSagaModule(pool *pgxpool.Pool, txManageer database.TxManager, outboxRepo
 
 	// Register in-memory definition
 	registry := infrastructure.NewRegistry()
-	registry.Register(create_blog.CreateBlogSaga.Name, create_blog.CreateBlogSaga.Steps)
+	registry.Register(flows.CreateBlogSagaDefinition.Name, flows.CreateBlogSagaDefinition.Steps)
+	registry.Register(flows.CreateAuthorSagaDefinition.Name, flows.CreateAuthorSagaDefinition.Steps)
+	registry.Register(flows.DeleteAuthorSagaDefinition.Name, flows.DeleteAuthorSagaDefinition.Steps)
+	registry.Register(flows.DeleteUserSagaDefinition.Name, flows.DeleteUserSagaDefinition.Steps)
+	registry.Register(flows.DeleteBlogSagaDefinition.Name, flows.DeleteBlogSagaDefinition.Steps)
 
 	orchestrator := infrastructure.NewOrchestrator(registry, txManageer, repo, outboxRepo)
 	return &SagaModule{

@@ -1,7 +1,7 @@
 -- name: InsertRecord :exec
 INSERT INTO outbox.outbox_events
-    (saga_id, event_type, payload, context)
-VALUES ($1, $2, $3, $4);
+    (saga_id, event_type, payload, retry_count, context, error)
+VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: UpdateProcessedAt :exec
 UPDATE outbox.outbox_events

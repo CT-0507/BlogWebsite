@@ -21,7 +21,7 @@ type UserLoginResponse struct {
 	LastName    string             `json:"lastName"`
 	Roles       []string           `json:"roles"`
 	Email       string             `json:"email"`
-	Active      string             `json:"active"`
+	Status      string             `json:"status"`
 	ProfileData domain.ProfileData `json:"profileData"`
 	AccessToken string             `json:"accessToken"`
 }
