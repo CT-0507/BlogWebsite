@@ -18,13 +18,15 @@ type Module struct {
 // Hide blog module wiring and expose handler, service for other module
 func NewBlogModule(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo outbox.OutboxRepository) *Module {
 	repo := infrastructure.NewBlogRepository(pool)
+	commentRepo := infrastructure.NewCommentRepository(pool)
 
 	createBlog := application.NewCreateBlogUseCases(txManager, repo, outboxRepo)
 	getBlog := application.NewGetBlogUseCases(txManager, repo)
 	listBlogs := application.NewListBlogsUseCases(txManager, repo)
 	deleteBlog := application.NewDeleteBlogUseCases(txManager, repo, outboxRepo)
+	commentUsecase := application.NewCommentUseCases(txManager, repo, commentRepo, outboxRepo)
 
-	handler := http.NewBlogHandler(createBlog, getBlog, listBlogs, deleteBlog)
+	handler := http.NewBlogHandler(createBlog, getBlog, listBlogs, deleteBlog, commentUsecase)
 
 	eventHandler := event.NewEventHandler(txManager, repo, outboxRepo)
 

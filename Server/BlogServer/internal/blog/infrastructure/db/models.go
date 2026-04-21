@@ -10,18 +10,30 @@ import (
 )
 
 type BlogsBlog struct {
+	BlogID       int64
+	AuthorID     string
+	UrlSlug      string
+	Title        string
+	Content      pgtype.Text
+	Status       string
+	LikeCount    int32
+	DislikeCount int32
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+	UpdatedAt    pgtype.Timestamptz
+	UpdatedBy    string
+	DeletedAt    pgtype.Timestamptz
+	DeletedBy    pgtype.Text
+}
+
+type BlogsBlogReaction struct {
+	ID        uuid.UUID
 	BlogID    int64
-	AuthorID  string
-	UrlSlug   string
-	Title     string
-	Content   pgtype.Text
+	UserID    string
+	Type      string
 	Status    string
 	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy pgtype.Text
 }
 
 type BlogsBlogTag struct {
@@ -33,6 +45,31 @@ type BlogsBlogTag struct {
 	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
 	DeletedBy pgtype.Text
+}
+
+type BlogsComment struct {
+	ID               uuid.UUID
+	BlogID           int64
+	Content          string
+	ActorType        string
+	ActorID          pgtype.Text
+	ActorDisplayName string
+	ActorAvatarUrl   pgtype.Text
+	Status           string
+	ParentCommentID  *uuid.UUID
+	RootCommentID    uuid.UUID
+	Depth            int16
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+type BlogsCommentReaction struct {
+	ID        uuid.UUID
+	CommentID uuid.UUID
+	UserID    string
+	Type      string
+	CreatedAt pgtype.Timestamptz
 }
 
 type BlogsIdxUserAuthorProfile struct {

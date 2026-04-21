@@ -179,20 +179,20 @@ func (e *EventHandler) OnDeleteBlogAuthorCache(c context.Context, evt *messaging
 // 	})
 // }
 
-func (e *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
-	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+// func (e *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+// 	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-		var event domain.AuthorDeletedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
-		err := e.repo.DeleteAuthorCache(c, event.AuthorID)
-		if err != nil {
-			return err
-		}
-		return e.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
-	})
-}
+// 		var event domain.AuthorDeletedEvent
+// 		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+// 			return err
+// 		}
+// 		err := e.repo.DeleteAuthorCache(c, event.AuthorID)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		return e.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
+// 	})
+// }
 
 func (e *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent) error {
 

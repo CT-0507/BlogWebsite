@@ -31,14 +31,3 @@ type AuthorData struct {
 	Slug        string `json:"slug"`
 	DisplayName string `json:"displayName"`
 }
-
-type AuthorCreatedEvent struct {
-	AuthorID    string
-	UserID      string
-	Slug        string
-	DisplayName string
-}
-
-type AuthorDeletedEvent struct {
-	AuthorID string
-}

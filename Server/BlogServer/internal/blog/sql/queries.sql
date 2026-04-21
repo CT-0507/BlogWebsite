@@ -164,3 +164,77 @@ SET status = $1,
 deleted_at = null,
 deleted_by = null
 WHERE blog_id = $2;
+
+
+-- comments
+
+-- name: CreateComment :one
+WITH vals AS (
+    SELECT gen_random_uuid() AS u1,
+            gen_random_uuid() AS u2
+)
+INSERT INTO blogs.comments (
+    id, blog_id, content, actor_type, actor_id, parent_comment_id, root_comment_id, depth
+)
+SELECT u1, $1, $2, $3, $4, $5,
+    CASE 
+        WHEN $6 = TRUE THEN u1 
+        ELSE u2
+    END AS root_comment_id, 
+    $7
+FROM vals
+RETURNING id;
+
+-- name: GetBlogRootComment :many
+SELECT *
+FROM blogs.comments
+WHERE blog_id = $1 AND status <> 'hidden' AND depth = 0;
+
+-- name: GetCommentsByRootComment :many
+SELECT *
+FROM blogs.comments
+WHERE root_comment_id = $1  AND status <> 'hidden';
+
+-- name: GetCommentsByParentComment :many
+SELECT *
+FROM blogs.comments
+WHERE parent_comment_id = $1 AND status <> 'hidden';
+
+-- name: GetCommentByID :one
+SELECT *
+FROM blogs.comments
+WHERE id = $1;
+
+-- name: HideComment :one
+UPDATE blogs.comments
+SET status = 'hide', updated_at = NOW()
+WHERE id = $1
+RETURNING COUNT(*);
+
+-- name: DeleteComment :one
+UPDATE blogs.comments
+SET status = 'delete', updated_at = NOW(), deleted_at = NOW()
+WHERE id = $1
+RETURNING COUNT(*);
+
+-- name: CreateBlogReaction :exec
+INSERT INTO blogs.blog_reactions (
+    blog_id, user_id, type
+) VALUES (
+    $1, $2, $3
+);
+
+-- name: SyncBlogLikeAndDislike :exec
+UPDATE blogs.blogs b
+SET
+    like_count = COALESCE(x.like_count, 0),
+    dislike_count = COALESCE(x.dislike_count, 0)
+FROM (
+    SELECT
+        blog_id,
+        COUNT(*) FILTER (WHERE type = 'like' AND status = 'active') AS like_count,
+        COUNT(*) FILTER (WHERE type = 'dislike' AND status = 'active') AS dislike_count
+    FROM blogs.blog_reactions
+    GROUP BY blog_id
+) x
+WHERE x.blog_id = b.blog_id;

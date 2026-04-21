@@ -235,9 +235,6 @@ func main() {
 
 	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
-	bus.Subscribe("authorIdentity.created", blogModule.EventHandler.OnAuthorCreated)
-	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnDeleteBlogAuthorCache)
-	bus.Subscribe("authorIdentity.hardDeleted", blogModule.EventHandler.OnAuthorHardDeleted)
 
 	worker := outbox.NewOutboxWorker(txManager, bus, outboxRepo)
 

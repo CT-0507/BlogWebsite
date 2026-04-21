@@ -8,6 +8,7 @@ package blogdb
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -22,7 +23,7 @@ INSERT INTO blogs.blogs(
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
-RETURNING blog_id, author_id, url_slug, title, content, status, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING blog_id, author_id, url_slug, title, content, status, like_count, dislike_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateBlogParams struct {
@@ -51,6 +52,8 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.Title,
 		&i.Content,
 		&i.Status,
+		&i.LikeCount,
+		&i.DislikeCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -59,6 +62,70 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.DeletedBy,
 	)
 	return i, err
+}
+
+const createBlogReaction = `-- name: CreateBlogReaction :exec
+INSERT INTO blogs.blog_reactions (
+    blog_id, user_id, type
+) VALUES (
+    $1, $2, $3
+)
+`
+
+type CreateBlogReactionParams struct {
+	BlogID int64
+	UserID string
+	Type   string
+}
+
+func (q *Queries) CreateBlogReaction(ctx context.Context, arg CreateBlogReactionParams) error {
+	_, err := q.db.Exec(ctx, createBlogReaction, arg.BlogID, arg.UserID, arg.Type)
+	return err
+}
+
+const createComment = `-- name: CreateComment :one
+
+WITH vals AS (
+    SELECT gen_random_uuid() AS u1,
+            gen_random_uuid() AS u2
+)
+INSERT INTO blogs.comments (
+    id, blog_id, content, actor_type, actor_id, parent_comment_id, root_comment_id, depth
+)
+SELECT u1, $1, $2, $3, $4, $5,
+    CASE 
+        WHEN $6 = TRUE THEN u1 
+        ELSE u2
+    END AS root_comment_id, 
+    $7
+FROM vals
+RETURNING id
+`
+
+type CreateCommentParams struct {
+	BlogID          int64
+	Content         string
+	ActorType       string
+	ActorID         pgtype.Text
+	ParentCommentID *uuid.UUID
+	Column6         interface{}
+	Depth           int16
+}
+
+// comments
+func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createComment,
+		arg.BlogID,
+		arg.Content,
+		arg.ActorType,
+		arg.ActorID,
+		arg.ParentCommentID,
+		arg.Column6,
+		arg.Depth,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createUserAuthorProfileIDCacheRecord = `-- name: CreateUserAuthorProfileIDCacheRecord :exec
@@ -128,6 +195,20 @@ func (q *Queries) DeleteBlog(ctx context.Context, arg DeleteBlogParams) (int64, 
 	var blog_id int64
 	err := row.Scan(&blog_id)
 	return blog_id, err
+}
+
+const deleteComment = `-- name: DeleteComment :one
+UPDATE blogs.comments
+SET status = 'delete', updated_at = NOW(), deleted_at = NOW()
+WHERE id = $1
+RETURNING COUNT(*)
+`
+
+func (q *Queries) DeleteComment(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteComment, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const getBlog = `-- name: GetBlog :one
@@ -238,6 +319,157 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 	return i, err
 }
 
+const getBlogRootComment = `-- name: GetBlogRootComment :many
+SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
+FROM blogs.comments
+WHERE blog_id = $1 AND status <> 'hidden' AND depth = 0
+`
+
+func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]BlogsComment, error) {
+	rows, err := q.db.Query(ctx, getBlogRootComment, blogID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BlogsComment
+	for rows.Next() {
+		var i BlogsComment
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlogID,
+			&i.Content,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorDisplayName,
+			&i.ActorAvatarUrl,
+			&i.Status,
+			&i.ParentCommentID,
+			&i.RootCommentID,
+			&i.Depth,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCommentByID = `-- name: GetCommentByID :one
+SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
+FROM blogs.comments
+WHERE id = $1
+`
+
+func (q *Queries) GetCommentByID(ctx context.Context, id uuid.UUID) (BlogsComment, error) {
+	row := q.db.QueryRow(ctx, getCommentByID, id)
+	var i BlogsComment
+	err := row.Scan(
+		&i.ID,
+		&i.BlogID,
+		&i.Content,
+		&i.ActorType,
+		&i.ActorID,
+		&i.ActorDisplayName,
+		&i.ActorAvatarUrl,
+		&i.Status,
+		&i.ParentCommentID,
+		&i.RootCommentID,
+		&i.Depth,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getCommentsByParentComment = `-- name: GetCommentsByParentComment :many
+SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
+FROM blogs.comments
+WHERE parent_comment_id = $1 AND status <> 'hidden'
+`
+
+func (q *Queries) GetCommentsByParentComment(ctx context.Context, parentCommentID *uuid.UUID) ([]BlogsComment, error) {
+	rows, err := q.db.Query(ctx, getCommentsByParentComment, parentCommentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BlogsComment
+	for rows.Next() {
+		var i BlogsComment
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlogID,
+			&i.Content,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorDisplayName,
+			&i.ActorAvatarUrl,
+			&i.Status,
+			&i.ParentCommentID,
+			&i.RootCommentID,
+			&i.Depth,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCommentsByRootComment = `-- name: GetCommentsByRootComment :many
+SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
+FROM blogs.comments
+WHERE root_comment_id = $1  AND status <> 'hidden'
+`
+
+func (q *Queries) GetCommentsByRootComment(ctx context.Context, rootCommentID uuid.UUID) ([]BlogsComment, error) {
+	rows, err := q.db.Query(ctx, getCommentsByRootComment, rootCommentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BlogsComment
+	for rows.Next() {
+		var i BlogsComment
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlogID,
+			&i.Content,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorDisplayName,
+			&i.ActorAvatarUrl,
+			&i.Status,
+			&i.ParentCommentID,
+			&i.RootCommentID,
+			&i.Depth,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const hardDeleteBlog = `-- name: HardDeleteBlog :one
 DELETE FROM blogs.blogs
 WHERE blog_id = $1
@@ -249,6 +481,20 @@ func (q *Queries) HardDeleteBlog(ctx context.Context, blogID int64) (int64, erro
 	var blog_id int64
 	err := row.Scan(&blog_id)
 	return blog_id, err
+}
+
+const hideComment = `-- name: HideComment :one
+UPDATE blogs.comments
+SET status = 'hide', updated_at = NOW()
+WHERE id = $1
+RETURNING COUNT(*)
+`
+
+func (q *Queries) HideComment(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, hideComment, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const listAllBlogs = `-- name: ListAllBlogs :many
@@ -534,6 +780,27 @@ type RestoreBlogParams struct {
 
 func (q *Queries) RestoreBlog(ctx context.Context, arg RestoreBlogParams) error {
 	_, err := q.db.Exec(ctx, restoreBlog, arg.Status, arg.BlogID)
+	return err
+}
+
+const syncBlogLikeAndDislike = `-- name: SyncBlogLikeAndDislike :exec
+UPDATE blogs.blogs b
+SET
+    like_count = COALESCE(x.like_count, 0),
+    dislike_count = COALESCE(x.dislike_count, 0)
+FROM (
+    SELECT
+        blog_id,
+        COUNT(*) FILTER (WHERE type = 'like' AND status = 'active') AS like_count,
+        COUNT(*) FILTER (WHERE type = 'dislike' AND status = 'active') AS dislike_count
+    FROM blogs.blog_reactions
+    GROUP BY blog_id
+) x
+WHERE x.blog_id = b.blog_id
+`
+
+func (q *Queries) SyncBlogLikeAndDislike(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, syncBlogLikeAndDislike)
 	return err
 }
 
