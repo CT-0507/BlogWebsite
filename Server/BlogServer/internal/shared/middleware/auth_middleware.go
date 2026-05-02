@@ -54,6 +54,8 @@ func AuthMiddleWare(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
+		c.Set("avatar", claims.Avatar)
+		c.Set("username", claims.Username)
 		c.Set("userID", claims.UserID)
 		c.Set("roles", claims.Roles)
 

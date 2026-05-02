@@ -90,42 +90,61 @@ WITH vals AS (
             gen_random_uuid() AS u2
 )
 INSERT INTO blogs.comments (
-    id, blog_id, content, actor_type, actor_id, parent_comment_id, root_comment_id, depth
+    id, blog_id, content, actor_type, actor_id, actor_display_name, parent_comment_id, root_comment_id, depth
 )
-SELECT u1, $1, $2, $3, $4, $5,
+SELECT u1, $1, $2, $3, $4, $5, $6,
     CASE 
-        WHEN $6 = TRUE THEN u1 
+        WHEN $7 = TRUE THEN u1 
         ELSE u2
     END AS root_comment_id, 
-    $7
+    $8
 FROM vals
-RETURNING id
+RETURNING id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, like_count, dislike_count, depth, created_at, updated_at, deleted_at
 `
 
 type CreateCommentParams struct {
-	BlogID          int64
-	Content         string
-	ActorType       string
-	ActorID         pgtype.Text
-	ParentCommentID *uuid.UUID
-	Column6         interface{}
-	Depth           int16
+	BlogID           int64
+	Content          string
+	ActorType        string
+	ActorID          pgtype.Text
+	ActorDisplayName string
+	ParentCommentID  *uuid.UUID
+	Column7          interface{}
+	Depth            int16
 }
 
 // comments
-func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (uuid.UUID, error) {
+func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (BlogsComment, error) {
 	row := q.db.QueryRow(ctx, createComment,
 		arg.BlogID,
 		arg.Content,
 		arg.ActorType,
 		arg.ActorID,
+		arg.ActorDisplayName,
 		arg.ParentCommentID,
-		arg.Column6,
+		arg.Column7,
 		arg.Depth,
 	)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
+	var i BlogsComment
+	err := row.Scan(
+		&i.ID,
+		&i.BlogID,
+		&i.Content,
+		&i.ActorType,
+		&i.ActorID,
+		&i.ActorDisplayName,
+		&i.ActorAvatarUrl,
+		&i.Status,
+		&i.ParentCommentID,
+		&i.RootCommentID,
+		&i.LikeCount,
+		&i.DislikeCount,
+		&i.Depth,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }
 
 const createUserAuthorProfileIDCacheRecord = `-- name: CreateUserAuthorProfileIDCacheRecord :exec
@@ -209,6 +228,28 @@ func (q *Queries) DeleteComment(ctx context.Context, id uuid.UUID) (int64, error
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const getAuthorCacheByUserID = `-- name: GetAuthorCacheByUserID :one
+SELECT user_id, author_id, avatar, slug, display_name, status, created_at, deleted_at
+FROM blogs.idx_user_author_profile
+WHERE user_id = $1
+`
+
+func (q *Queries) GetAuthorCacheByUserID(ctx context.Context, userID string) (BlogsIdxUserAuthorProfile, error) {
+	row := q.db.QueryRow(ctx, getAuthorCacheByUserID, userID)
+	var i BlogsIdxUserAuthorProfile
+	err := row.Scan(
+		&i.UserID,
+		&i.AuthorID,
+		&i.Avatar,
+		&i.Slug,
+		&i.DisplayName,
+		&i.Status,
+		&i.CreatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }
 
 const getBlog = `-- name: GetBlog :one
@@ -320,20 +361,48 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 }
 
 const getBlogRootComment = `-- name: GetBlogRootComment :many
-SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
-FROM blogs.comments
-WHERE blog_id = $1 AND status <> 'hidden' AND depth = 0
+SELECT
+    p.id, p.blog_id, p.content, p.actor_type, p.actor_id, p.actor_display_name, p.actor_avatar_url, p.status, p.parent_comment_id, p.root_comment_id, p.like_count, p.dislike_count, p.depth, p.created_at, p.updated_at, p.deleted_at,
+    COUNT(c.id) AS child_comment_count
+FROM blogs.comments p
+LEFT JOIN blogs.comments c
+    ON c.parent_comment_id = p.id
+WHERE
+    p.blog_id = $1
+    AND p.status <> 'hidden'
+    AND p.depth = 0
+GROUP BY p.id
 `
 
-func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]BlogsComment, error) {
+type GetBlogRootCommentRow struct {
+	ID                uuid.UUID
+	BlogID            int64
+	Content           string
+	ActorType         string
+	ActorID           pgtype.Text
+	ActorDisplayName  string
+	ActorAvatarUrl    pgtype.Text
+	Status            string
+	ParentCommentID   *uuid.UUID
+	RootCommentID     uuid.UUID
+	LikeCount         int32
+	DislikeCount      int32
+	Depth             int16
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+	ChildCommentCount int64
+}
+
+func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]GetBlogRootCommentRow, error) {
 	rows, err := q.db.Query(ctx, getBlogRootComment, blogID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []BlogsComment
+	var items []GetBlogRootCommentRow
 	for rows.Next() {
-		var i BlogsComment
+		var i GetBlogRootCommentRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.BlogID,
@@ -345,10 +414,13 @@ func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]Blogs
 			&i.Status,
 			&i.ParentCommentID,
 			&i.RootCommentID,
+			&i.LikeCount,
+			&i.DislikeCount,
 			&i.Depth,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.ChildCommentCount,
 		); err != nil {
 			return nil, err
 		}
@@ -361,7 +433,7 @@ func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]Blogs
 }
 
 const getCommentByID = `-- name: GetCommentByID :one
-SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
+SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, like_count, dislike_count, depth, created_at, updated_at, deleted_at
 FROM blogs.comments
 WHERE id = $1
 `
@@ -380,6 +452,8 @@ func (q *Queries) GetCommentByID(ctx context.Context, id uuid.UUID) (BlogsCommen
 		&i.Status,
 		&i.ParentCommentID,
 		&i.RootCommentID,
+		&i.LikeCount,
+		&i.DislikeCount,
 		&i.Depth,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -389,20 +463,44 @@ func (q *Queries) GetCommentByID(ctx context.Context, id uuid.UUID) (BlogsCommen
 }
 
 const getCommentsByParentComment = `-- name: GetCommentsByParentComment :many
-SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
-FROM blogs.comments
-WHERE parent_comment_id = $1 AND status <> 'hidden'
+SELECT p.id, p.blog_id, p.content, p.actor_type, p.actor_id, p.actor_display_name, p.actor_avatar_url, p.status, p.parent_comment_id, p.root_comment_id, p.like_count, p.dislike_count, p.depth, p.created_at, p.updated_at, p.deleted_at,
+    COUNT(c.id) AS child_comment_count
+FROM blogs.comments p
+LEFT JOIN blogs.comments c
+    ON c.parent_comment_id = p.id   AND c.status <> 'hidden'
+WHERE p.parent_comment_id = $1 AND p.status <> 'hidden'
+GROUP BY p.id
 `
 
-func (q *Queries) GetCommentsByParentComment(ctx context.Context, parentCommentID *uuid.UUID) ([]BlogsComment, error) {
+type GetCommentsByParentCommentRow struct {
+	ID                uuid.UUID
+	BlogID            int64
+	Content           string
+	ActorType         string
+	ActorID           pgtype.Text
+	ActorDisplayName  string
+	ActorAvatarUrl    pgtype.Text
+	Status            string
+	ParentCommentID   *uuid.UUID
+	RootCommentID     uuid.UUID
+	LikeCount         int32
+	DislikeCount      int32
+	Depth             int16
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+	ChildCommentCount int64
+}
+
+func (q *Queries) GetCommentsByParentComment(ctx context.Context, parentCommentID *uuid.UUID) ([]GetCommentsByParentCommentRow, error) {
 	rows, err := q.db.Query(ctx, getCommentsByParentComment, parentCommentID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []BlogsComment
+	var items []GetCommentsByParentCommentRow
 	for rows.Next() {
-		var i BlogsComment
+		var i GetCommentsByParentCommentRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.BlogID,
@@ -414,10 +512,13 @@ func (q *Queries) GetCommentsByParentComment(ctx context.Context, parentCommentI
 			&i.Status,
 			&i.ParentCommentID,
 			&i.RootCommentID,
+			&i.LikeCount,
+			&i.DislikeCount,
 			&i.Depth,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.ChildCommentCount,
 		); err != nil {
 			return nil, err
 		}
@@ -430,7 +531,7 @@ func (q *Queries) GetCommentsByParentComment(ctx context.Context, parentCommentI
 }
 
 const getCommentsByRootComment = `-- name: GetCommentsByRootComment :many
-SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, depth, created_at, updated_at, deleted_at
+SELECT id, blog_id, content, actor_type, actor_id, actor_display_name, actor_avatar_url, status, parent_comment_id, root_comment_id, like_count, dislike_count, depth, created_at, updated_at, deleted_at
 FROM blogs.comments
 WHERE root_comment_id = $1  AND status <> 'hidden'
 `
@@ -455,6 +556,8 @@ func (q *Queries) GetCommentsByRootComment(ctx context.Context, rootCommentID uu
 			&i.Status,
 			&i.ParentCommentID,
 			&i.RootCommentID,
+			&i.LikeCount,
+			&i.DislikeCount,
 			&i.Depth,
 			&i.CreatedAt,
 			&i.UpdatedAt,

@@ -129,7 +129,7 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 	}
 
 	token, refreshToken, err := utils.GenerateAllTokens(
-		foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID.String(), foundUser.Roles, foundUser.TokenVersion,
+		foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID.String(), foundUser.Avatar, foundUser.Roles, foundUser.TokenVersion,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -256,7 +256,7 @@ func (h *UserHandler) RefreshTokenHandler(c *gin.Context) {
 		return
 	}
 
-	newToken, newRefreshToken, err := utils.GenerateAllTokens(foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID.String(), foundUser.Roles, foundUser.TokenVersion)
+	newToken, newRefreshToken, err := utils.GenerateAllTokens(foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID.String(), foundUser.Avatar, foundUser.Roles, foundUser.TokenVersion)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return

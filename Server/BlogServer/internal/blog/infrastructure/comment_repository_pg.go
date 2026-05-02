@@ -5,6 +5,7 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/infrastructure/db"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -21,24 +22,31 @@ func NewCommentRepository(pool *pgxpool.Pool) *CommentRepository {
 	}
 }
 
-func (r *CommentRepository) CreateComment(c context.Context, newComment *domain.CreateCommentModel) (uuid.UUID, error) {
+func (r *CommentRepository) CreateComment(c context.Context, newComment *domain.CreateCommentModel) (*domain.Comment, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
 	q := blogdb.New(db)
 
-	return q.CreateComment(c, blogdb.CreateCommentParams{
+	inserted, err := q.CreateComment(c, blogdb.CreateCommentParams{
 		BlogID:    newComment.BlogID,
 		Content:   newComment.Content,
 		ActorType: newComment.ActorType,
 		ActorID: pgtype.Text{
-			String: utils.GetEmptyStringOnNullStringPtr(newComment.ActorID),
-			Valid:  newComment.ActorID != nil,
+			String: newComment.ActorID,
+			Valid:  true,
 		},
-		Column6:         newComment.RootCommentID == "",
-		ParentCommentID: newComment.ParentCommentID,
-		Depth:           newComment.Depth,
+		ActorDisplayName: newComment.ActorDisplayName,
+		Column7:          newComment.RootCommentID == "",
+		ParentCommentID:  newComment.ParentCommentID,
+		Depth:            newComment.Depth,
 	})
+	if utils.IsDuplicateKey(err) {
+		return nil, &contracts.ErrDuplicate{
+			Message: err.Error(),
+		}
+	}
+	return MapBlogsCommentToComment(&inserted), nil
 }
 
 func (r *CommentRepository) GetBlogRootComment(c context.Context, blogID int64) ([]domain.Comment, error) {
@@ -55,7 +63,11 @@ func (r *CommentRepository) GetBlogRootComment(c context.Context, blogID int64) 
 	var comments []domain.Comment
 	for _, value := range rows {
 		v := value
-		comments = append(comments, *MapBlogsCommentToComment(&v))
+		mappedV, err := MapBlogRootCommentRow(&v)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, *mappedV)
 	}
 	return comments, nil
 }
@@ -74,7 +86,11 @@ func (r *CommentRepository) GetChildrenComments(c context.Context, parentComment
 	var comments []domain.Comment
 	for _, value := range rows {
 		v := value
-		comments = append(comments, *MapBlogsCommentToComment(&v))
+		mappedV, err := MapCommentsByParentCommentRow(&v)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, *mappedV)
 	}
 	return comments, nil
 }

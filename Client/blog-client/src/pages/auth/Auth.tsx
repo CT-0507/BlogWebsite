@@ -9,7 +9,8 @@ import Typography from "@mui/material/Typography";
 import { useMemo, useState } from "react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -20,7 +21,6 @@ interface TabPanelProps {
 
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
-
   return (
     <Box
       sx={{
@@ -63,6 +63,9 @@ function FormHeader() {
 const tabs = ["Login", "Register"];
 export default function Login() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const action = useMemo(() => {
     const query = searchParams.get("action");
@@ -88,6 +91,9 @@ export default function Login() {
     }
     setSearchParams({ action });
   };
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
   return (
     <Box
       sx={{
@@ -97,6 +103,13 @@ export default function Login() {
         m: "auto",
       }}
     >
+      <Box>
+        Test user:
+        <br />
+        username: user1
+        <br />
+        password: Abc!2345
+      </Box>
       <Card
         sx={{
           width: "100%",

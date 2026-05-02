@@ -158,3 +158,8 @@ WHERE user_id = $1;
 UPDATE authors.author_followers
 SET deleted_at = NULL
 WHERE user_id = $1;
+
+-- name: GetAuthorByUserID :one
+SELECT *
+FROM authors.authors
+WHERE user_id = $1;

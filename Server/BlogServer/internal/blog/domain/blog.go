@@ -27,7 +27,8 @@ type BlogWithAuthorData struct {
 }
 
 type AuthorData struct {
-	AuthorID    string `json:"authorID"`
-	Slug        string `json:"slug"`
-	DisplayName string `json:"displayName"`
+	AuthorID    string  `json:"authorID"`
+	AvatarURL   *string `json:"avatarURL"`
+	Slug        string  `json:"slug"`
+	DisplayName string  `json:"displayName"`
 }

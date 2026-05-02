@@ -110,6 +110,37 @@ func (q *Queries) DeleteAuthorProfile(ctx context.Context, authorID string) erro
 	return err
 }
 
+const getAuthorByUserID = `-- name: GetAuthorByUserID :one
+SELECT author_id, user_id, display_name, bio, avatar, slug, social_link, status, email, follower_count, blog_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+FROM authors.authors
+WHERE user_id = $1
+`
+
+func (q *Queries) GetAuthorByUserID(ctx context.Context, userID string) (AuthorsAuthor, error) {
+	row := q.db.QueryRow(ctx, getAuthorByUserID, userID)
+	var i AuthorsAuthor
+	err := row.Scan(
+		&i.AuthorID,
+		&i.UserID,
+		&i.DisplayName,
+		&i.Bio,
+		&i.Avatar,
+		&i.Slug,
+		&i.SocialLink,
+		&i.Status,
+		&i.Email,
+		&i.FollowerCount,
+		&i.BlogCount,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+		&i.DeletedAt,
+		&i.DeletedBy,
+	)
+	return i, err
+}
+
 const getAuthorFeatureBlogIDs = `-- name: GetAuthorFeatureBlogIDs :many
 SELECT blog_id
 FROM authors.author_featured_blogs f

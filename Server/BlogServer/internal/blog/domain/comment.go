@@ -8,16 +8,19 @@ import (
 )
 
 type Comment struct {
-	ID               uuid.UUID  `json:"comment_id"`
-	BlogID           int64      `json:"blog_id"`
-	ActorType        string     `json:"actor_type"`
-	ActorID          *string    `json:"actor_id"`
-	ActorDisplayName string     `json:"actor_display_name"`
-	ActorAvatarURL   *string    `json:"actor_avatar_url"`
+	ID               uuid.UUID  `json:"commentId"`
+	BlogID           int64      `json:"blogId"`
+	ActorType        string     `json:"actorType"`
+	ActorID          *string    `json:"actorId"`
+	ActorDisplayName string     `json:"actorDisplayName"`
+	ActorAvatarURL   *string    `json:"actorAvatarUrl"`
 	Content          string     `json:"content"`
 	Status           string     `json:"status"` // active | deleted | hidden
-	ParentCommentID  *uuid.UUID `json:"parent_comment_id"`
-	RootCommentID    uuid.UUID  `json:"root_comment_id"`
+	ParentCommentID  *uuid.UUID `json:"parentCommentId"`
+	RootCommentID    uuid.UUID  `json:"rootCommentId"`
+	ReplyCount       int64      `json:"replyCount"`
+	LikeCount        int32      `json:"likes"`
+	DislikeCount     int32      `json:"dislikes"`
 	Depth            int16      `json:"-"`
 	model.Audit
 }
@@ -47,7 +50,7 @@ type CommentReaction struct {
 type CreateCommentModel struct {
 	BlogID           int64
 	ActorType        string
-	ActorID          *string
+	ActorID          string
 	ActorDisplayName string
 	ActorAvatarURL   *string
 	Content          string

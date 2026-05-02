@@ -17,6 +17,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/middleware"
 	storage "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage/infrastructure"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
@@ -91,6 +92,8 @@ func main() {
 
 	// Register Router
 	router := gin.Default()
+
+	router.Use(middleware.ErrorHandler())
 
 	// Require authentication
 	router.GET("/files/:filepath", func(c *gin.Context) {

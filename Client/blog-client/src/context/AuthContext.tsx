@@ -1,7 +1,7 @@
 import { createContext } from "react";
 
 export type User = {
-  id: string;
+  userID: string;
   username: string;
   roles: string[];
   email: string;
@@ -12,7 +12,7 @@ export type User = {
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
+  authLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

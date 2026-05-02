@@ -52,6 +52,7 @@ CREATE TABLE blogs.idx_user_author_profile (
 
     user_id TEXT NOT NULL,
     author_id TEXT NOT NULL,
+    avatar TEXT,
     slug TEXT NOT NULL,
     display_name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
@@ -71,7 +72,7 @@ CREATE INDEX ON blogs.blog_tags (tag_id);
 
 CREATE TABLE blogs.comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    blog_id BIGINT NOT NULL REFERENCES blogs.tags(tag_id) ON DELETE CASCADE,
+    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
 
     content TEXT NOT NULL,
 
@@ -89,11 +90,16 @@ CREATE TABLE blogs.comments (
     parent_comment_id   UUID NULL,
     root_comment_id     UUID NOT NULL,
 
+    like_count INT NOT NULL DEFAULT 0,
+    dislike_count  INT NOT NULL DEFAULT 0,
+
     depth SMALLINT  NOT NULL DEFAULT 0,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMPTZ,
+
+    UNIQUE(blog_id, actor_id)
 );
 
 CREATE TABLE blogs.comment_reactions (
@@ -122,13 +128,13 @@ CREATE TABLE blogs.blog_reactions (
     UNIQUE(blog_id, user_id, type)
 );
 
-CREATE INDEX idx_comments_post_id 
-ON comments(post_id, created_at);
+CREATE INDEX idx_comments_blog_id 
+ON blogs.comments(blog_id, created_at);
 CREATE INDEX idx_comments_root 
-ON comments(root_comment_id, created_at);
+ON blogs.comments(root_comment_id, created_at);
 CREATE INDEX idx_comments_parent 
-ON comments(parent_comment_id);
+ON blogs.comments(parent_comment_id);
 CREATE INDEX idx_comments_status 
-ON comments(status);
+ON blogs.comments(status);
 CREATE INDEX idx_comments_reaction 
-ON blog_reactions(blog_id, type) WHERE status = 'active';
+ON blogs.blog_reactions(blog_id, type) WHERE status = 'active';

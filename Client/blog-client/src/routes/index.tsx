@@ -48,7 +48,7 @@ export default function AppRoutes() {
           </Route>
           <Route path="blogs">
             <Route index element={<Home />} />
-            <Route path=":id" element={<ViewBlog />} />
+            <Route path=":slug" element={<ViewBlog />} />
             <Route path="author">
               <Route path=":slug" element={<AuthorBlog />} />
             </Route>

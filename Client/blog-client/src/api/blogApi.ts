@@ -1,26 +1,70 @@
 import type { PublishBlogFormValues } from "@/pages/blog/publish/model/schema";
 import { api, axiosAuth } from "./axiosConfig";
-import { isLocalMode } from ".";
-import { blogPOST, blogs } from "./mockApi";
+import type { PostCommentFormValues } from "@/pages/blog/viewBlog/model/schema";
+import type { Blog } from "@/pages/home/BlogList";
+import type { BlogComment } from "@/pages/blog/viewBlog/CommentSection";
+
+const API_VERSION = "/api/v1";
 
 export async function publishBlogRequest(formData: PublishBlogFormValues) {
-  if (isLocalMode) return blogPOST;
-
-  const { data } = await axiosAuth.post("/blogs", formData);
+  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formData);
 
   return data;
 }
 
 export async function listBlogs(queryParams: string) {
-  if (isLocalMode) return blogs;
-  const { data } = await api.get("/blogs" + queryParams);
+  const { data } = await api.get(`${API_VERSION}/blogs` + queryParams);
 
   return data;
 }
 
 export async function getBlogBySlug(slug: string) {
-  if (isLocalMode) return blogs.find((i) => i.urlSlug == slug);
-  const { data } = await api.get(`/blogs/${slug}`);
+  const { data } = await api.get(`${API_VERSION}/blogs/slug/${slug}`);
+
+  return data as Blog;
+}
+
+export interface PostCommentParams {
+  formData: PostCommentFormValues;
+  blogID: string;
+}
+
+// Comments API
+export async function postComment(formData: PostCommentFormValues) {
+  const { data } = await axiosAuth.post(
+    `${API_VERSION}/blogs/${formData.blogID}/comments`,
+    formData
+  );
+
+  return data;
+}
+
+export async function getRootComments(blogID: number): Promise<BlogComment[]> {
+  const { data } = await api.get(`${API_VERSION}/blogs/${blogID}/comments`);
+
+  return data;
+}
+
+export async function getReplies(parentID: string): Promise<BlogComment[]> {
+  const { data } = await api.get(
+    `${API_VERSION}/comments/${parentID}/children`
+  );
+
+  return data;
+}
+
+export async function likeBlog(blogID: string) {
+  const { data } = await axiosAuth.post(
+    `${API_VERSION}/blogs/${blogID}/reaction`
+  );
+
+  return data;
+}
+
+export async function dislikeBlog(blogID: string) {
+  const { data } = await axiosAuth.post(
+    `${API_VERSION}/blogs/${blogID}/reaction`
+  );
 
   return data;
 }

@@ -7,12 +7,11 @@ type CreateBlogRequest struct {
 }
 
 type CreateCommentRequest struct {
-	ActorType       string  `json:"actor_type" validate:"required"`
+	ActorType       string  `json:"actorType" validate:"required"`
 	Content         string  `json:"content" validate:"required"`
-	BlogID          int64   `json:"blog_id" validate:"required"`
-	ParentCommentID *string `json:"parent_comment_id"`
-	RootCommentID   string  `json:"root_comment_id" validate:"required"`
-	Depth           int16   `json:"depth" validate:"required,min=0,max=2"`
+	ParentCommentID *string `json:"parentCommentId"`
+	RootCommentID   string  `json:"rootCommentId"`
+	Depth           int16   `json:"depth" validate:"min=0,max=2"`
 }
 
 type CreateBlogReactionRequest struct {

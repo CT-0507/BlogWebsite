@@ -168,5 +168,66 @@ func MapBlogsCommentToComment(blogComment *blogdb.BlogsComment) *domain.Comment 
 		ParentCommentID:  blogComment.ParentCommentID,
 		RootCommentID:    blogComment.RootCommentID,
 		Depth:            blogComment.Depth,
+		Audit: model.Audit{
+			CreatedAt: blogComment.CreatedAt.Time,
+			UpdatedAt: blogComment.UpdatedAt.Time,
+		},
+	}
+}
+
+func MapBlogRootCommentRow(blogComment *blogdb.GetBlogRootCommentRow) (*domain.Comment, error) {
+	return &domain.Comment{
+		ID:               blogComment.ID,
+		BlogID:           blogComment.BlogID,
+		ActorType:        blogComment.ActorType,
+		ActorID:          getNameOnDeletedActor(&blogComment.ActorID),
+		ActorDisplayName: blogComment.ActorDisplayName,
+		Content:          blogComment.Content,
+		LikeCount:        blogComment.LikeCount,
+		DislikeCount:     blogComment.DislikeCount,
+		Status:           blogComment.Status,
+		ParentCommentID:  blogComment.ParentCommentID,
+		RootCommentID:    blogComment.RootCommentID,
+		Depth:            blogComment.Depth,
+		ReplyCount:       blogComment.ChildCommentCount,
+		Audit: model.Audit{
+			CreatedAt: blogComment.CreatedAt.Time,
+			UpdatedAt: blogComment.UpdatedAt.Time,
+		},
+	}, nil
+}
+
+func MapCommentsByParentCommentRow(blogComment *blogdb.GetCommentsByParentCommentRow) (*domain.Comment, error) {
+	return &domain.Comment{
+		ID:               blogComment.ID,
+		BlogID:           blogComment.BlogID,
+		ActorType:        blogComment.ActorType,
+		ActorID:          getNameOnDeletedActor(&blogComment.ActorID),
+		ActorDisplayName: blogComment.ActorDisplayName,
+		Content:          blogComment.Content,
+		LikeCount:        blogComment.LikeCount,
+		DislikeCount:     blogComment.DislikeCount,
+		Status:           blogComment.Status,
+		ParentCommentID:  blogComment.ParentCommentID,
+		RootCommentID:    blogComment.RootCommentID,
+		Depth:            blogComment.Depth,
+		ReplyCount:       blogComment.ChildCommentCount,
+		Audit: model.Audit{
+			CreatedAt: blogComment.CreatedAt.Time,
+			UpdatedAt: blogComment.UpdatedAt.Time,
+		},
+	}, nil
+}
+
+func MapBlogsIdxUserAuthorProfileToAuthorProfile(author *blogdb.BlogsIdxUserAuthorProfile) *domain.AuthorData {
+	var avatar *string = nil
+	if author.Avatar.Valid {
+		avatar = &author.Avatar.String
+	}
+	return &domain.AuthorData{
+		AuthorID:    author.AuthorID,
+		AvatarURL:   avatar,
+		Slug:        author.Slug,
+		DisplayName: author.DisplayName,
 	}
 }

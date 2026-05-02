@@ -39,6 +39,7 @@ type UsersUser struct {
 	Nickname     string
 	FirstName    string
 	LastName     string
+	Avatar       pgtype.Text
 	Role         string
 	Status       pgtype.Text
 	Points       int32

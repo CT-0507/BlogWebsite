@@ -40,36 +40,39 @@ const (
 	USER   = "user"
 )
 
-func (u *CommentUseCases) CreateComment(c context.Context, newComment *domain.CreateCommentModel, userID string) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-
-		var actorID string
+func (u *CommentUseCases) CreateComment(c context.Context, newComment *domain.CreateCommentModel, userID string) (*domain.Comment, error) {
+	var insertedComment *domain.Comment
+	err := u.txManager.WithVoidTx(c, func(ctx context.Context) error {
+		var err error = nil
 		switch newComment.ActorType {
 		case USER:
-			actorID = userID
+			newComment.ActorID = userID
 		case AUTHOR:
-			authorID, err := u.blogRepo.VerifyAuthorIDByUserID(ctx, userID)
+			author, err := u.blogRepo.GetAuthorProfileByUserID(ctx, userID)
 			if err != nil {
 				return errors.New("Author not found")
 			}
-			actorID = authorID
+			newComment.ActorID = author.AuthorID
+			newComment.ActorDisplayName = author.DisplayName
+			newComment.ActorAvatarURL = author.AvatarURL
 		default:
 			return errors.New("Actor type is invalid")
 		}
 
-		if newComment.ParentCommentID != nil {
-			newComment.RootCommentID = "-1"
+		if newComment.ParentCommentID == nil {
+			newComment.RootCommentID = ""
 		}
 
-		_, err := u.commentRepo.CreateComment(ctx, &domain.CreateCommentModel{
+		insertedComment, err = u.commentRepo.CreateComment(ctx, &domain.CreateCommentModel{
 			BlogID:           newComment.BlogID,
 			ActorType:        newComment.ActorType,
-			ActorID:          &actorID,
+			ActorID:          newComment.ActorID,
 			ActorDisplayName: newComment.ActorDisplayName,
 			ActorAvatarURL:   newComment.ActorAvatarURL,
 			Content:          newComment.Content,
 			RootCommentID:    newComment.RootCommentID,
 			ParentCommentID:  newComment.ParentCommentID,
+			Depth:            newComment.Depth,
 		})
 		if err != nil {
 			return err
@@ -90,6 +93,8 @@ func (u *CommentUseCases) CreateComment(c context.Context, newComment *domain.Cr
 
 		return nil
 	})
+
+	return insertedComment, err
 }
 
 func (u *CommentUseCases) GetBlogRootComments(c context.Context, blogID int64) ([]domain.Comment, error) {

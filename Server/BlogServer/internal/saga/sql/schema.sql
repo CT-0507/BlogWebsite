@@ -17,7 +17,7 @@ CREATE TABLE saga.sagas (
 
 CREATE TABLE saga.saga_steps (
     id UUID PRIMARY KEY  DEFAULT gen_random_uuid(),
-    saga_id UUID NOT NULL REFERENCES saga.sagas(id),
+    saga_id UUID NOT NULL REFERENCES saga.sagas(id) ON DELETE CASCADE,
 
     step_index INT NOT NULL,
     step_name TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE saga.saga_steps (
 CREATE TABLE saga.dead_letter_queue (
 
     id UUID PRIMARY KEY  DEFAULT gen_random_uuid(),
-    saga_id UUID NOT NULL REFERENCES saga.sagas(id),
+    saga_id UUID NOT NULL REFERENCES saga.sagas(id) ON DELETE CASCADE,
 
     step_index INT NOT NULL,
     step_name TEXT NOT NULL,

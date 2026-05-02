@@ -41,14 +41,17 @@ func (e *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxE
 			return err
 		}
 
-		eventPayload := map[string]any{}
+		eventPayload := &contracts.UpdateUserAuthorIDPayload{
+			UserID:   stepPayload.UserID,
+			AuthorID: stepPayload.AuthorID,
+		}
 
 		payload, err := json.Marshal(eventPayload)
 		if err != nil {
 			return err
 		}
 
-		eventContext := &contracts.CreateBlogAuthorCacheSuccessContext{
+		eventContext := &contracts.UpdateUserAuthorIDContext{
 			UserID:   stepPayload.UserID,
 			AuthorID: stepPayload.AuthorID,
 		}

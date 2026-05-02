@@ -228,3 +228,17 @@ func (r *BlogRepository) RestoreBlog(c context.Context, blogID int64, PreviousSt
 		Status: PreviousStatus,
 	})
 }
+
+func (r *BlogRepository) GetAuthorProfileByUserID(c context.Context, userID string) (*domain.AuthorData, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	author, err := q.GetAuthorCacheByUserID(c, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return MapBlogsIdxUserAuthorProfileToAuthorProfile(&author), nil
+}

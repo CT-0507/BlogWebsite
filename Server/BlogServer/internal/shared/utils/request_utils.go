@@ -81,3 +81,37 @@ func GetRoleFromContext(c *gin.Context) (string, error) {
 	return memberRole, nil
 
 }
+
+func GetUsernameFromContext(c *gin.Context) (string, error) {
+	username, exists := c.Get("username")
+
+	if !exists {
+		return "", errors.New("username does not exists in this context")
+	}
+
+	usernameStr, ok := username.(string)
+
+	if !ok {
+		return "", errors.New("unable to retrieve username")
+	}
+
+	return usernameStr, nil
+
+}
+
+func GetAvatarFromContext(c *gin.Context) (*string, error) {
+	avatar, exists := c.Get("avatar")
+
+	if !exists {
+		return nil, errors.New("avatar does not exists in this context")
+	}
+
+	avatarP, ok := avatar.(*string)
+
+	if !ok {
+		return nil, errors.New("unable to retrieve avatar")
+	}
+
+	return avatarP, nil
+
+}

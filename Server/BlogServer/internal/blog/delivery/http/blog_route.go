@@ -4,20 +4,40 @@ import "github.com/gin-gonic/gin"
 
 func (h *BlogHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 
-	blogs := r.Group("/blogs")
+	api := r.Group("/api")
+	v1 := api.Group("/v1")
+
+	blogs := v1.Group("/blogs")
 	{
 		blogs.GET("", h.getAllBlogs)
-		blogs.GET("/:slug", h.getBlogByUrlSlug)
-		blogs.GET("/id/:id", h.getBlogByID)
-		blogs.GET("/author/:slug", h.getBlogsByAuthorSlug)
+		blogs.GET("/slug/:slug", h.getBlogByUrlSlug)
+		blogs.GET("/author/slug/:authorSlug", h.getBlogsByAuthorSlug)
+		blog := blogs.Group("/:id")
+		blog.GET("", h.getBlogByID)
+
+		blogComments := blog.Group("/comments")
+		blogComments.GET("", h.getBlogRootComments)
+
+		comments := v1.Group("/comments")
+		comment := comments.Group("/:id")
+		comment.GET("/children", h.getChildrenComments)
+		comment.GET("", h.getCommentByID)
 	}
 }
 
 func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 
-	blogs := r.Group("/blogs")
+	api := r.Group("/api")
+	v1 := api.Group("/v1")
+
+	blogs := v1.Group("/blogs")
 	{
 		blogs.POST("", h.createNewBlog)
-		blogs.DELETE("/:id", h.deleteBlogByID)
+		blog := blogs.Group("/:id")
+		blog.DELETE("/:id", h.deleteBlogByID)
+
+		comments := blog.Group("/comments")
+		comments.POST("", h.createComment)
+
 	}
 }

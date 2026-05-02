@@ -174,21 +174,29 @@ WITH vals AS (
             gen_random_uuid() AS u2
 )
 INSERT INTO blogs.comments (
-    id, blog_id, content, actor_type, actor_id, parent_comment_id, root_comment_id, depth
+    id, blog_id, content, actor_type, actor_id, actor_display_name, parent_comment_id, root_comment_id, depth
 )
-SELECT u1, $1, $2, $3, $4, $5,
+SELECT u1, $1, $2, $3, $4, $5, $6,
     CASE 
-        WHEN $6 = TRUE THEN u1 
+        WHEN $7 = TRUE THEN u1 
         ELSE u2
     END AS root_comment_id, 
-    $7
+    $8
 FROM vals
-RETURNING id;
+RETURNING *;
 
 -- name: GetBlogRootComment :many
-SELECT *
-FROM blogs.comments
-WHERE blog_id = $1 AND status <> 'hidden' AND depth = 0;
+SELECT
+    p.*,
+    COUNT(c.id) AS child_comment_count
+FROM blogs.comments p
+LEFT JOIN blogs.comments c
+    ON c.parent_comment_id = p.id
+WHERE
+    p.blog_id = $1
+    AND p.status <> 'hidden'
+    AND p.depth = 0
+GROUP BY p.id;
 
 -- name: GetCommentsByRootComment :many
 SELECT *
@@ -196,9 +204,13 @@ FROM blogs.comments
 WHERE root_comment_id = $1  AND status <> 'hidden';
 
 -- name: GetCommentsByParentComment :many
-SELECT *
-FROM blogs.comments
-WHERE parent_comment_id = $1 AND status <> 'hidden';
+SELECT p.*,
+    COUNT(c.id) AS child_comment_count
+FROM blogs.comments p
+LEFT JOIN blogs.comments c
+    ON c.parent_comment_id = p.id   AND c.status <> 'hidden'
+WHERE p.parent_comment_id = $1 AND p.status <> 'hidden'
+GROUP BY p.id;
 
 -- name: GetCommentByID :one
 SELECT *
@@ -238,3 +250,8 @@ FROM (
     GROUP BY blog_id
 ) x
 WHERE x.blog_id = b.blog_id;
+
+-- name: GetAuthorCacheByUserID :one
+SELECT *
+FROM blogs.idx_user_author_profile
+WHERE user_id = $1;

@@ -22,4 +22,5 @@ type BlogRepository interface {
 	DeleteAuthorCache(c context.Context, authorID string) error
 	MarkAuthorCacheAsDeleted(c context.Context, authorID string) error
 	RestoreBlog(c context.Context, blogID int64, PreviousStatus string) error
+	GetAuthorProfileByUserID(c context.Context, userID string) (*AuthorData, error)
 }

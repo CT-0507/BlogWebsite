@@ -35,7 +35,7 @@ type ListBlogsUseCases interface {
 }
 
 type CommentUsecases interface {
-	CreateComment(c context.Context, newComment *domain.CreateCommentModel, userID string) error
+	CreateComment(c context.Context, newComment *domain.CreateCommentModel, userID string) (*domain.Comment, error)
 	GetBlogRootComments(c context.Context, blogID int64) ([]domain.Comment, error)
 	GetChildrenComments(c context.Context, parentCommentID uuid.UUID) ([]domain.Comment, error)
 	GetCommentByID(c context.Context, commentID uuid.UUID) (*domain.Comment, error)
@@ -100,7 +100,7 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		URLSlug: blog.URLSlug,
 		Content: blog.Content,
 	}, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 
 	blogs, err := h.listBlogsUseCases.ListBlogs(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, blogs)
@@ -127,7 +127,7 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 //   - @route GET /blogs/author/:slug
 //   - @access Public
 func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
-	slug, valid := c.Params.Get("slug")
+	slug, valid := c.Params.Get("authorSlug")
 	if !valid {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "slug"),
@@ -140,7 +140,7 @@ func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
 
 	blogs, err := h.listBlogsUseCases.ListAuthorBlogsBySlug(ctx, slug)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, blogs)
@@ -173,9 +173,7 @@ func (h *BlogHandler) getBlogByID(c *gin.Context) {
 
 	blog, err := h.getBlogUseCases.GetBlog(ctx, blogIdInt)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "blogId not found",
-		})
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, blog)
@@ -199,9 +197,7 @@ func (h *BlogHandler) getBlogByUrlSlug(c *gin.Context) {
 
 	blog, err := h.getBlogUseCases.GetBlogByUrlSlug(ctx, slug)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Url not found",
-		})
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, blog)
@@ -241,9 +237,7 @@ func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 
 	id, err := h.deleteBlogUseCases.DeleteBlog(ctx, blogIdInt, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "blogId not valid",
-		})
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, id)
@@ -254,9 +248,25 @@ func (h *BlogHandler) createComment(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
+	blogId, valid := c.Params.Get("id")
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogId"),
+		})
+		return
+	}
+
+	blogIdInt, parseErr := strconv.ParseInt(blogId, 10, 64)
+	if parseErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "blogId not valid",
+		})
+		return
+	}
+
 	var comment CreateCommentRequest
 	if err := c.ShouldBindJSON(&comment); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -276,25 +286,35 @@ func (h *BlogHandler) createComment(c *gin.Context) {
 		v, err := uuid.Parse(*comment.ParentCommentID)
 		parentCommentID = &v
 		if err != nil {
-			c.JSON(http.StatusBadRequest, err)
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
 		}
 	}
 
-	err = h.commentUsecases.CreateComment(ctx, &domain.CreateCommentModel{
-		BlogID:          comment.BlogID,
-		ActorType:       comment.ActorType,
-		Content:         comment.Content,
-		ParentCommentID: parentCommentID,
-		Depth:           comment.Depth,
-	}, userID.String())
+	userAvatar, err := utils.GetAvatarFromContext(c)
+	username, err := utils.GetUsernameFromContext(c)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		c.AbortWithError(http.StatusForbidden, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, &gin.H{
-		"message": "Ok",
-	})
+	insertedComment, err := h.commentUsecases.CreateComment(ctx, &domain.CreateCommentModel{
+		BlogID:           blogIdInt,
+		ActorType:        comment.ActorType,
+		Content:          comment.Content,
+		ParentCommentID:  parentCommentID,
+		ActorAvatarURL:   userAvatar,
+		ActorDisplayName: username,
+		RootCommentID:    comment.RootCommentID,
+		Depth:            comment.Depth,
+	}, userID.String())
+	if err != nil {
+		c.Error(err)
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, insertedComment)
 }
 
 func (h *BlogHandler) getBlogRootComments(c *gin.Context) {
@@ -321,9 +341,11 @@ func (h *BlogHandler) getBlogRootComments(c *gin.Context) {
 
 	comments, err := h.commentUsecases.GetBlogRootComments(ctx, blogIdInt)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-		log.Println(parseErr)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
+	}
+	if len(comments) == 0 {
+		comments = []domain.Comment{}
 	}
 	c.JSON(http.StatusOK, comments)
 }
@@ -351,8 +373,11 @@ func (h *BlogHandler) getChildrenComments(c *gin.Context) {
 
 	comments, err := h.commentUsecases.GetChildrenComments(ctx, parentUUID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
+	}
+	if len(comments) == 0 {
+		comments = []domain.Comment{}
 	}
 	c.JSON(http.StatusOK, comments)
 }
@@ -380,7 +405,7 @@ func (h *BlogHandler) getCommentByID(c *gin.Context) {
 
 	comment, err := h.commentUsecases.GetCommentByID(ctx, uuid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, comment)
@@ -415,7 +440,7 @@ func (h *BlogHandler) HideCommentByID(c *gin.Context) {
 
 	count, err := h.commentUsecases.HideComment(ctx, uuid, userID.String())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, count)
@@ -450,7 +475,7 @@ func (h *BlogHandler) DeleteCommentByID(c *gin.Context) {
 
 	comment, err := h.commentUsecases.DeleteComment(ctx, uuid, userID.String())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, comment)
@@ -501,7 +526,7 @@ func (h *BlogHandler) CreateBlogReaction(c *gin.Context) {
 		UserID: userID.String(),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 	c.JSON(http.StatusOK, "")

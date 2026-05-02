@@ -58,6 +58,8 @@ type BlogsComment struct {
 	Status           string
 	ParentCommentID  *uuid.UUID
 	RootCommentID    uuid.UUID
+	LikeCount        int32
+	DislikeCount     int32
 	Depth            int16
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
@@ -75,6 +77,7 @@ type BlogsCommentReaction struct {
 type BlogsIdxUserAuthorProfile struct {
 	UserID      string
 	AuthorID    string
+	Avatar      pgtype.Text
 	Slug        string
 	DisplayName string
 	Status      string
@@ -124,6 +127,7 @@ type UsersUser struct {
 	Nickname     string
 	FirstName    string
 	LastName     string
+	Avatar       pgtype.Text
 	Role         string
 	Status       pgtype.Text
 	Points       int32

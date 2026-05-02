@@ -7,7 +7,7 @@ import (
 )
 
 type CommentRepository interface {
-	CreateComment(c context.Context, newComment *CreateCommentModel) (uuid.UUID, error)
+	CreateComment(c context.Context, newComment *CreateCommentModel) (*Comment, error)
 	GetBlogRootComment(c context.Context, blogID int64) ([]Comment, error)
 	GetChildrenComments(c context.Context, parentCommentID uuid.UUID) ([]Comment, error)
 	GetCommentByID(c context.Context, commentID uuid.UUID) (*Comment, error)

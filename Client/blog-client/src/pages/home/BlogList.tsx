@@ -17,7 +17,7 @@ import { relativeTime } from "@/utils/timeUtils";
 import { useState } from "react";
 
 export interface Blog {
-  blogID: string;
+  blogID: number;
   author: {
     authorID: string;
     slug: string;
