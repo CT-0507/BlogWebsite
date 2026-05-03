@@ -27,7 +27,7 @@ export default function BigScreenMenu({
       queryClient.setQueryData(["me"], null);
       handleMenuClose();
       localStorage.removeItem("hasSession");
-      navigate("/account");
+      // navigate("/account");
     },
     onError: (error) => {
       console.log(error);

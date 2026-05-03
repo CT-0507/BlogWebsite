@@ -64,25 +64,6 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 	return i, err
 }
 
-const createBlogReaction = `-- name: CreateBlogReaction :exec
-INSERT INTO blogs.blog_reactions (
-    blog_id, user_id, type
-) VALUES (
-    $1, $2, $3
-)
-`
-
-type CreateBlogReactionParams struct {
-	BlogID int64
-	UserID string
-	Type   string
-}
-
-func (q *Queries) CreateBlogReaction(ctx context.Context, arg CreateBlogReactionParams) error {
-	_, err := q.db.Exec(ctx, createBlogReaction, arg.BlogID, arg.UserID, arg.Type)
-	return err
-}
-
 const createComment = `-- name: CreateComment :one
 
 WITH vals AS (
@@ -94,8 +75,8 @@ INSERT INTO blogs.comments (
 )
 SELECT u1, $1, $2, $3, $4, $5, $6,
     CASE 
-        WHEN $7 = TRUE THEN u1 
-        ELSE u2
+        WHEN $8 = 0 THEN u1 
+        ELSE $7
     END AS root_comment_id, 
     $8
 FROM vals
@@ -109,7 +90,7 @@ type CreateCommentParams struct {
 	ActorID          pgtype.Text
 	ActorDisplayName string
 	ParentCommentID  *uuid.UUID
-	Column7          interface{}
+	RootCommentID    uuid.UUID
 	Depth            int16
 }
 
@@ -122,7 +103,7 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (B
 		arg.ActorID,
 		arg.ActorDisplayName,
 		arg.ParentCommentID,
-		arg.Column7,
+		arg.RootCommentID,
 		arg.Depth,
 	)
 	var i BlogsComment
@@ -259,6 +240,8 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.like_count,
+    b.dislike_count,
     b.status,
     b.created_at, 
     b.created_by, 
@@ -272,18 +255,20 @@ WHERE b.blog_id = $1 AND b.deleted_at IS NULL
 `
 
 type GetBlogRow struct {
-	BlogID      int64
-	Title       string
-	UrlSlug     string
-	AuthorID    string
-	Content     pgtype.Text
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   string
-	UpdatedAt   pgtype.Timestamptz
-	UpdatedBy   string
-	Slug        string
-	DisplayName string
+	BlogID       int64
+	Title        string
+	UrlSlug      string
+	AuthorID     string
+	Content      pgtype.Text
+	LikeCount    int32
+	DislikeCount int32
+	Status       string
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+	UpdatedAt    pgtype.Timestamptz
+	UpdatedBy    string
+	Slug         string
+	DisplayName  string
 }
 
 func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error) {
@@ -295,6 +280,8 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 		&i.UrlSlug,
 		&i.AuthorID,
 		&i.Content,
+		&i.LikeCount,
+		&i.DislikeCount,
 		&i.Status,
 		&i.CreatedAt,
 		&i.CreatedBy,
@@ -308,16 +295,9 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 
 const getBlogByUrlSlug = `-- name: GetBlogByUrlSlug :one
 SELECT 
-    b.blog_id, 
-    b.title,
-    b.url_slug,
-    b.author_id,
-    b.content,
-    b.status,
-    b.created_at, 
-    b.created_by, 
-    b.updated_at, 
-    b.updated_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    i.slug,
+    i.display_name,
     i.slug,
     i.display_name
 FROM blogs.blogs b
@@ -326,18 +306,24 @@ WHERE b.url_slug = $1 AND b.deleted_at IS NULL
 `
 
 type GetBlogByUrlSlugRow struct {
-	BlogID      int64
-	Title       string
-	UrlSlug     string
-	AuthorID    string
-	Content     pgtype.Text
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   string
-	UpdatedAt   pgtype.Timestamptz
-	UpdatedBy   string
-	Slug        string
-	DisplayName string
+	BlogID        int64
+	AuthorID      string
+	UrlSlug       string
+	Title         string
+	Content       pgtype.Text
+	Status        string
+	LikeCount     int32
+	DislikeCount  int32
+	CreatedAt     pgtype.Timestamptz
+	CreatedBy     string
+	UpdatedAt     pgtype.Timestamptz
+	UpdatedBy     string
+	DeletedAt     pgtype.Timestamptz
+	DeletedBy     pgtype.Text
+	Slug          string
+	DisplayName   string
+	Slug_2        string
+	DisplayName_2 string
 }
 
 func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlogByUrlSlugRow, error) {
@@ -345,53 +331,63 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 	var i GetBlogByUrlSlugRow
 	err := row.Scan(
 		&i.BlogID,
-		&i.Title,
-		&i.UrlSlug,
 		&i.AuthorID,
+		&i.UrlSlug,
+		&i.Title,
 		&i.Content,
 		&i.Status,
+		&i.LikeCount,
+		&i.DislikeCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.DeletedAt,
+		&i.DeletedBy,
 		&i.Slug,
 		&i.DisplayName,
+		&i.Slug_2,
+		&i.DisplayName_2,
 	)
 	return i, err
 }
 
 const getBlogRootComment = `-- name: GetBlogRootComment :many
+WITH child_counts AS (
+    SELECT parent_comment_id, COUNT(*) AS cnt
+    FROM blogs.comments
+    GROUP BY parent_comment_id
+)
 SELECT
     p.id, p.blog_id, p.content, p.actor_type, p.actor_id, p.actor_display_name, p.actor_avatar_url, p.status, p.parent_comment_id, p.root_comment_id, p.like_count, p.dislike_count, p.depth, p.created_at, p.updated_at, p.deleted_at,
-    COUNT(c.id) AS child_comment_count
+    COALESCE(cc.cnt, 0) AS reply_count
 FROM blogs.comments p
-LEFT JOIN blogs.comments c
-    ON c.parent_comment_id = p.id
+LEFT JOIN child_counts cc
+    ON cc.parent_comment_id = p.id
 WHERE
     p.blog_id = $1
     AND p.status <> 'hidden'
     AND p.depth = 0
-GROUP BY p.id
 `
 
 type GetBlogRootCommentRow struct {
-	ID                uuid.UUID
-	BlogID            int64
-	Content           string
-	ActorType         string
-	ActorID           pgtype.Text
-	ActorDisplayName  string
-	ActorAvatarUrl    pgtype.Text
-	Status            string
-	ParentCommentID   *uuid.UUID
-	RootCommentID     uuid.UUID
-	LikeCount         int32
-	DislikeCount      int32
-	Depth             int16
-	CreatedAt         pgtype.Timestamptz
-	UpdatedAt         pgtype.Timestamptz
-	DeletedAt         pgtype.Timestamptz
-	ChildCommentCount int64
+	ID               uuid.UUID
+	BlogID           int64
+	Content          string
+	ActorType        string
+	ActorID          pgtype.Text
+	ActorDisplayName string
+	ActorAvatarUrl   pgtype.Text
+	Status           string
+	ParentCommentID  *uuid.UUID
+	RootCommentID    uuid.UUID
+	LikeCount        int32
+	DislikeCount     int32
+	Depth            int16
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	ReplyCount       int64
 }
 
 func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]GetBlogRootCommentRow, error) {
@@ -420,7 +416,7 @@ func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]GetBl
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
-			&i.ChildCommentCount,
+			&i.ReplyCount,
 		); err != nil {
 			return nil, err
 		}
@@ -430,6 +426,171 @@ func (q *Queries) GetBlogRootComment(ctx context.Context, blogID int64) ([]GetBl
 		return nil, err
 	}
 	return items, nil
+}
+
+const getBlogRootCommentCount = `-- name: GetBlogRootCommentCount :one
+SELECT COUNT(*) AS total
+FROM blogs.comments c
+WHERE c.blog_id = $1
+    AND c.status <> 'hidden'
+`
+
+func (q *Queries) GetBlogRootCommentCount(ctx context.Context, blogID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getBlogRootCommentCount, blogID)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
+const getBlogRootCommentWithUserReaction = `-- name: GetBlogRootCommentWithUserReaction :many
+WITH child_counts AS (
+    SELECT parent_comment_id, COUNT(*) AS cnt
+    FROM blogs.comments
+    GROUP BY parent_comment_id
+)
+SELECT
+    p.id, p.blog_id, p.content, p.actor_type, p.actor_id, p.actor_display_name, p.actor_avatar_url, p.status, p.parent_comment_id, p.root_comment_id, p.like_count, p.dislike_count, p.depth, p.created_at, p.updated_at, p.deleted_at,
+    COALESCE(cc.cnt, 0) AS reply_count,
+    r.type AS reaction_type
+FROM blogs.comments p
+LEFT JOIN child_counts cc
+    ON cc.parent_comment_id = p.id
+LEFT JOIN blogs.comment_reactions r
+    ON r.comment_id = p.id
+    AND r.user_id = $2
+WHERE
+    p.blog_id = $1
+    AND p.status <> 'hidden'
+    AND p.depth = 0
+`
+
+type GetBlogRootCommentWithUserReactionParams struct {
+	BlogID int64
+	UserID string
+}
+
+type GetBlogRootCommentWithUserReactionRow struct {
+	ID               uuid.UUID
+	BlogID           int64
+	Content          string
+	ActorType        string
+	ActorID          pgtype.Text
+	ActorDisplayName string
+	ActorAvatarUrl   pgtype.Text
+	Status           string
+	ParentCommentID  *uuid.UUID
+	RootCommentID    uuid.UUID
+	LikeCount        int32
+	DislikeCount     int32
+	Depth            int16
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	ReplyCount       int64
+	ReactionType     pgtype.Text
+}
+
+func (q *Queries) GetBlogRootCommentWithUserReaction(ctx context.Context, arg GetBlogRootCommentWithUserReactionParams) ([]GetBlogRootCommentWithUserReactionRow, error) {
+	rows, err := q.db.Query(ctx, getBlogRootCommentWithUserReaction, arg.BlogID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetBlogRootCommentWithUserReactionRow
+	for rows.Next() {
+		var i GetBlogRootCommentWithUserReactionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlogID,
+			&i.Content,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorDisplayName,
+			&i.ActorAvatarUrl,
+			&i.Status,
+			&i.ParentCommentID,
+			&i.RootCommentID,
+			&i.LikeCount,
+			&i.DislikeCount,
+			&i.Depth,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.ReplyCount,
+			&i.ReactionType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBlogWithUserReaction = `-- name: GetBlogWithUserReaction :one
+SELECT 
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    i.slug,
+    i.display_name,
+    r.type AS reaction_type
+FROM blogs.blogs b
+JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
+LEFT JOIN blogs.blog_reactions r
+    ON r.blog_id = b.blog_id
+    AND r.user_id = $1
+WHERE b.url_slug = $2 AND b.deleted_at IS NULL
+`
+
+type GetBlogWithUserReactionParams struct {
+	UserID  string
+	UrlSlug string
+}
+
+type GetBlogWithUserReactionRow struct {
+	BlogID       int64
+	AuthorID     string
+	UrlSlug      string
+	Title        string
+	Content      pgtype.Text
+	Status       string
+	LikeCount    int32
+	DislikeCount int32
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+	UpdatedAt    pgtype.Timestamptz
+	UpdatedBy    string
+	DeletedAt    pgtype.Timestamptz
+	DeletedBy    pgtype.Text
+	Slug         string
+	DisplayName  string
+	ReactionType pgtype.Text
+}
+
+func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUserReactionParams) (GetBlogWithUserReactionRow, error) {
+	row := q.db.QueryRow(ctx, getBlogWithUserReaction, arg.UserID, arg.UrlSlug)
+	var i GetBlogWithUserReactionRow
+	err := row.Scan(
+		&i.BlogID,
+		&i.AuthorID,
+		&i.UrlSlug,
+		&i.Title,
+		&i.Content,
+		&i.Status,
+		&i.LikeCount,
+		&i.DislikeCount,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+		&i.DeletedAt,
+		&i.DeletedBy,
+		&i.Slug,
+		&i.DisplayName,
+		&i.ReactionType,
+	)
+	return i, err
 }
 
 const getCommentByID = `-- name: GetCommentByID :one
@@ -519,6 +680,93 @@ func (q *Queries) GetCommentsByParentComment(ctx context.Context, parentCommentI
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.ChildCommentCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCommentsByParentCommentUserWithReaction = `-- name: GetCommentsByParentCommentUserWithReaction :many
+WITH child_counts AS (
+    SELECT parent_comment_id, COUNT(*) AS cnt
+    FROM blogs.comments
+    WHERE status <> 'hidden'
+    GROUP BY parent_comment_id
+)
+SELECT 
+    p.id, p.blog_id, p.content, p.actor_type, p.actor_id, p.actor_display_name, p.actor_avatar_url, p.status, p.parent_comment_id, p.root_comment_id, p.like_count, p.dislike_count, p.depth, p.created_at, p.updated_at, p.deleted_at,
+    COALESCE(cc.cnt, 0) AS child_comment_count,
+    r.type AS reaction_type
+FROM blogs.comments p
+LEFT JOIN child_counts cc
+    ON cc.parent_comment_id = p.id
+LEFT JOIN blogs.comment_reactions r
+    ON r.comment_id = p.id
+    AND r.user_id = $2
+WHERE 
+    p.parent_comment_id = $1 
+    AND p.status <> 'hidden'
+`
+
+type GetCommentsByParentCommentUserWithReactionParams struct {
+	ParentCommentID *uuid.UUID
+	UserID          string
+}
+
+type GetCommentsByParentCommentUserWithReactionRow struct {
+	ID                uuid.UUID
+	BlogID            int64
+	Content           string
+	ActorType         string
+	ActorID           pgtype.Text
+	ActorDisplayName  string
+	ActorAvatarUrl    pgtype.Text
+	Status            string
+	ParentCommentID   *uuid.UUID
+	RootCommentID     uuid.UUID
+	LikeCount         int32
+	DislikeCount      int32
+	Depth             int16
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+	ChildCommentCount int64
+	ReactionType      pgtype.Text
+}
+
+func (q *Queries) GetCommentsByParentCommentUserWithReaction(ctx context.Context, arg GetCommentsByParentCommentUserWithReactionParams) ([]GetCommentsByParentCommentUserWithReactionRow, error) {
+	rows, err := q.db.Query(ctx, getCommentsByParentCommentUserWithReaction, arg.ParentCommentID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCommentsByParentCommentUserWithReactionRow
+	for rows.Next() {
+		var i GetCommentsByParentCommentUserWithReactionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlogID,
+			&i.Content,
+			&i.ActorType,
+			&i.ActorID,
+			&i.ActorDisplayName,
+			&i.ActorAvatarUrl,
+			&i.Status,
+			&i.ParentCommentID,
+			&i.RootCommentID,
+			&i.LikeCount,
+			&i.DislikeCount,
+			&i.Depth,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.ChildCommentCount,
+			&i.ReactionType,
 		); err != nil {
 			return nil, err
 		}
@@ -652,7 +900,9 @@ SELECT
     b.author_id,
     b.title, 
     b.url_slug,
-    b.content, 
+    b.content,
+    b.like_count,
+    b.dislike_count, 
     b.status,
     b.created_at, 
     b.created_by, 
@@ -666,18 +916,20 @@ WHERE b.deleted_at IS NULL
 `
 
 type ListBlogsRow struct {
-	BlogID      int64
-	AuthorID    string
-	Title       string
-	UrlSlug     string
-	Content     pgtype.Text
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   string
-	UpdatedAt   pgtype.Timestamptz
-	UpdatedBy   string
-	Slug        string
-	DisplayName string
+	BlogID       int64
+	AuthorID     string
+	Title        string
+	UrlSlug      string
+	Content      pgtype.Text
+	LikeCount    int32
+	DislikeCount int32
+	Status       string
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+	UpdatedAt    pgtype.Timestamptz
+	UpdatedBy    string
+	Slug         string
+	DisplayName  string
 }
 
 func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
@@ -695,6 +947,8 @@ func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
 			&i.Title,
 			&i.UrlSlug,
 			&i.Content,
+			&i.LikeCount,
+			&i.DislikeCount,
 			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
@@ -720,6 +974,8 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.like_count,
+    b.dislike_count,
     b.status,
     b.created_at, 
     b.created_by, 
@@ -738,18 +994,20 @@ type ListBlogsByAuthorParams struct {
 }
 
 type ListBlogsByAuthorRow struct {
-	BlogID      int64
-	Title       string
-	UrlSlug     string
-	AuthorID    string
-	Content     pgtype.Text
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   string
-	UpdatedAt   pgtype.Timestamptz
-	UpdatedBy   string
-	Slug        string
-	DisplayName string
+	BlogID       int64
+	Title        string
+	UrlSlug      string
+	AuthorID     string
+	Content      pgtype.Text
+	LikeCount    int32
+	DislikeCount int32
+	Status       string
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+	UpdatedAt    pgtype.Timestamptz
+	UpdatedBy    string
+	Slug         string
+	DisplayName  string
 }
 
 func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorParams) ([]ListBlogsByAuthorRow, error) {
@@ -767,6 +1025,8 @@ func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorPa
 			&i.UrlSlug,
 			&i.AuthorID,
 			&i.Content,
+			&i.LikeCount,
+			&i.DislikeCount,
 			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
@@ -928,6 +1188,40 @@ func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (int64, 
 	return blog_id, err
 }
 
+const updateBlogReactionCount = `-- name: UpdateBlogReactionCount :exec
+UPDATE blogs.blogs
+    SET like_count = like_count + $1,
+    dislike_count = dislike_count + $2
+WHERE blog_id = $3
+`
+
+type UpdateBlogReactionCountParams struct {
+	LikeCount    int32
+	DislikeCount int32
+	BlogID       int64
+}
+
+func (q *Queries) UpdateBlogReactionCount(ctx context.Context, arg UpdateBlogReactionCountParams) error {
+	_, err := q.db.Exec(ctx, updateBlogReactionCount, arg.LikeCount, arg.DislikeCount, arg.BlogID)
+	return err
+}
+
+const updateBlogReactionType = `-- name: UpdateBlogReactionType :exec
+UPDATE blogs.blog_reactions
+    SET type = $1
+WHERE id = $2
+`
+
+type UpdateBlogReactionTypeParams struct {
+	Type string
+	ID   uuid.UUID
+}
+
+func (q *Queries) UpdateBlogReactionType(ctx context.Context, arg UpdateBlogReactionTypeParams) error {
+	_, err := q.db.Exec(ctx, updateBlogReactionType, arg.Type, arg.ID)
+	return err
+}
+
 const updateBlogStatusForDeletedAuthor = `-- name: UpdateBlogStatusForDeletedAuthor :exec
 UPDATE blogs.blogs
 SET status = 'author_deleted',
@@ -938,6 +1232,98 @@ WHERE blogs.author_id = $1
 func (q *Queries) UpdateBlogStatusForDeletedAuthor(ctx context.Context, authorID string) error {
 	_, err := q.db.Exec(ctx, updateBlogStatusForDeletedAuthor, authorID)
 	return err
+}
+
+const updateCommentReactionCount = `-- name: UpdateCommentReactionCount :exec
+UPDATE blogs.comments
+    SET like_count = like_count + $1,
+    dislike_count = dislike_count + $2
+WHERE id = $3
+`
+
+type UpdateCommentReactionCountParams struct {
+	LikeCount    int32
+	DislikeCount int32
+	ID           uuid.UUID
+}
+
+func (q *Queries) UpdateCommentReactionCount(ctx context.Context, arg UpdateCommentReactionCountParams) error {
+	_, err := q.db.Exec(ctx, updateCommentReactionCount, arg.LikeCount, arg.DislikeCount, arg.ID)
+	return err
+}
+
+const upsertBlogReaction = `-- name: UpsertBlogReaction :one
+WITH existing AS (
+    SELECT type
+    FROM blogs.blog_reactions e
+    WHERE e.blog_id = $1 AND e.user_id = $2
+    FOR UPDATE
+),
+upsert AS (
+    INSERT INTO blogs.blog_reactions (blog_id, user_id, type)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (blog_id, user_id)
+    DO UPDATE SET type = EXCLUDED.type
+    RETURNING type AS new_type
+)
+SELECT
+    COALESCE((SELECT type FROM existing), 'none')::VARCHAR(20) AS old_type,
+    (SELECT new_type FROM upsert)::VARCHAR(20) AS new_type
+`
+
+type UpsertBlogReactionParams struct {
+	BlogID int64
+	UserID string
+	Type   string
+}
+
+type UpsertBlogReactionRow struct {
+	OldType string
+	NewType string
+}
+
+func (q *Queries) UpsertBlogReaction(ctx context.Context, arg UpsertBlogReactionParams) (UpsertBlogReactionRow, error) {
+	row := q.db.QueryRow(ctx, upsertBlogReaction, arg.BlogID, arg.UserID, arg.Type)
+	var i UpsertBlogReactionRow
+	err := row.Scan(&i.OldType, &i.NewType)
+	return i, err
+}
+
+const upsertCommentReaction = `-- name: UpsertCommentReaction :one
+WITH existing AS (
+    SELECT type
+    FROM blogs.comment_reactions e
+    WHERE e.comment_id = $1 AND e.user_id = $2
+    FOR UPDATE
+),
+upsert AS (
+    INSERT INTO blogs.comment_reactions (comment_id, user_id, type)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (comment_id, user_id)
+    DO UPDATE SET type = EXCLUDED.type
+    RETURNING type AS new_type
+)
+SELECT
+    COALESCE((SELECT type FROM existing), 'none')::VARCHAR(20) AS old_type,
+    COALESCE((SELECT new_type FROM upsert), 'none')::VARCHAR(20) AS new_type
+`
+
+type UpsertCommentReactionParams struct {
+	CommentID uuid.UUID
+	UserID    string
+	Type      string
+}
+
+type UpsertCommentReactionRow struct {
+	OldType string
+	NewType string
+}
+
+func (q *Queries) UpsertCommentReaction(ctx context.Context, arg UpsertCommentReactionParams) (UpsertCommentReactionRow, error) {
+	row := q.db.QueryRow(ctx, upsertCommentReaction, arg.CommentID, arg.UserID, arg.Type)
+	var i UpsertCommentReactionRow
+	err := row.Scan(&i.OldType, &i.NewType)
+	return i, err
 }
 
 const verifyAuthorIDByUserID = `-- name: VerifyAuthorIDByUserID :one

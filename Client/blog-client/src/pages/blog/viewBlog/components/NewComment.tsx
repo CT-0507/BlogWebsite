@@ -6,25 +6,21 @@ import TextField from "@mui/material/TextField";
 import { postCommentSchema, type PostCommentFormValues } from "../model/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { postComment } from "@/api/blogApi";
-import type { BlogComment } from "../CommentSection";
 import InputLabel from "@mui/material/InputLabel";
 import Typography from "@mui/material/Typography";
 import { useAuth } from "@/hooks/useAuth";
 import MuiLink from "@mui/material/Link";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { usePostComment } from "@/hooks/usePostComment";
 
 interface NewCommentProps {
   blogID: number;
-  slug: string;
 }
 
-export default function NewComment({ blogID, slug }: NewCommentProps) {
+export default function NewComment({ blogID }: NewCommentProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
 
   const {
     register,
@@ -36,28 +32,14 @@ export default function NewComment({ blogID, slug }: NewCommentProps) {
     defaultValues: {
       actorType: "user",
       content: "",
-      parentCommentId: undefined,
+      parentCommentId: null,
+      rootCommentId: null,
       blogID: blogID,
       depth: 0,
     },
     mode: "all",
   });
-  const { mutate, isPending } = useMutation({
-    mutationFn: postComment,
-    retry: false,
-    onSuccess: (data) => {
-      console.log(data);
-      queryClient.setQueryData(
-        ["blogs", slug, "comments"],
-        (old: BlogComment[] = []) => {
-          return [...old, data];
-        }
-      );
-    },
-    onError: (error) => {
-      console.log(error);
-    },
-  });
+  const { mutate, isPending } = usePostComment();
 
   const onSubmit = async (data: PostCommentFormValues) => {
     if (!isAuthenticated) {
@@ -65,7 +47,11 @@ export default function NewComment({ blogID, slug }: NewCommentProps) {
       return;
     }
     console.log("Form Data:", data);
-    mutate(data);
+    mutate(data, {
+      onSuccess: () => {
+        resetField("content");
+      },
+    });
   };
 
   const handleClear = () => {

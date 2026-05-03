@@ -103,29 +103,31 @@ CREATE TABLE blogs.comments (
 );
 
 CREATE TABLE blogs.comment_reactions (
-    id          UUID PRIMARY KEY,
-    comment_id  UUID NOT NULL,
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    comment_id  UUID NOT NULL REFERENCES blogs.comments(id) ON DELETE CASCADE,
 
     user_id     VARCHAR(64) NOT NULL,
     type        VARCHAR(20) NOT NULL,  -- like, dislike, etc.
-
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-    UNIQUE(comment_id, user_id, type)
-);
-
-CREATE TABLE blogs.blog_reactions (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    blog_id     BIGINT NOT NULL REFERENCES blogs.tags(tag_id) ON DELETE CASCADE,
-
-    user_id     TEXT NOT NULL,
-    type        VARCHAR(20) NOT NULL,  -- like, dislike, etc.
-    status VARCHAR(20) NOT NULL, -- active | hidden | deleted
+    status      VARCHAR(20) NOT NULL DEFAULT 'active', -- active | hidden | deleted
 
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ,
 
-    UNIQUE(blog_id, user_id, type)
+    UNIQUE(comment_id, user_id)
+);
+
+CREATE TABLE blogs.blog_reactions (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    blog_id     BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+
+    user_id     TEXT NOT NULL,
+    type        VARCHAR(20) NOT NULL,  -- like, dislike, etc.
+    status      VARCHAR(20) NOT NULL DEFAULT 'active', -- active | hidden | deleted
+
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at  TIMESTAMPTZ,
+
+    UNIQUE(blog_id, user_id)
 );
 
 CREATE INDEX idx_comments_blog_id 
@@ -136,5 +138,7 @@ CREATE INDEX idx_comments_parent
 ON blogs.comments(parent_comment_id);
 CREATE INDEX idx_comments_status 
 ON blogs.comments(status);
-CREATE INDEX idx_comments_reaction 
+CREATE INDEX idx_blogs_reaction 
 ON blogs.blog_reactions(blog_id, type) WHERE status = 'active';
+CREATE INDEX idx_comments_reaction 
+ON blogs.comment_reactions(comment_id, type) WHERE status = 'active';

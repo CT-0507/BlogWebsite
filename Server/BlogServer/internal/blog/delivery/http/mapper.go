@@ -10,10 +10,14 @@ type CreateCommentRequest struct {
 	ActorType       string  `json:"actorType" validate:"required"`
 	Content         string  `json:"content" validate:"required"`
 	ParentCommentID *string `json:"parentCommentId"`
-	RootCommentID   string  `json:"rootCommentId"`
+	RootCommentID   *string `json:"rootCommentId"`
 	Depth           int16   `json:"depth" validate:"min=0,max=2"`
 }
 
 type CreateBlogReactionRequest struct {
+	Type string `json:"type" validate:"required"`
+}
+
+type CreateCommentReactionRequest struct {
 	Type string `json:"type" validate:"required"`
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
@@ -17,11 +18,11 @@ import (
 
 type EventHandler struct {
 	txManager  database.TxManager
-	repo       domain.BlogRepository
+	repo       repository.BlogRepository
 	outboxRepo outboxrepo.OutboxRepository
 }
 
-func NewEventHandler(txManager database.TxManager, repo domain.BlogRepository, outboxRepo outboxrepo.OutboxRepository) *EventHandler {
+func NewEventHandler(txManager database.TxManager, repo repository.BlogRepository, outboxRepo outboxrepo.OutboxRepository) *EventHandler {
 	return &EventHandler{
 		txManager:  txManager,
 		repo:       repo,

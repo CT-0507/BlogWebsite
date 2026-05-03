@@ -71,7 +71,9 @@ type BlogsCommentReaction struct {
 	CommentID uuid.UUID
 	UserID    string
 	Type      string
+	Status    string
 	CreatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
 }
 
 type BlogsIdxUserAuthorProfile struct {

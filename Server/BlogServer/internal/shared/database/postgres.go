@@ -18,6 +18,7 @@ func NewPostgresPool(dsn string) (*pgxpool.Pool, error) {
 	cfg.MinConns = 2
 	cfg.MaxConnLifetime = time.Hour
 	cfg.MaxConnIdleTime = 30 * time.Minute
+	cfg.ConnConfig.Tracer = &QueryTracer{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

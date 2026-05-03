@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
@@ -16,11 +16,11 @@ import (
 
 type DeleteBlogUseCase struct {
 	txManager  database.TxManager
-	repo       domain.BlogRepository
+	repo       repository.BlogRepository
 	outboxRepo outboxrepo.OutboxRepository
 }
 
-func NewDeleteBlogUseCases(txManager database.TxManager, repo domain.BlogRepository, outboxRepo outboxrepo.OutboxRepository) *DeleteBlogUseCase {
+func NewDeleteBlogUseCases(txManager database.TxManager, repo repository.BlogRepository, outboxRepo outboxrepo.OutboxRepository) *DeleteBlogUseCase {
 	return &DeleteBlogUseCase{
 		txManager:  txManager,
 		repo:       repo,

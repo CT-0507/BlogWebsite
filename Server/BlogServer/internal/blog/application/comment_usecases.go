@@ -6,7 +6,7 @@ import (
 	"errors"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
@@ -16,15 +16,15 @@ import (
 
 type CommentUseCases struct {
 	txManager   database.TxManager
-	blogRepo    domain.BlogRepository
-	commentRepo domain.CommentRepository
+	blogRepo    repository.BlogRepository
+	commentRepo repository.CommentRepository
 	outboxRepo  outboxrepo.OutboxRepository
 }
 
 func NewCommentUseCases(
 	txManager database.TxManager,
-	blogRepo domain.BlogRepository,
-	commentRepo domain.CommentRepository,
+	blogRepo repository.BlogRepository,
+	commentRepo repository.CommentRepository,
 	outboxRepo outboxrepo.OutboxRepository,
 ) *CommentUseCases {
 	return &CommentUseCases{
@@ -43,13 +43,13 @@ const (
 func (u *CommentUseCases) CreateComment(c context.Context, newComment *domain.CreateCommentModel, userID string) (*domain.Comment, error) {
 	var insertedComment *domain.Comment
 	err := u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-		var err error = nil
+		var err1 error = nil
 		switch newComment.ActorType {
 		case USER:
 			newComment.ActorID = userID
 		case AUTHOR:
-			author, err := u.blogRepo.GetAuthorProfileByUserID(ctx, userID)
-			if err != nil {
+			author, err1 := u.blogRepo.GetAuthorProfileByUserID(ctx, userID)
+			if err1 != nil {
 				return errors.New("Author not found")
 			}
 			newComment.ActorID = author.AuthorID
@@ -60,10 +60,10 @@ func (u *CommentUseCases) CreateComment(c context.Context, newComment *domain.Cr
 		}
 
 		if newComment.ParentCommentID == nil {
-			newComment.RootCommentID = ""
+			newComment.RootCommentID = nil
 		}
 
-		insertedComment, err = u.commentRepo.CreateComment(ctx, &domain.CreateCommentModel{
+		insertedComment, err1 = u.commentRepo.CreateComment(ctx, &domain.CreateCommentModel{
 			BlogID:           newComment.BlogID,
 			ActorType:        newComment.ActorType,
 			ActorID:          newComment.ActorID,
@@ -74,21 +74,21 @@ func (u *CommentUseCases) CreateComment(c context.Context, newComment *domain.Cr
 			ParentCommentID:  newComment.ParentCommentID,
 			Depth:            newComment.Depth,
 		})
-		if err != nil {
-			return err
+		if err1 != nil {
+			return err1
 		}
 
 		// Save event to outbox table
 
-		payload := &contracts.BlogCreatedSagaPayload{}
+		payload := &map[string]any{}
 
 		payloadMarshal, _ := json.Marshal(payload)
-		err = u.outboxRepo.Insert(c, &messaging.OutboxEvent{
+		err1 = u.outboxRepo.Insert(c, &messaging.OutboxEvent{
 			EventType: "No name",
 			Payload:   payloadMarshal,
 		})
-		if err != nil {
-			return err
+		if err1 != nil {
+			return err1
 		}
 
 		return nil
@@ -97,12 +97,20 @@ func (u *CommentUseCases) CreateComment(c context.Context, newComment *domain.Cr
 	return insertedComment, err
 }
 
-func (u *CommentUseCases) GetBlogRootComments(c context.Context, blogID int64) ([]domain.Comment, error) {
-	return u.commentRepo.GetBlogRootComment(c, blogID)
+func (u *CommentUseCases) GetBlogRootComments(c context.Context, blogID int64, userID *string) (int64, []domain.Comment, error) {
+	total, err := u.commentRepo.GetBlogRootCommentCount(c, blogID)
+	if err != nil {
+		return -1, nil, err
+	}
+	comments, err := u.commentRepo.GetBlogRootComment(c, blogID, userID)
+	if err != nil {
+		return -1, nil, err
+	}
+	return total, comments, nil
 }
 
-func (u *CommentUseCases) GetChildrenComments(c context.Context, parentCommentID uuid.UUID) ([]domain.Comment, error) {
-	return u.commentRepo.GetChildrenComments(c, parentCommentID)
+func (u *CommentUseCases) GetChildrenComments(c context.Context, parentCommentID uuid.UUID, userID *string) ([]domain.Comment, error) {
+	return u.commentRepo.GetChildrenComments(c, parentCommentID, userID)
 }
 
 func (u *CommentUseCases) GetCommentByID(c context.Context, commentID uuid.UUID) (*domain.Comment, error) {
@@ -144,39 +152,4 @@ func (u *CommentUseCases) DeleteComment(c context.Context, commentID uuid.UUID, 
 		return -1, errors.New("User ID not match")
 	}
 	return u.commentRepo.DeleteComment(c, commentID)
-}
-
-func (u *CommentUseCases) CreateBlogReaction(c context.Context, blogReaction *domain.CreateBlogReaction) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-
-		err := u.commentRepo.CreateBlogReaction(ctx, &domain.CreateBlogReaction{
-			BlogID: blogReaction.BlogID,
-			UserID: blogReaction.UserID,
-			Type:   blogReaction.Type,
-		})
-		if err != nil {
-			return err
-		}
-
-		// Save event to outbox table
-
-		payload := &contracts.BlogCreatedSagaPayload{}
-
-		payloadMarshal, _ := json.Marshal(payload)
-		err = u.outboxRepo.Insert(c, &messaging.OutboxEvent{
-			EventType: "No name",
-			Payload:   payloadMarshal,
-		})
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
-func (u *CommentUseCases) SyncBlogReactionCount(c context.Context) error {
-	return u.txManager.WithVoidTx(c, func(ctx context.Context) error {
-		return u.SyncBlogReactionCount(ctx)
-	})
 }

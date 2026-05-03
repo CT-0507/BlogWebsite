@@ -17,12 +17,15 @@ type Blog struct {
 }
 
 type BlogWithAuthorData struct {
-	BlogID  int64      `json:"blogID"`
-	Author  AuthorData `json:"author"`
-	URLSlug string     `json:"urlSlug"`
-	Title   string     `json:"title"`
-	Content string     `json:"content"`
-	Status  string     `json:"status"`
+	BlogID       int64      `json:"blogID"`
+	Author       AuthorData `json:"author"`
+	URLSlug      string     `json:"urlSlug"`
+	Title        string     `json:"title"`
+	Content      string     `json:"content"`
+	LikeCount    int32      `json:"likeCount"`
+	DislikeCount int32      `json:"dislikeCount"`
+	UserReaction *string    `json:"userReaction"`
+	Status       string     `json:"status"`
 	model.Audit
 }
 

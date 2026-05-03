@@ -9,40 +9,17 @@ import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import SocialShareDial from "@/components/SocialShareSpeedDial/SocialShareSpeedDial";
 import CommentSection from "./CommentSection";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBlogBySlug } from "@/api/blogApi";
-import type { Blog } from "@/pages/home/BlogList";
 import { CircularProgress } from "@mui/material";
+import { useBlogBySlug } from "@/hooks/useBlogBySlug";
+import BlogVoteSection from "./components/BlogVoteSection";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ViewBlog() {
   const navigate = useNavigate();
   const { slug } = useParams();
+  const { isAuthenticated } = useAuth();
 
-  const queryClient = useQueryClient();
-  const { data: blog, isLoading } = useQuery({
-    queryKey: ["blogs", slug],
-    queryFn: () => getBlogBySlug(slug!),
-    staleTime: Infinity,
-    enabled: slug != null && slug != "",
-    initialData: () => {
-      // When using pagination
-      //   const pages = queryClient.getQueryData(["items"]);
-
-      //   if (!pages) return undefined;
-
-      //   for (const page of pages.pages) {
-      //     const found = page.items.find((i) => i.id === itemId);
-      //     if (found) return found;
-      //   }
-
-      const blog = queryClient
-        .getQueryData<Blog[]>(["blogs"])
-        ?.find((i) => i.urlSlug == slug);
-      if (!blog) return undefined;
-      console.log(blog);
-      return blog;
-    },
-  });
+  const { data: blog, isLoading } = useBlogBySlug(isAuthenticated, slug);
 
   if (!slug || !blog)
     return (
@@ -63,13 +40,30 @@ export default function ViewBlog() {
       {/* Thumbnail */}
       {!isLoading ? <BlogSection blog={blog} /> : <CircularProgress />}
       <Divider />
-      {!isLoading ? (
-        <Box id="comment-section">
+
+      <Box id="reaction-section" sx={{ mt: 5 }}>
+        {!isLoading ? (
+          <BlogVoteSection
+            blogID={blog.blogID}
+            slug={blog.urlSlug}
+            likeCount={blog.likeCount || 0}
+            dislikeCount={blog.dislikeCount || 0}
+            userReaction={blog.userReaction}
+          />
+        ) : (
+          <CircularProgress />
+        )}
+      </Box>
+      <Divider />
+
+      <Box id="comment-section" sx={{ mt: 5 }}>
+        {!isLoading ? (
           <CommentSection blogID={blog.blogID} slug={blog.urlSlug} />
-        </Box>
-      ) : (
-        <CircularProgress />
-      )}
+        ) : (
+          <CircularProgress />
+        )}
+      </Box>
+
       <Box
         id="footer-action"
         mt={1}

@@ -9,13 +9,12 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import ThumbUpAltOutlinedIcon from "@mui/icons-material/ThumbUpAltOutlined";
 import ThumbDownAltOutlinedIcon from "@mui/icons-material/ThumbDownAltOutlined";
+import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
+import ThumbUpAltIcon from "@mui/icons-material/ThumbUpAlt";
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import { type BlogComment } from "../CommentSection";
 import { relativeTime } from "@/utils/timeUtils";
-import { getReplies, postComment } from "@/api/blogApi";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircularProgress } from "@mui/material";
 import { useAuth } from "@/hooks/useAuth";
 import { postCommentSchema, type PostCommentFormValues } from "../model/schema";
@@ -23,46 +22,39 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import MuiLink from "@mui/material/Link";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { usePostComment } from "@/hooks/usePostComment";
+import type { BlogComment, CommentReaction } from "@/types/Blog";
+import { useVoteComment } from "@/hooks/useVoteComment";
+import { useRepliesByCommentID } from "@/hooks/useRepliesByCommentID";
 
 interface CommentItemProps {
   comment: BlogComment;
   level: number;
   slug: string;
-  repliesQueryKey: string[];
-  onLike: () => void;
-  onDislike: () => void;
-  onReply: () => void;
 }
 
 export default function CommentItem({
   comment,
   level = 0,
   slug,
-  repliesQueryKey,
-  onLike,
-  onDislike,
-  onReply,
 }: CommentItemProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const [showReplies, setShowReplies] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [newReply, setNewReply] = useState(0);
 
   const { user, authLoading, isAuthenticated } = useAuth();
 
-  const hasReplies = comment.replyCount > 0;
+  const hasReplies = comment.replyCount > 0 || newReply != 0;
   const canReply = level < 2; // max reply depth
 
-  const setQueryDataKey = [...repliesQueryKey, comment.commentId, "replies"];
-
-  const { data: replies, isLoading } = useQuery({
-    queryKey: setQueryDataKey,
-    queryFn: () => getReplies(comment.commentId),
-    staleTime: Infinity,
-    refetchInterval: Infinity,
-    enabled: showReplies,
-  });
+  const { data: replies, isLoading } = useRepliesByCommentID(
+    isAuthenticated,
+    comment.commentId,
+    showReplies
+  );
 
   const handleShowReplies = () => {
     setShowReplies(!showReplies);
@@ -86,19 +78,7 @@ export default function CommentItem({
     mode: "all",
   });
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: postComment,
-    retry: false,
-    onSuccess: (data) => {
-      console.log(data);
-      queryClient.setQueryData(setQueryDataKey, (old: BlogComment[] = []) => {
-        return [...old, data];
-      });
-    },
-    onError: (error) => {
-      console.log(error);
-    },
-  });
+  const { mutate, isPending } = usePostComment();
 
   const onSubmit = (data: PostCommentFormValues) => {
     if (!isAuthenticated) {
@@ -106,11 +86,37 @@ export default function CommentItem({
       return;
     }
     console.log("Form Data:", data);
-    mutate(data);
+    mutate(data, {
+      onSuccess: () => {
+        setNewReply((prev) => prev + 1);
+        setShowReplies(true);
+        resetField("content");
+        setShowReplyInput(false);
+      },
+    });
   };
 
   const handleClear = () => {
     resetField("content");
+  };
+
+  const { mutate: mutateVote, isPending: isPendingVoteComment } =
+    useVoteComment(level === 0, comment.commentId, comment.parentCommentId);
+
+  const handleVote = (next: "like" | "dislike") => {
+    if (!isAuthenticated) {
+      setShowError(true);
+      return;
+    }
+    if (comment.userReaction === next || isPendingVoteComment) {
+      return;
+    }
+    const reaction: CommentReaction = {
+      commentId: comment.commentId,
+      userId: user!.userID,
+      type: next,
+    };
+    mutateVote(reaction);
   };
 
   return (
@@ -159,18 +165,30 @@ export default function CommentItem({
             >
               <Button
                 size="small"
-                startIcon={<ThumbUpAltOutlinedIcon />}
-                onClick={() => onLike()}
+                startIcon={
+                  comment.userReaction && comment.userReaction === "like" ? (
+                    <ThumbUpAltIcon />
+                  ) : (
+                    <ThumbUpAltOutlinedIcon />
+                  )
+                }
+                onClick={() => handleVote("like")}
               >
-                {comment.likes || 0}
+                {comment.likeCount || 0}
               </Button>
 
               <Button
                 size="small"
-                startIcon={<ThumbDownAltOutlinedIcon />}
-                onClick={() => onDislike()}
+                startIcon={
+                  comment.userReaction && comment.userReaction === "dislike" ? (
+                    <ThumbDownAltIcon />
+                  ) : (
+                    <ThumbDownAltOutlinedIcon />
+                  )
+                }
+                onClick={() => handleVote("dislike")}
               >
-                {comment.dislikes || 0}
+                {comment.dislikeCount || 0}
               </Button>
 
               {canReply && (
@@ -197,6 +215,30 @@ export default function CommentItem({
                 </Button>
               )}
             </Stack>
+
+            {showError && (
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ mt: 1 }}
+                flexWrap="wrap"
+              >
+                <Box>
+                  <Typography>
+                    You need to login to vote blog.
+                    <MuiLink
+                      component={RouterLink}
+                      to={`/account`}
+                      state={{ from: location }}
+                      underline="hover"
+                    >
+                      To login page.
+                    </MuiLink>
+                  </Typography>
+                </Box>
+              </Stack>
+            )}
 
             {/* Reply Input */}
             <Collapse in={showReplyInput}>
@@ -276,12 +318,8 @@ export default function CommentItem({
                       <CommentItem
                         key={reply.commentId}
                         comment={reply}
-                        repliesQueryKey={setQueryDataKey}
                         slug={slug}
                         level={level + 1}
-                        onLike={onLike}
-                        onDislike={onDislike}
-                        onReply={onReply}
                       />
                     ))}
                   </Box>
