@@ -263,8 +263,8 @@ func (r *BlogRepository) UpdateBlogReactionCount(c context.Context, blogID int64
 
 	q := blogdb.New(db)
 
-	var likeDelta int32 = 0
-	var dislikeDelta int32 = 0
+	var likeDelta int64 = 0
+	var dislikeDelta int64 = 0
 
 	switch transition {
 	case repository.AddLike:
@@ -284,4 +284,21 @@ func (r *BlogRepository) UpdateBlogReactionCount(c context.Context, blogID int64
 		DislikeCount: dislikeDelta,
 		BlogID:       blogID,
 	})
+}
+
+func (r *BlogRepository) UpdateBlogRankingTable(c context.Context) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.UpdateBlogRankingResult(c)
+}
+
+func (r *BlogRepository) TruncateBlogRankingTable(c context.Context) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.TruncateBlogRankingTable(c)
 }

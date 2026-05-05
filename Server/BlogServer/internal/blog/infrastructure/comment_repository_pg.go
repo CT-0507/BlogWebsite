@@ -2,6 +2,8 @@ package infrastructure
 
 import (
 	"context"
+	"errors"
+	"slices"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/infrastructure/db"
@@ -164,22 +166,29 @@ func (r *CommentRepository) GetCommentByID(c context.Context, commentID uuid.UUI
 	return r.mapper.MapBlogsCommentToComment(&row), nil
 }
 
-func (r *CommentRepository) HideComment(c context.Context, commentID uuid.UUID) (int64, error) {
+func (r *CommentRepository) UpdateComment(c context.Context, commentID uuid.UUID, content, status *string, userID string) (uuid.UUID, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
 	q := blogdb.New(db)
 
-	return q.HideComment(c, commentID)
-}
+	if status != nil {
+		validStatuses := []string{"deleted", "active", "hidden"}
+		if !slices.Contains(validStatuses, *status) {
+			return uuid.Nil, errors.New("Invalid status")
+		}
+	}
 
-func (r *CommentRepository) DeleteComment(c context.Context, commentID uuid.UUID) (int64, error) {
-
-	db := utils.GetExecutor(c, r.pool)
-
-	q := blogdb.New(db)
-
-	return q.DeleteComment(c, commentID)
+	return q.UpdateComment(c, blogdb.UpdateCommentParams{
+		Content: utils.GetTextTypeFromNullableString(content),
+		Status:  utils.GetTextTypeFromNullableString(status),
+		ID:      commentID,
+		ActorID: pgtype.Text{
+			String: userID,
+			Valid:  true,
+		},
+		IsAdmin: false,
+	})
 }
 
 func (r *CommentRepository) SyncBlogReactionCount(c context.Context) error {

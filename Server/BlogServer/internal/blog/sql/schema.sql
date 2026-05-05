@@ -10,8 +10,10 @@ CREATE TABLE blogs.blogs (
     status VARCHAR(20) NOT NULL DEFAULT 'active',
 
     -- blog ranking
-    like_count INT NOT NULL DEFAULT 0,
-    dislike_count  INT NOT NULL DEFAULT 0,
+    like_count BIGINT NOT NULL DEFAULT 0,
+    dislike_count  BIGINT NOT NULL DEFAULT 0,
+    daily_access_count BIGINT NOT NULL DEFAULT 0,
+    weekly_access_count BIGINT NOT NULL DEFAULT 0,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by TEXT NOT NULL,
@@ -142,3 +144,30 @@ CREATE INDEX idx_blogs_reaction
 ON blogs.blog_reactions(blog_id, type) WHERE status = 'active';
 CREATE INDEX idx_comments_reaction 
 ON blogs.comment_reactions(comment_id, type) WHERE status = 'active';
+
+-- Ranking table
+
+CREATE TABLE blogs.blog_ranking (
+    
+    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+
+        -- rankings
+    rank_all_time INT,
+    rank_trending INT,
+
+    -- scores
+    score_all_time DOUBLE PRECISION,
+    score_trending DOUBLE PRECISION,
+    
+    like_count INT NOT NULL  DEFAULT 0,
+    dislike_count INT NOT NULL  DEFAULT 0,
+    comment_count INT NOT NULL  DEFAULT 0,
+    weekly_access_count INT NOT NULL  DEFAULT 0,
+    daily_access_count  INT NOT NULL  DEFAULT 0,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE(blog_id)
+
+);

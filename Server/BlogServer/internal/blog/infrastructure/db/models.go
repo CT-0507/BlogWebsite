@@ -10,20 +10,37 @@ import (
 )
 
 type BlogsBlog struct {
-	BlogID       int64
-	AuthorID     string
-	UrlSlug      string
-	Title        string
-	Content      pgtype.Text
-	Status       string
-	LikeCount    int32
-	DislikeCount int32
-	CreatedAt    pgtype.Timestamptz
-	CreatedBy    string
-	UpdatedAt    pgtype.Timestamptz
-	UpdatedBy    string
-	DeletedAt    pgtype.Timestamptz
-	DeletedBy    pgtype.Text
+	BlogID            int64
+	AuthorID          string
+	UrlSlug           string
+	Title             string
+	Content           pgtype.Text
+	Status            string
+	LikeCount         int64
+	DislikeCount      int64
+	DailyAccessCount  int64
+	WeeklyAccessCount int64
+	CreatedAt         pgtype.Timestamptz
+	CreatedBy         string
+	UpdatedAt         pgtype.Timestamptz
+	UpdatedBy         string
+	DeletedAt         pgtype.Timestamptz
+	DeletedBy         pgtype.Text
+}
+
+type BlogsBlogRanking struct {
+	BlogID            int64
+	RankAllTime       pgtype.Int4
+	RankTrending      pgtype.Int4
+	ScoreAllTime      pgtype.Float8
+	ScoreTrending     pgtype.Float8
+	LikeCount         int32
+	DislikeCount      int32
+	CommentCount      int32
+	WeeklyAccessCount int32
+	DailyAccessCount  int32
+	CreatedAt         pgtype.Timestamptz
+	ComputedAt        pgtype.Timestamptz
 }
 
 type BlogsBlogReaction struct {

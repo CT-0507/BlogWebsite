@@ -21,3 +21,7 @@ type CreateBlogReactionRequest struct {
 type CreateCommentReactionRequest struct {
 	Type string `json:"type" validate:"required"`
 }
+
+type UpdateCommentContentRequest struct {
+	Content string `json:"content" validate:"required,max=2000"`
+}

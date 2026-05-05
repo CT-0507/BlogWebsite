@@ -23,3 +23,20 @@ export const postCommentSchema = z.object({
 });
 
 export type PostCommentFormValues = z.infer<typeof postCommentSchema>;
+
+export const updateCommentContentSchema = z.object({
+  content: z
+    .string()
+    .trim()
+    .min(
+      MIN_COMMENT_LENGTH,
+      `Must be at least ${MIN_COMMENT_LENGTH} characters`
+    )
+    .max(MAX_COMMENT_LENGTH, `Cannot exceed ${MAX_COMMENT_LENGTH} characters`)
+    .nonempty("This is a required field"),
+  commentId: z.string().nonempty(),
+});
+
+export type UpdateCommentContentFormValues = z.infer<
+  typeof updateCommentContentSchema
+>;

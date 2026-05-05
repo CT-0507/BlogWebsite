@@ -14,10 +14,25 @@ import ThumbUpAltIcon from "@mui/icons-material/ThumbUpAlt";
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import CloseIcon from "@mui/icons-material/Close";
 import { relativeTime } from "@/utils/timeUtils";
-import { CircularProgress } from "@mui/material";
+import {
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
+  Snackbar,
+} from "@mui/material";
 import { useAuth } from "@/hooks/useAuth";
-import { postCommentSchema, type PostCommentFormValues } from "../model/schema";
+import {
+  postCommentSchema,
+  updateCommentContentSchema,
+  type PostCommentFormValues,
+  type UpdateCommentContentFormValues,
+} from "../model/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import MuiLink from "@mui/material/Link";
@@ -26,6 +41,11 @@ import { usePostComment } from "@/hooks/usePostComment";
 import type { BlogComment, CommentReaction } from "@/types/Blog";
 import { useVoteComment } from "@/hooks/useVoteComment";
 import { useRepliesByCommentID } from "@/hooks/useRepliesByCommentID";
+import {
+  useDeleteComment,
+  useHideComment,
+  useUpdateCommentContent,
+} from "@/hooks/useUpdateComment";
 
 interface CommentItemProps {
   comment: BlogComment;
@@ -44,6 +64,11 @@ export default function CommentItem({
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [showError, setShowError] = useState(false);
   const [newReply, setNewReply] = useState(0);
+  const [editMode, setEditMode] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [action, setAction] = useState<string>("");
+  const [showSnackbar, setShowSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
 
   const { user, authLoading, isAuthenticated } = useAuth();
 
@@ -119,8 +144,119 @@ export default function CommentItem({
     mutateVote(reaction);
   };
 
+  const handleShowEditMode = () => {
+    setEditMode((prev) => !prev);
+  };
+
+  // Update comment content
+  const {
+    register: registerContent,
+    handleSubmit: handleSubmitContent,
+    resetField: resetFieldContent,
+    formState: {
+      errors: errorsContent,
+      isSubmitting: isSubmittingContent,
+      isDirty: isDirtyContent,
+      isValid: isValidContent,
+    },
+  } = useForm<UpdateCommentContentFormValues>({
+    resolver: zodResolver(updateCommentContentSchema),
+    defaultValues: {
+      content: comment.content,
+      commentId: comment.commentId,
+    },
+    mode: "all",
+  });
+
+  const handleClearContent = () => {
+    resetFieldContent("content");
+  };
+
+  const handleShowConfirmDialog = (action: string) => {
+    setAction(action);
+    setShowConfirmDialog(true);
+  };
+
+  const handleCloseConfirmDialog = () => {
+    setShowConfirmDialog(false);
+  };
+
+  const { mutate: mutateHide } = useHideComment(
+    level === 0 ? comment.blogId : undefined
+  );
+  const { mutate: mutateDelete } = useDeleteComment(
+    level === 0 ? comment.blogId : undefined
+  );
+
+  const handleExecuteAction = () => {
+    if (action === "hide") {
+      mutateHide(comment.commentId, {
+        onSuccess: () => {
+          setShowConfirmDialog(false);
+        },
+        onError: () => {
+          setShowSnackbar(true);
+          setSnackbarMessage("Failed to hide comment. Please try again later.");
+        },
+      });
+    } else {
+      mutateDelete(comment.commentId, {
+        onSuccess: () => {
+          setShowConfirmDialog(false);
+        },
+        onError: () => {
+          setShowSnackbar(true);
+          setSnackbarMessage(
+            "Failed to delete comment. Please try again later."
+          );
+        },
+      });
+    }
+  };
+
+  const { mutate: mutateContent, isPending: isPendingContent } =
+    useUpdateCommentContent(level === 0 ? comment.blogId : undefined);
+
+  const onSubmitContent = (data: UpdateCommentContentFormValues) => {
+    if (!isAuthenticated) {
+      navigate("/account");
+      return;
+    }
+    console.log("Form Data:", data);
+    mutateContent(data, {
+      onSuccess: () => {
+        setEditMode(false);
+      },
+    });
+  };
+
   return (
     <Box sx={{ ml: level * 4, mt: 2 }}>
+      <Snackbar
+        open={showSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setShowSnackbar(false)}
+        message={snackbarMessage}
+        action={
+          <>
+            <Button
+              color="secondary"
+              size="small"
+              onClick={() => setShowSnackbar(false)}
+            >
+              UNDO
+            </Button>
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={() => setShowSnackbar(false)}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </>
+        }
+      />
       <Paper
         variant="outlined"
         sx={{
@@ -148,13 +284,107 @@ export default function CommentItem({
               </Typography>
 
               {comment.createdAt !== comment.updatedAt && (
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mr: 1 }}
+                >
                   edited
+                </Typography>
+              )}
+
+              {comment.status && comment.status === "hidden" && (
+                <Typography variant="caption" color="text.secondary">
+                  hidden
                 </Typography>
               )}
             </Stack>
 
-            <Typography sx={{ mt: 1 }}>{comment.content}</Typography>
+            {editMode ? (
+              <Box
+                component="form"
+                onSubmit={handleSubmitContent(onSubmitContent)}
+              >
+                <Dialog
+                  open={showConfirmDialog}
+                  onClose={handleCloseConfirmDialog}
+                >
+                  <DialogTitle>Confirm</DialogTitle>
+                  <DialogContent>
+                    <DialogContentText id="alert-dialog-description">
+                      This action will {action} this comment. Are you sure?
+                    </DialogContentText>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button onClick={handleCloseConfirmDialog} autoFocus>
+                      Disagree
+                    </Button>
+                    <Button
+                      onClick={handleExecuteAction}
+                      variant="outlined"
+                      color="error"
+                    >
+                      Agree
+                    </Button>
+                  </DialogActions>
+                </Dialog>
+                <Stack direction="column">
+                  <Stack direction="row" my={1}>
+                    <Button onClick={() => handleShowConfirmDialog("hide")}>
+                      Hide
+                    </Button>
+                    <Button
+                      onClick={() => handleShowConfirmDialog("delete")}
+                      color="error"
+                    >
+                      Delete
+                    </Button>
+                  </Stack>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Write a reply..."
+                    {...registerContent("content")}
+                    error={!!errorsContent.content}
+                    helperText={errorsContent.content?.message || " "}
+                  />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <Button
+                      variant="contained"
+                      color="error"
+                      disabled={!isDirty}
+                      sx={{ mr: 1, flexShrink: 0 }}
+                      onClick={handleClearContent}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="contained"
+                      type="submit"
+                      sx={{
+                        flexShrink: 0,
+                      }}
+                      disabled={
+                        isPendingContent ||
+                        isSubmittingContent ||
+                        !isDirtyContent ||
+                        !isValidContent ||
+                        !isAuthenticated
+                      }
+                    >
+                      {isPending || isSubmitting ? "Sending" : "Edit Comment"}
+                    </Button>
+                  </Box>
+                </Stack>
+              </Box>
+            ) : (
+              <Typography sx={{ mt: 1 }}>{comment.content}</Typography>
+            )}
 
             <Stack
               direction="row"
@@ -332,7 +562,7 @@ export default function CommentItem({
             isAuthenticated &&
             comment.actorId === user?.userID && (
               <Box>
-                <Button>Edit</Button>
+                <Button onClick={handleShowEditMode}>Edit</Button>
               </Box>
             )}
         </Stack>

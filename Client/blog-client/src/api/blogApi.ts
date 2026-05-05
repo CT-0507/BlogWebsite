@@ -131,3 +131,42 @@ export async function createCommentReaction(formData: CommentReaction) {
 
   return data;
 }
+
+export interface UpdateBlogCommentContentRequest {
+  content: string;
+  commentId: string;
+}
+
+interface UpdateCommentContentResponse {
+  commentId: string;
+  content: string;
+}
+
+export async function updateCommentContent(
+  formData: UpdateBlogCommentContentRequest
+): Promise<UpdateCommentContentResponse> {
+  const { data } = await axiosAuth.patch(
+    `${API_VERSION}/comments/${formData.commentId}`,
+    {
+      content: formData.content,
+    }
+  );
+
+  return data;
+}
+
+export async function hideComment(commentId: string) {
+  const { data } = await axiosAuth.patch(
+    `${API_VERSION}/comments/${commentId}/hidden`
+  );
+
+  return data;
+}
+
+export async function deleteComment(commentId: string) {
+  const { data } = await axiosAuth.delete(
+    `${API_VERSION}/comments/${commentId}/delete`
+  );
+
+  return data;
+}

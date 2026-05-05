@@ -27,4 +27,7 @@ type BlogRepository interface {
 	GetAuthorProfileByUserID(c context.Context, userID string) (*domain.AuthorData, error)
 	// Blog metrics
 	UpdateBlogReactionCount(c context.Context, blogID int64, transition ReactionTransition) error
+	// Worker
+	UpdateBlogRankingTable(ctx context.Context) error
+	TruncateBlogRankingTable(ctx context.Context) error
 }

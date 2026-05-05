@@ -43,6 +43,7 @@ type CommentUsecases interface {
 	GetCommentByID(c context.Context, commentID uuid.UUID) (*domain.Comment, error)
 	HideComment(c context.Context, commentID uuid.UUID, userID string) (int64, error)
 	DeleteComment(c context.Context, commentID uuid.UUID, userID string) (int64, error)
+	UpdateCommentContent(c context.Context, commentID uuid.UUID, userID string, content string) (int64, error)
 }
 
 type CommentReactionUseCases interface {
@@ -504,12 +505,14 @@ func (h *BlogHandler) HideCommentByID(c *gin.Context) {
 		return
 	}
 
-	count, err := h.commentUsecases.HideComment(ctx, uuid, userID.String())
+	_, err = h.commentUsecases.HideComment(ctx, uuid, userID.String())
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, count)
+	c.JSON(http.StatusOK, gin.H{
+		"commentId": id,
+	})
 }
 
 func (h *BlogHandler) DeleteCommentByID(c *gin.Context) {
@@ -539,12 +542,63 @@ func (h *BlogHandler) DeleteCommentByID(c *gin.Context) {
 		return
 	}
 
-	comment, err := h.commentUsecases.DeleteComment(ctx, uuid, userID.String())
+	_, err = h.commentUsecases.DeleteComment(ctx, uuid, userID.String())
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, comment)
+	c.JSON(http.StatusOK, gin.H{
+		"commentId": id,
+	})
+}
+
+func (h *BlogHandler) UpdateCommentContentByID(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 1*time.Second)
+	defer cancel()
+
+	id, valid := c.Params.Get("id")
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogId"),
+		})
+		return
+	}
+
+	uuid, err := uuid.Parse(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "commentID is not valid",
+		})
+		return
+	}
+
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusForbidden, err)
+		return
+	}
+
+	var content UpdateCommentContentRequest
+	if err := c.ShouldBindJSON(&content); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, content); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	_, err = h.commentUsecases.UpdateCommentContent(ctx, uuid, userID.String(), content.Content)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"commentId": id,
+		"content":   content.Content,
+	})
 }
 
 func (h *BlogHandler) CreateBlogReaction(c *gin.Context) {

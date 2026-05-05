@@ -117,7 +117,7 @@ func (u *CommentUseCases) GetCommentByID(c context.Context, commentID uuid.UUID)
 	return u.commentRepo.GetCommentByID(c, commentID)
 }
 
-func checkCommentOwnership(actorID *string, userID string) bool {
+func (u *CommentUseCases) checkCommentOwnership(actorID *string, userID string) bool {
 	if actorID == nil || (*actorID != userID && userID != config.SYSTEM_ID && userID != config.ADMIN_ID) {
 		return false
 	}
@@ -133,10 +133,19 @@ func (u *CommentUseCases) HideComment(c context.Context, commentID uuid.UUID, us
 		return -1, errors.New("Comment not Found")
 	}
 
-	if checkCommentOwnership(comment.ActorID, userID) {
+	if !u.checkCommentOwnership(comment.ActorID, userID) {
 		return -1, errors.New("User ID not match")
 	}
-	return u.commentRepo.HideComment(c, commentID)
+	status := "hidden"
+	id, err := u.commentRepo.UpdateComment(c, commentID, nil, &status, userID)
+	if err != nil {
+		return 0, err
+	}
+	var count int64 = 0
+	if id != uuid.Nil {
+		count = 1
+	}
+	return count, nil
 }
 
 func (u *CommentUseCases) DeleteComment(c context.Context, commentID uuid.UUID, userID string) (int64, error) {
@@ -148,8 +157,40 @@ func (u *CommentUseCases) DeleteComment(c context.Context, commentID uuid.UUID, 
 		return -1, errors.New("Comment not Found")
 	}
 
-	if checkCommentOwnership(comment.ActorID, userID) {
+	if !u.checkCommentOwnership(comment.ActorID, userID) {
 		return -1, errors.New("User ID not match")
 	}
-	return u.commentRepo.DeleteComment(c, commentID)
+	status := "deleted"
+	id, err := u.commentRepo.UpdateComment(c, commentID, nil, &status, userID)
+	if err != nil {
+		return 0, err
+	}
+	var count int64 = 0
+	if id != uuid.Nil {
+		count = 1
+	}
+	return count, nil
+}
+
+func (u *CommentUseCases) UpdateCommentContent(c context.Context, commentID uuid.UUID, userID string, content string) (int64, error) {
+	comment, err := u.commentRepo.GetCommentByID(c, commentID)
+	if err != nil {
+		return -1, err
+	}
+	if comment == nil {
+		return -1, errors.New("Comment not Found")
+	}
+
+	if !u.checkCommentOwnership(comment.ActorID, userID) {
+		return -1, errors.New("User ID not match")
+	}
+	id, err := u.commentRepo.UpdateComment(c, commentID, &content, nil, userID)
+	if err != nil {
+		return 0, err
+	}
+	var count int64 = 0
+	if id != uuid.Nil {
+		count = 1
+	}
+	return count, nil
 }

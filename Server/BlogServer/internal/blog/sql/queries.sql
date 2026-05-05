@@ -200,7 +200,8 @@ RETURNING *;
 -- name: GetBlogRootComment :many
 WITH child_counts AS (
     SELECT parent_comment_id, COUNT(*) AS cnt
-    FROM blogs.comments
+    FROM blogs.comments c
+    WHERE c.status = 'active'
     GROUP BY parent_comment_id
 )
 SELECT
@@ -211,13 +212,14 @@ LEFT JOIN child_counts cc
     ON cc.parent_comment_id = p.id
 WHERE
     p.blog_id = $1
-    AND p.status <> 'hidden'
+    AND p.status = 'active'
     AND p.depth = 0;
 
 -- name: GetBlogRootCommentWithUserReaction :many
 WITH child_counts AS (
     SELECT parent_comment_id, COUNT(*) AS cnt
-    FROM blogs.comments
+    FROM blogs.comments c
+    WHERE c.status = 'active'
     GROUP BY parent_comment_id
 )
 SELECT
@@ -232,14 +234,17 @@ LEFT JOIN blogs.comment_reactions r
     AND r.user_id = $2
 WHERE
     p.blog_id = $1
-    AND p.status <> 'hidden'
-    AND p.depth = 0;
+    AND p.depth = 0
+    AND (
+        p.status = 'active'
+        OR (p.status = 'hidden' AND p.actor_id = $2)
+    );
 
 -- name: GetBlogRootCommentCount :one
 SELECT COUNT(*) AS total
 FROM blogs.comments c
 WHERE c.blog_id = $1
-    AND c.status <> 'hidden';
+    AND c.status = 'active';
 
 -- name: GetCommentsByRootComment :many
 SELECT *
@@ -247,19 +252,27 @@ FROM blogs.comments
 WHERE root_comment_id = $1  AND status <> 'hidden';
 
 -- name: GetCommentsByParentComment :many
-SELECT p.*,
-    COUNT(c.id) AS child_comment_count
+WITH child_counts AS (
+    SELECT parent_comment_id, COUNT(*) AS cnt
+    FROM blogs.comments c
+    WHERE c.status = 'active'
+    GROUP BY parent_comment_id
+)
+SELECT 
+    p.*,
+    COALESCE(cc.cnt, 0) AS child_comment_count
 FROM blogs.comments p
-LEFT JOIN blogs.comments c
-    ON c.parent_comment_id = p.id   AND c.status <> 'hidden'
-WHERE p.parent_comment_id = $1 AND p.status <> 'hidden'
-GROUP BY p.id;
+LEFT JOIN child_counts cc
+    ON cc.parent_comment_id = p.id
+WHERE 
+    p.parent_comment_id = $1 
+    AND p.status = 'active';
 
 -- name: GetCommentsByParentCommentUserWithReaction :many
 WITH child_counts AS (
     SELECT parent_comment_id, COUNT(*) AS cnt
-    FROM blogs.comments
-    WHERE status <> 'hidden'
+    FROM blogs.comments c
+    WHERE c.status = 'active'
     GROUP BY parent_comment_id
 )
 SELECT 
@@ -274,28 +287,93 @@ LEFT JOIN blogs.comment_reactions r
     AND r.user_id = $2
 WHERE 
     p.parent_comment_id = $1 
-    AND p.status <> 'hidden';
+    AND (
+        p.status = 'active'
+        OR (p.status = 'hidden' AND p.actor_id = $2)
+    );
+
 -- name: GetCommentByID :one
 SELECT *
 FROM blogs.comments
 WHERE id = $1;
 
--- name: HideComment :one
+-- name: UpdateComment :one
 UPDATE blogs.comments
-SET status = 'hide', updated_at = NOW()
-WHERE id = $1
-RETURNING COUNT(*);
+SET
+    -- wipe data on status deleted
+    content = CASE
+        WHEN COALESCE(sqlc.narg('status'), status) = 'deleted'
+             AND status <> 'deleted'
+        THEN 'deleted by user'
+        ELSE COALESCE(sqlc.narg('content'), content)
+    END,
+    -- wipe data on status deleted
+    actor_display_name = CASE
+        WHEN COALESCE(sqlc.narg('status'), status) = 'deleted'
+             AND status <> 'deleted'
+        THEN 'deleted by user'
+        ELSE actor_display_name
+    END,
+    actor_id= CASE
+        WHEN COALESCE(sqlc.narg('status'), status) = 'deleted'
+             AND status <> 'deleted'
+        THEN NULL
+        ELSE actor_id
+    END,
+    actor_avatar_url= CASE
+        WHEN COALESCE(sqlc.narg('status'), status) = 'deleted'
+             AND status <> 'deleted'
+        THEN NULL
+        ELSE actor_avatar_url
+    END,
+    updated_at = NOW(),
+    deleted_at = CASE
+        WHEN COALESCE(sqlc.narg('status'), status) = 'deleted'
+             AND status <> 'deleted'
+        THEN NOW()
+        WHEN COALESCE(sqlc.narg('status'), status) <> 'deleted'
+        THEN NULL
+        ELSE deleted_at
+    END
+WHERE id = $1 AND (actor_id = $2 OR sqlc.arg('isAdmin')::BOOLEAN = TRUE)
+RETURNING id;
+-- WITH RECURSIVE tree AS (
+--     SELECT id
+--     FROM blogs.comments ch
+--     WHERE ch.id = $1
 
--- name: DeleteComment :one
-UPDATE blogs.comments
-SET status = 'delete', updated_at = NOW(), deleted_at = NOW()
-WHERE id = $1
-RETURNING COUNT(*);
+--     UNION ALL
 
--- name: UpdateBlogReactionType :exec
-UPDATE blogs.blog_reactions
-    SET type = $1
-WHERE id = $2;
+--     SELECT c.id
+--     FROM blogs.comments c
+--     JOIN tree t ON c.parent_comment_id = t.id
+-- ),
+-- updated AS (
+--     UPDATE blogs.comments cm
+--     SET
+--         content = CASE 
+--             WHEN cm.id = $1 THEN COALESCE(sqlc.narg('content'), cm.content)
+--             ELSE cm.content
+--         END,
+--         status = COALESCE(sqlc.narg('status'), cm.status),
+--         updated_at = NOW(),
+--         deleted_at = CASE
+--             WHEN COALESCE(sqlc.narg('status'), cm.status) = 'deleted'
+--                  AND cm.status <> 'deleted'
+--             THEN NOW()
+--             WHEN COALESCE(sqlc.narg('status'), cm.status) <> 'deleted'
+--             THEN NULL
+--             ELSE cm.deleted_at
+--         END
+--     WHERE 
+--         cm.id IN (SELECT id FROM tree)
+--         AND (
+--             cm.id <> $1
+--             OR (cm.actor_id = $2 OR sqlc.arg('isAdmin')::BOOLEAN = TRUE)
+--         )
+--     RETURNING cm.id
+-- )
+-- SELECT id FROM updated;
 
 -- name: UpdateBlogReactionCount :exec
 UPDATE blogs.blogs
@@ -364,3 +442,148 @@ WHERE x.blog_id = b.blog_id;
 SELECT *
 FROM blogs.idx_user_author_profile
 WHERE user_id = $1;
+
+-- name: ListRankingTable :many
+-- params:
+-- :sort_by      -> 'daily' | 'weekly' | 'likes' | 'score' | 'rank'
+-- :sort_dir     -> 'asc' | 'desc'
+-- :limit        -> int
+-- :offset       -> int
+-- :get_all      -> boolean
+WITH filtered AS (
+    SELECT *
+    FROM blogs.blog_ranking br
+    WHERE
+        CASE
+            WHEN sqlc.arg('type')::TEXT = 'allTime' THEN br.rank_all_time
+            WHEN sqlc.arg('type')::TEXT = 'trending' THEN br.rank_trending
+        END IS NOT NULL
+),
+    top20 AS (
+SELECT
+    br.*
+FROM filtered
+ORDER BY
+    CASE
+        WHEN sqlc.arg('type')::TEXT = 'allTime' THEN br.rank_all_time
+        WHEN sqlc.arg('type') = 'trending' THEN br.rank_trending
+    END ASC,
+    -- daily access
+    CASE WHEN sqlc.arg('sort_by')::TEXT = 'daily'  AND sqlc.arg('sort_dir')::TEXT = 'asc'  THEN br.daily_access_count END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'daily'  AND sqlc.arg('sort_dir') = 'desc' THEN br.daily_access_count END DESC,
+
+    -- weekly access
+    CASE WHEN sqlc.arg('sort_by') = 'weekly' AND sqlc.arg('sort_dir') = 'asc'  THEN br.weekly_access_count END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'weekly' AND sqlc.arg('sort_dir') = 'desc' THEN br.weekly_access_count END DESC,
+
+    -- like count
+    CASE WHEN sqlc.arg('sort_by') = 'likes'  AND sqlc.arg('sort_dir') = 'asc'  THEN br.like_count END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'likes'  AND sqlc.arg('sort_dir') = 'desc' THEN br.like_count END DESC,
+
+    -- score
+    CASE WHEN sqlc.arg('sort_by') = 'score'  AND sqlc.arg('sort_dir') = 'asc'  THEN br.score END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'score'  AND sqlc.arg('sort_dir') = 'desc' THEN br.score END DESC,
+
+    -- rank
+    CASE WHEN sqlc.arg('sort_by') = 'rank'   AND sqlc.arg('sort_dir') = 'asc'  THEN br.rank END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'rank'   AND sqlc.arg('sort_dir') = 'desc' THEN br.rank END DESC
+    LIMIT 20
+)
+SELECT *
+FROM top20
+-- paging control
+LIMIT
+CASE
+    WHEN sqlc.arg('get_all')::BOOLEAN THEN 20
+    ELSE LEAST(sqlc.arg('limit')::INT, 20)
+END
+OFFSET
+CASE
+    WHEN sqlc.arg('get_all')::BOOLEAN THEN 0
+    ELSE sqlc.arg('offset')::INT
+END;
+
+-- name: TruncateBlogRankingTable :exec
+TRUNCATE blogs.blog_ranking;
+
+-- name: UpdateBlogRankingResult :exec
+WITH comment_stats AS (
+    SELECT
+        c.blog_id,
+        COUNT(*) AS comment_count
+    FROM blogs.comments c
+    GROUP BY c.blog_id
+),
+base AS (
+    SELECT
+        b.blog_id,
+        b.created_at,
+        b.daily_access_count,
+        b.weekly_access_count,
+        b.like_count,
+        b.dislike_count,
+        COALESCE(cs.comment_count, 0) AS comment_count,
+
+        -- base score (shared)
+        (
+            b.daily_access_count * 2 +
+            b.weekly_access_count * 1 +
+            (b.like_count + 0.25 * b.dislike_count) * 2 +
+            (b.like_count - b.dislike_count) * 1 +
+            COALESCE(cs.comment_count, 0) * 2
+        ) AS base_score,
+
+        EXTRACT(EPOCH FROM (NOW() - b.created_at)) / 3600 AS hours_since_created
+
+    FROM blogs.blogs b
+    LEFT JOIN comment_stats cs
+        ON cs.blog_id = b.blog_id
+),
+scored AS (
+    SELECT
+        *,
+        base_score AS score_all_time,
+        base_score / (1 + hours_since_created) AS score_trending
+    FROM base
+),
+ranked AS (
+    SELECT
+        *,
+        RANK() OVER (ORDER BY score_all_time DESC) AS rank_all_time,
+        RANK() OVER (ORDER BY score_trending DESC) AS rank_trending
+    FROM scored
+)
+INSERT INTO blogs.blog_ranking (
+    blog_id,
+    rank_all_time,
+    rank_trending,
+    score_all_time,
+    score_trending,
+    like_count,
+    dislike_count,
+    comment_count,
+    weekly_access_count,
+    daily_access_count,
+    created_at,
+    computed_at
+)
+SELECT
+    blog_id,
+
+    -- only keep rank if in top 20
+    CASE WHEN rank_all_time <= 20 THEN rank_all_time ELSE NULL END,
+    CASE WHEN rank_trending <= 20 THEN rank_trending ELSE NULL END,
+
+    score_all_time,
+    score_trending,
+    like_count,
+    dislike_count,
+    comment_count,
+    weekly_access_count,
+    daily_access_count,
+    created_at,
+    NOW()
+
+FROM ranked
+WHERE rank_all_time <= 20
+   OR rank_trending <= 20;

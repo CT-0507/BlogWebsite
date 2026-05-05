@@ -40,4 +40,7 @@ func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 	sComments := v1.Group("/comments")
 	sComment := sComments.Group("/:id")
 	sComment.POST("/reaction", h.CreateCommentReaction)
+	sComment.DELETE("/delete", h.DeleteCommentByID)
+	sComment.PATCH("/hidden", h.HideCommentByID)
+	sComment.PATCH("", h.UpdateCommentContentByID)
 }

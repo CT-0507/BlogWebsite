@@ -22,8 +22,8 @@ type BlogWithAuthorData struct {
 	URLSlug      string     `json:"urlSlug"`
 	Title        string     `json:"title"`
 	Content      string     `json:"content"`
-	LikeCount    int32      `json:"likeCount"`
-	DislikeCount int32      `json:"dislikeCount"`
+	LikeCount    int64      `json:"likeCount"`
+	DislikeCount int64      `json:"dislikeCount"`
 	UserReaction *string    `json:"userReaction"`
 	Status       string     `json:"status"`
 	model.Audit

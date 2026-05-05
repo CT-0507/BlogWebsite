@@ -6,6 +6,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type DBTX interface {
@@ -21,9 +22,15 @@ func GetExecutor(ctx context.Context, db DBTX) DBTX {
 	}
 	return db
 }
-func GetExecutorA(ctx context.Context) DBTX {
-	if tx, ok := ctx.Value(database.TxKey{}).(pgx.Tx); ok {
-		return tx
+
+func GetTextTypeFromNullableString(s *string) pgtype.Text {
+	if s == nil {
+		return pgtype.Text{
+			Valid: false,
+		}
 	}
-	return nil
+	return pgtype.Text{
+		Valid:  true,
+		String: *s,
+	}
 }

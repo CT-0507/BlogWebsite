@@ -243,6 +243,8 @@ func main() {
 
 	go worker.Start(context.Background())
 
+	go blogModule.Woker.Start(context.Background())
+
 	if err := router.Run(PORT); err != nil {
 		fmt.Println("Failed to start server", err)
 	}

@@ -23,7 +23,7 @@ INSERT INTO blogs.blogs(
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
-RETURNING blog_id, author_id, url_slug, title, content, status, like_count, dislike_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING blog_id, author_id, url_slug, title, content, status, like_count, dislike_count, daily_access_count, weekly_access_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateBlogParams struct {
@@ -54,6 +54,8 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.Status,
 		&i.LikeCount,
 		&i.DislikeCount,
+		&i.DailyAccessCount,
+		&i.WeeklyAccessCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -197,20 +199,6 @@ func (q *Queries) DeleteBlog(ctx context.Context, arg DeleteBlogParams) (int64, 
 	return blog_id, err
 }
 
-const deleteComment = `-- name: DeleteComment :one
-UPDATE blogs.comments
-SET status = 'delete', updated_at = NOW(), deleted_at = NOW()
-WHERE id = $1
-RETURNING COUNT(*)
-`
-
-func (q *Queries) DeleteComment(ctx context.Context, id uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, deleteComment, id)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const getAuthorCacheByUserID = `-- name: GetAuthorCacheByUserID :one
 SELECT user_id, author_id, avatar, slug, display_name, status, created_at, deleted_at
 FROM blogs.idx_user_author_profile
@@ -260,8 +248,8 @@ type GetBlogRow struct {
 	UrlSlug      string
 	AuthorID     string
 	Content      pgtype.Text
-	LikeCount    int32
-	DislikeCount int32
+	LikeCount    int64
+	DislikeCount int64
 	Status       string
 	CreatedAt    pgtype.Timestamptz
 	CreatedBy    string
@@ -295,7 +283,7 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 
 const getBlogByUrlSlug = `-- name: GetBlogByUrlSlug :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     i.slug,
@@ -306,24 +294,26 @@ WHERE b.url_slug = $1 AND b.deleted_at IS NULL
 `
 
 type GetBlogByUrlSlugRow struct {
-	BlogID        int64
-	AuthorID      string
-	UrlSlug       string
-	Title         string
-	Content       pgtype.Text
-	Status        string
-	LikeCount     int32
-	DislikeCount  int32
-	CreatedAt     pgtype.Timestamptz
-	CreatedBy     string
-	UpdatedAt     pgtype.Timestamptz
-	UpdatedBy     string
-	DeletedAt     pgtype.Timestamptz
-	DeletedBy     pgtype.Text
-	Slug          string
-	DisplayName   string
-	Slug_2        string
-	DisplayName_2 string
+	BlogID            int64
+	AuthorID          string
+	UrlSlug           string
+	Title             string
+	Content           pgtype.Text
+	Status            string
+	LikeCount         int64
+	DislikeCount      int64
+	DailyAccessCount  int64
+	WeeklyAccessCount int64
+	CreatedAt         pgtype.Timestamptz
+	CreatedBy         string
+	UpdatedAt         pgtype.Timestamptz
+	UpdatedBy         string
+	DeletedAt         pgtype.Timestamptz
+	DeletedBy         pgtype.Text
+	Slug              string
+	DisplayName       string
+	Slug_2            string
+	DisplayName_2     string
 }
 
 func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlogByUrlSlugRow, error) {
@@ -338,6 +328,8 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.Status,
 		&i.LikeCount,
 		&i.DislikeCount,
+		&i.DailyAccessCount,
+		&i.WeeklyAccessCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -355,7 +347,8 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 const getBlogRootComment = `-- name: GetBlogRootComment :many
 WITH child_counts AS (
     SELECT parent_comment_id, COUNT(*) AS cnt
-    FROM blogs.comments
+    FROM blogs.comments c
+    WHERE c.status = 'active'
     GROUP BY parent_comment_id
 )
 SELECT
@@ -366,7 +359,7 @@ LEFT JOIN child_counts cc
     ON cc.parent_comment_id = p.id
 WHERE
     p.blog_id = $1
-    AND p.status <> 'hidden'
+    AND p.status = 'active'
     AND p.depth = 0
 `
 
@@ -432,7 +425,7 @@ const getBlogRootCommentCount = `-- name: GetBlogRootCommentCount :one
 SELECT COUNT(*) AS total
 FROM blogs.comments c
 WHERE c.blog_id = $1
-    AND c.status <> 'hidden'
+    AND c.status = 'active'
 `
 
 func (q *Queries) GetBlogRootCommentCount(ctx context.Context, blogID int64) (int64, error) {
@@ -445,7 +438,8 @@ func (q *Queries) GetBlogRootCommentCount(ctx context.Context, blogID int64) (in
 const getBlogRootCommentWithUserReaction = `-- name: GetBlogRootCommentWithUserReaction :many
 WITH child_counts AS (
     SELECT parent_comment_id, COUNT(*) AS cnt
-    FROM blogs.comments
+    FROM blogs.comments c
+    WHERE c.status = 'active'
     GROUP BY parent_comment_id
 )
 SELECT
@@ -460,8 +454,11 @@ LEFT JOIN blogs.comment_reactions r
     AND r.user_id = $2
 WHERE
     p.blog_id = $1
-    AND p.status <> 'hidden'
     AND p.depth = 0
+    AND (
+        p.status = 'active'
+        OR (p.status = 'hidden' AND p.actor_id = $2)
+    )
 `
 
 type GetBlogRootCommentWithUserReactionParams struct {
@@ -531,7 +528,7 @@ func (q *Queries) GetBlogRootCommentWithUserReaction(ctx context.Context, arg Ge
 
 const getBlogWithUserReaction = `-- name: GetBlogWithUserReaction :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     r.type AS reaction_type
@@ -549,23 +546,25 @@ type GetBlogWithUserReactionParams struct {
 }
 
 type GetBlogWithUserReactionRow struct {
-	BlogID       int64
-	AuthorID     string
-	UrlSlug      string
-	Title        string
-	Content      pgtype.Text
-	Status       string
-	LikeCount    int32
-	DislikeCount int32
-	CreatedAt    pgtype.Timestamptz
-	CreatedBy    string
-	UpdatedAt    pgtype.Timestamptz
-	UpdatedBy    string
-	DeletedAt    pgtype.Timestamptz
-	DeletedBy    pgtype.Text
-	Slug         string
-	DisplayName  string
-	ReactionType pgtype.Text
+	BlogID            int64
+	AuthorID          string
+	UrlSlug           string
+	Title             string
+	Content           pgtype.Text
+	Status            string
+	LikeCount         int64
+	DislikeCount      int64
+	DailyAccessCount  int64
+	WeeklyAccessCount int64
+	CreatedAt         pgtype.Timestamptz
+	CreatedBy         string
+	UpdatedAt         pgtype.Timestamptz
+	UpdatedBy         string
+	DeletedAt         pgtype.Timestamptz
+	DeletedBy         pgtype.Text
+	Slug              string
+	DisplayName       string
+	ReactionType      pgtype.Text
 }
 
 func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUserReactionParams) (GetBlogWithUserReactionRow, error) {
@@ -580,6 +579,8 @@ func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUs
 		&i.Status,
 		&i.LikeCount,
 		&i.DislikeCount,
+		&i.DailyAccessCount,
+		&i.WeeklyAccessCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -624,13 +625,21 @@ func (q *Queries) GetCommentByID(ctx context.Context, id uuid.UUID) (BlogsCommen
 }
 
 const getCommentsByParentComment = `-- name: GetCommentsByParentComment :many
-SELECT p.id, p.blog_id, p.content, p.actor_type, p.actor_id, p.actor_display_name, p.actor_avatar_url, p.status, p.parent_comment_id, p.root_comment_id, p.like_count, p.dislike_count, p.depth, p.created_at, p.updated_at, p.deleted_at,
-    COUNT(c.id) AS child_comment_count
+WITH child_counts AS (
+    SELECT parent_comment_id, COUNT(*) AS cnt
+    FROM blogs.comments c
+    WHERE c.status = 'active'
+    GROUP BY parent_comment_id
+)
+SELECT 
+    p.id, p.blog_id, p.content, p.actor_type, p.actor_id, p.actor_display_name, p.actor_avatar_url, p.status, p.parent_comment_id, p.root_comment_id, p.like_count, p.dislike_count, p.depth, p.created_at, p.updated_at, p.deleted_at,
+    COALESCE(cc.cnt, 0) AS child_comment_count
 FROM blogs.comments p
-LEFT JOIN blogs.comments c
-    ON c.parent_comment_id = p.id   AND c.status <> 'hidden'
-WHERE p.parent_comment_id = $1 AND p.status <> 'hidden'
-GROUP BY p.id
+LEFT JOIN child_counts cc
+    ON cc.parent_comment_id = p.id
+WHERE 
+    p.parent_comment_id = $1 
+    AND p.status = 'active'
 `
 
 type GetCommentsByParentCommentRow struct {
@@ -694,8 +703,8 @@ func (q *Queries) GetCommentsByParentComment(ctx context.Context, parentCommentI
 const getCommentsByParentCommentUserWithReaction = `-- name: GetCommentsByParentCommentUserWithReaction :many
 WITH child_counts AS (
     SELECT parent_comment_id, COUNT(*) AS cnt
-    FROM blogs.comments
-    WHERE status <> 'hidden'
+    FROM blogs.comments c
+    WHERE c.status = 'active'
     GROUP BY parent_comment_id
 )
 SELECT 
@@ -710,7 +719,10 @@ LEFT JOIN blogs.comment_reactions r
     AND r.user_id = $2
 WHERE 
     p.parent_comment_id = $1 
-    AND p.status <> 'hidden'
+    AND (
+        p.status = 'active'
+        OR (p.status = 'hidden' AND p.actor_id = $2)
+    )
 `
 
 type GetCommentsByParentCommentUserWithReactionParams struct {
@@ -834,20 +846,6 @@ func (q *Queries) HardDeleteBlog(ctx context.Context, blogID int64) (int64, erro
 	return blog_id, err
 }
 
-const hideComment = `-- name: HideComment :one
-UPDATE blogs.comments
-SET status = 'hide', updated_at = NOW()
-WHERE id = $1
-RETURNING COUNT(*)
-`
-
-func (q *Queries) HideComment(ctx context.Context, id uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, hideComment, id)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const listAllBlogs = `-- name: ListAllBlogs :many
 SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs
 `
@@ -921,8 +919,8 @@ type ListBlogsRow struct {
 	Title        string
 	UrlSlug      string
 	Content      pgtype.Text
-	LikeCount    int32
-	DislikeCount int32
+	LikeCount    int64
+	DislikeCount int64
 	Status       string
 	CreatedAt    pgtype.Timestamptz
 	CreatedBy    string
@@ -999,8 +997,8 @@ type ListBlogsByAuthorRow struct {
 	UrlSlug      string
 	AuthorID     string
 	Content      pgtype.Text
-	LikeCount    int32
-	DislikeCount int32
+	LikeCount    int64
+	DislikeCount int64
 	Status       string
 	CreatedAt    pgtype.Timestamptz
 	CreatedBy    string
@@ -1117,6 +1115,106 @@ func (q *Queries) ListBlogsByAuthorSlug(ctx context.Context, arg ListBlogsByAuth
 	return items, nil
 }
 
+const listRankingTable = `-- name: ListRankingTable :many
+WITH filtered AS (
+    SELECT blog_id, rank_all_time, rank_trending, score_all_time, score_trending, like_count, dislike_count, comment_count, weekly_access_count, daily_access_count, created_at, computed_at
+    FROM blogs.blog_ranking br
+    WHERE
+        CASE
+            WHEN $4::TEXT = 'allTime' THEN br.rank_all_time
+            WHEN $4::TEXT = 'trending' THEN br.rank_trending
+        END IS NOT NULL
+),
+    top20 AS (
+SELECT
+    
+FROM filtered
+ORDER BY
+    CASE
+        WHEN $4::TEXT = 'allTime' THEN br.rank_all_time
+        WHEN $4 = 'trending' THEN br.rank_trending
+    END ASC,
+    -- daily access
+    CASE WHEN $5::TEXT = 'daily'  AND $6::TEXT = 'asc'  THEN br.daily_access_count END ASC,
+    CASE WHEN $5 = 'daily'  AND $6 = 'desc' THEN br.daily_access_count END DESC,
+
+    -- weekly access
+    CASE WHEN $5 = 'weekly' AND $6 = 'asc'  THEN br.weekly_access_count END ASC,
+    CASE WHEN $5 = 'weekly' AND $6 = 'desc' THEN br.weekly_access_count END DESC,
+
+    -- like count
+    CASE WHEN $5 = 'likes'  AND $6 = 'asc'  THEN br.like_count END ASC,
+    CASE WHEN $5 = 'likes'  AND $6 = 'desc' THEN br.like_count END DESC,
+
+    -- score
+    CASE WHEN $5 = 'score'  AND $6 = 'asc'  THEN br.score END ASC,
+    CASE WHEN $5 = 'score'  AND $6 = 'desc' THEN br.score END DESC,
+
+    -- rank
+    CASE WHEN $5 = 'rank'   AND $6 = 'asc'  THEN br.rank END ASC,
+    CASE WHEN $5 = 'rank'   AND $6 = 'desc' THEN br.rank END DESC
+    LIMIT 20
+)
+SELECT 
+FROM top20
+LIMIT
+CASE
+    WHEN $1::BOOLEAN THEN 20
+    ELSE LEAST($3::INT, 20)
+END
+OFFSET
+CASE
+    WHEN $1::BOOLEAN THEN 0
+    ELSE $2::INT
+END
+`
+
+type ListRankingTableParams struct {
+	GetAll  bool
+	Offset  int32
+	Limit   int32
+	Type    string
+	SortBy  string
+	SortDir string
+}
+
+type ListRankingTableRow struct {
+}
+
+// params:
+// :sort_by      -> 'daily' | 'weekly' | 'likes' | 'score' | 'rank'
+// :sort_dir     -> 'asc' | 'desc'
+// :limit        -> int
+// :offset       -> int
+// :get_all      -> boolean
+// paging control
+func (q *Queries) ListRankingTable(ctx context.Context, arg ListRankingTableParams) ([]ListRankingTableRow, error) {
+	rows, err := q.db.Query(ctx, listRankingTable,
+		arg.GetAll,
+		arg.Offset,
+		arg.Limit,
+		arg.Type,
+		arg.SortBy,
+		arg.SortDir,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRankingTableRow
+	for rows.Next() {
+		var i ListRankingTableRow
+		if err := rows.Scan(); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markAuthorCacheAsDeleted = `-- name: MarkAuthorCacheAsDeleted :exec
 UPDATE blogs.idx_user_author_profile
 SET status = 'deleted', deleted_at = NOW()
@@ -1167,6 +1265,15 @@ func (q *Queries) SyncBlogLikeAndDislike(ctx context.Context) error {
 	return err
 }
 
+const truncateBlogRankingTable = `-- name: TruncateBlogRankingTable :exec
+TRUNCATE blogs.blog_ranking
+`
+
+func (q *Queries) TruncateBlogRankingTable(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, truncateBlogRankingTable)
+	return err
+}
+
 const updateBlog = `-- name: UpdateBlog :one
 UPDATE blogs.blogs
     SET title = $1,
@@ -1188,7 +1295,98 @@ func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (int64, 
 	return blog_id, err
 }
 
+const updateBlogRankingResult = `-- name: UpdateBlogRankingResult :exec
+WITH comment_stats AS (
+    SELECT
+        c.blog_id,
+        COUNT(*) AS comment_count
+    FROM blogs.comments c
+    GROUP BY c.blog_id
+),
+base AS (
+    SELECT
+        b.blog_id,
+        b.created_at,
+        b.daily_access_count,
+        b.weekly_access_count,
+        b.like_count,
+        b.dislike_count,
+        COALESCE(cs.comment_count, 0) AS comment_count,
+
+        -- base score (shared)
+        (
+            b.daily_access_count * 2 +
+            b.weekly_access_count * 1 +
+            (b.like_count + 0.25 * b.dislike_count) * 2 +
+            (b.like_count - b.dislike_count) * 1 +
+            COALESCE(cs.comment_count, 0) * 2
+        ) AS base_score,
+
+        EXTRACT(EPOCH FROM (NOW() - b.created_at)) / 3600 AS hours_since_created
+
+    FROM blogs.blogs b
+    LEFT JOIN comment_stats cs
+        ON cs.blog_id = b.blog_id
+),
+scored AS (
+    SELECT
+        blog_id, created_at, daily_access_count, weekly_access_count, like_count, dislike_count, comment_count, base_score, hours_since_created,
+        base_score AS score_all_time,
+        base_score / (1 + hours_since_created) AS score_trending
+    FROM base
+),
+ranked AS (
+    SELECT
+        blog_id, created_at, daily_access_count, weekly_access_count, like_count, dislike_count, comment_count, base_score, hours_since_created, score_all_time, score_trending,
+        RANK() OVER (ORDER BY score_all_time DESC) AS rank_all_time,
+        RANK() OVER (ORDER BY score_trending DESC) AS rank_trending
+    FROM scored
+)
+INSERT INTO blogs.blog_ranking (
+    blog_id,
+    rank_all_time,
+    rank_trending,
+    score_all_time,
+    score_trending,
+    like_count,
+    dislike_count,
+    comment_count,
+    weekly_access_count,
+    daily_access_count,
+    created_at,
+    computed_at
+)
+SELECT
+    blog_id,
+
+    -- only keep rank if in top 20
+    CASE WHEN rank_all_time <= 20 THEN rank_all_time ELSE NULL END,
+    CASE WHEN rank_trending <= 20 THEN rank_trending ELSE NULL END,
+
+    score_all_time,
+    score_trending,
+    like_count,
+    dislike_count,
+    comment_count,
+    weekly_access_count,
+    daily_access_count,
+    created_at,
+    NOW()
+
+FROM ranked
+WHERE rank_all_time <= 20
+   OR rank_trending <= 20
+`
+
+func (q *Queries) UpdateBlogRankingResult(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, updateBlogRankingResult)
+	return err
+}
+
 const updateBlogReactionCount = `-- name: UpdateBlogReactionCount :exec
+
+
+
 UPDATE blogs.blogs
     SET like_count = like_count + $1,
     dislike_count = dislike_count + $2
@@ -1196,29 +1394,52 @@ WHERE blog_id = $3
 `
 
 type UpdateBlogReactionCountParams struct {
-	LikeCount    int32
-	DislikeCount int32
+	LikeCount    int64
+	DislikeCount int64
 	BlogID       int64
 }
 
+// WITH RECURSIVE tree AS (
+//
+//	SELECT id
+//	FROM blogs.comments ch
+//	WHERE ch.id = $1
+//	UNION ALL
+//	SELECT c.id
+//	FROM blogs.comments c
+//	JOIN tree t ON c.parent_comment_id = t.id
+//
+// ),
+// updated AS (
+//
+//	UPDATE blogs.comments cm
+//	SET
+//	    content = CASE
+//	        WHEN cm.id = $1 THEN COALESCE(sqlc.narg('content'), cm.content)
+//	        ELSE cm.content
+//	    END,
+//	    status = COALESCE(sqlc.narg('status'), cm.status),
+//	    updated_at = NOW(),
+//	    deleted_at = CASE
+//	        WHEN COALESCE(sqlc.narg('status'), cm.status) = 'deleted'
+//	             AND cm.status <> 'deleted'
+//	        THEN NOW()
+//	        WHEN COALESCE(sqlc.narg('status'), cm.status) <> 'deleted'
+//	        THEN NULL
+//	        ELSE cm.deleted_at
+//	    END
+//	WHERE
+//	    cm.id IN (SELECT id FROM tree)
+//	    AND (
+//	        cm.id <> $1
+//	        OR (cm.actor_id = $2 OR sqlc.arg('isAdmin')::BOOLEAN = TRUE)
+//	    )
+//	RETURNING cm.id
+//
+// )
+// SELECT id FROM updated;
 func (q *Queries) UpdateBlogReactionCount(ctx context.Context, arg UpdateBlogReactionCountParams) error {
 	_, err := q.db.Exec(ctx, updateBlogReactionCount, arg.LikeCount, arg.DislikeCount, arg.BlogID)
-	return err
-}
-
-const updateBlogReactionType = `-- name: UpdateBlogReactionType :exec
-UPDATE blogs.blog_reactions
-    SET type = $1
-WHERE id = $2
-`
-
-type UpdateBlogReactionTypeParams struct {
-	Type string
-	ID   uuid.UUID
-}
-
-func (q *Queries) UpdateBlogReactionType(ctx context.Context, arg UpdateBlogReactionTypeParams) error {
-	_, err := q.db.Exec(ctx, updateBlogReactionType, arg.Type, arg.ID)
 	return err
 }
 
@@ -1232,6 +1453,69 @@ WHERE blogs.author_id = $1
 func (q *Queries) UpdateBlogStatusForDeletedAuthor(ctx context.Context, authorID string) error {
 	_, err := q.db.Exec(ctx, updateBlogStatusForDeletedAuthor, authorID)
 	return err
+}
+
+const updateComment = `-- name: UpdateComment :one
+UPDATE blogs.comments
+SET
+    -- wipe data on status deleted
+    content = CASE
+        WHEN COALESCE($3, status) = 'deleted'
+             AND status <> 'deleted'
+        THEN 'deleted by user'
+        ELSE COALESCE($4, content)
+    END,
+    -- wipe data on status deleted
+    actor_display_name = CASE
+        WHEN COALESCE($3, status) = 'deleted'
+             AND status <> 'deleted'
+        THEN 'deleted by user'
+        ELSE actor_display_name
+    END,
+    actor_id= CASE
+        WHEN COALESCE($3, status) = 'deleted'
+             AND status <> 'deleted'
+        THEN NULL
+        ELSE actor_id
+    END,
+    actor_avatar_url= CASE
+        WHEN COALESCE($3, status) = 'deleted'
+             AND status <> 'deleted'
+        THEN NULL
+        ELSE actor_avatar_url
+    END,
+    updated_at = NOW(),
+    deleted_at = CASE
+        WHEN COALESCE($3, status) = 'deleted'
+             AND status <> 'deleted'
+        THEN NOW()
+        WHEN COALESCE($3, status) <> 'deleted'
+        THEN NULL
+        ELSE deleted_at
+    END
+WHERE id = $1 AND (actor_id = $2 OR $5::BOOLEAN = TRUE)
+RETURNING id
+`
+
+type UpdateCommentParams struct {
+	ID      uuid.UUID
+	ActorID pgtype.Text
+	Status  pgtype.Text
+	Content pgtype.Text
+	IsAdmin bool
+}
+
+func (q *Queries) UpdateComment(ctx context.Context, arg UpdateCommentParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, updateComment,
+		arg.ID,
+		arg.ActorID,
+		arg.Status,
+		arg.Content,
+		arg.IsAdmin,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateCommentReactionCount = `-- name: UpdateCommentReactionCount :exec
