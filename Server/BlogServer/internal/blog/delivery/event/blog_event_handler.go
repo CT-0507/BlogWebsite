@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
@@ -17,11 +18,11 @@ import (
 
 type EventHandler struct {
 	txManager  database.TxManager
-	repo       domain.BlogRepository
+	repo       repository.BlogRepository
 	outboxRepo outboxrepo.OutboxRepository
 }
 
-func NewEventHandler(txManager database.TxManager, repo domain.BlogRepository, outboxRepo outboxrepo.OutboxRepository) *EventHandler {
+func NewEventHandler(txManager database.TxManager, repo repository.BlogRepository, outboxRepo outboxrepo.OutboxRepository) *EventHandler {
 	return &EventHandler{
 		txManager:  txManager,
 		repo:       repo,
@@ -41,14 +42,17 @@ func (e *EventHandler) OnAuthorCreated(c context.Context, evt *messaging.OutboxE
 			return err
 		}
 
-		eventPayload := map[string]any{}
+		eventPayload := &contracts.UpdateUserAuthorIDPayload{
+			UserID:   stepPayload.UserID,
+			AuthorID: stepPayload.AuthorID,
+		}
 
 		payload, err := json.Marshal(eventPayload)
 		if err != nil {
 			return err
 		}
 
-		eventContext := &contracts.CreateBlogAuthorCacheSuccessContext{
+		eventContext := &contracts.UpdateUserAuthorIDContext{
 			UserID:   stepPayload.UserID,
 			AuthorID: stepPayload.AuthorID,
 		}
@@ -179,20 +183,20 @@ func (e *EventHandler) OnDeleteBlogAuthorCache(c context.Context, evt *messaging
 // 	})
 // }
 
-func (e *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
-	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
+// func (e *EventHandler) OnAuthorHardDeleted(c context.Context, evt *messaging.OutboxEvent) error {
+// 	return e.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
-		var event domain.AuthorDeletedEvent
-		if err := json.Unmarshal(evt.Payload, &event); err != nil {
-			return err
-		}
-		err := e.repo.DeleteAuthorCache(c, event.AuthorID)
-		if err != nil {
-			return err
-		}
-		return e.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
-	})
-}
+// 		var event domain.AuthorDeletedEvent
+// 		if err := json.Unmarshal(evt.Payload, &event); err != nil {
+// 			return err
+// 		}
+// 		err := e.repo.DeleteAuthorCache(c, event.AuthorID)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		return e.repo.DeleteAuthorHardDeletedBlogs(c, event.AuthorID)
+// 	})
+// }
 
 func (e *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent) error {
 

@@ -13,6 +13,7 @@ type SignedDetails struct {
 	Username     string
 	FirstName    string
 	LastName     string
+	Avatar       *string
 	Roles        []string
 	TokenVersion int
 	jwt.RegisteredClaims
@@ -21,16 +22,16 @@ type SignedDetails struct {
 var SECRET_KEY = os.Getenv("SECRET_KEY")
 var SECRET_REFRESH_KEY = os.Getenv("SECRET_REFRESH_KEY")
 
-func GenerateAllTokens(username, firstName, lastName, userID string, roles []string, tokenVer int) (string, string, error) {
+func GenerateAllTokens(username, firstName, lastName, userID string, avatar *string, roles []string, tokenVer int) (string, string, error) {
 
 	signedToken, err := GenerateToken(
-		username, firstName, lastName, userID, roles, tokenVer, time.Now(), time.Now().Add(2*time.Hour), SECRET_KEY)
+		username, firstName, lastName, userID, avatar, roles, tokenVer, time.Now(), time.Now().Add(2*time.Hour), SECRET_KEY)
 	if err != nil {
 		return "", "", err
 	}
 
 	signedRefreshToken, err := GenerateToken(
-		username, firstName, lastName, userID, roles, tokenVer, time.Now(), time.Now().Add(4*time.Hour), SECRET_REFRESH_KEY)
+		username, firstName, lastName, userID, avatar, roles, tokenVer, time.Now(), time.Now().Add(4*time.Hour), SECRET_REFRESH_KEY)
 	if err != nil {
 		return "", "", err
 	}
@@ -38,13 +39,14 @@ func GenerateAllTokens(username, firstName, lastName, userID string, roles []str
 	return signedToken, signedRefreshToken, nil
 }
 
-func GenerateToken(username, firstName, lastName, userID string, roles []string, tokenVer int, issuedAt, expiredAt time.Time, key string) (string, error) {
+func GenerateToken(username, firstName, lastName, userID string, avatar *string, roles []string, tokenVer int, issuedAt, expiredAt time.Time, key string) (string, error) {
 
 	claims := &SignedDetails{
 		UserID:       userID,
 		Username:     username,
 		FirstName:    firstName,
 		LastName:     lastName,
+		Avatar:       avatar,
 		TokenVersion: tokenVer,
 		Roles:        roles,
 		RegisteredClaims: jwt.RegisteredClaims{

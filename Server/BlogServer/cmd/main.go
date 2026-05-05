@@ -17,6 +17,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/middleware"
 	storage "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage/infrastructure"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
@@ -91,6 +92,8 @@ func main() {
 
 	// Register Router
 	router := gin.Default()
+
+	router.Use(middleware.ErrorHandler())
 
 	// Require authentication
 	router.GET("/files/:filepath", func(c *gin.Context) {
@@ -235,13 +238,12 @@ func main() {
 
 	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
-	bus.Subscribe("authorIdentity.created", blogModule.EventHandler.OnAuthorCreated)
-	bus.Subscribe("authorIdentity.deleted", blogModule.EventHandler.OnDeleteBlogAuthorCache)
-	bus.Subscribe("authorIdentity.hardDeleted", blogModule.EventHandler.OnAuthorHardDeleted)
 
 	worker := outbox.NewOutboxWorker(txManager, bus, outboxRepo)
 
 	go worker.Start(context.Background())
+
+	go blogModule.Woker.Start(context.Background())
 
 	if err := router.Run(PORT); err != nil {
 		fmt.Println("Failed to start server", err)

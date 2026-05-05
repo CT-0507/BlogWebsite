@@ -4,15 +4,16 @@ import (
 	"context"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
 type GetBlogUseCases struct {
 	txManager database.TxManager
-	repo      domain.BlogRepository
+	repo      repository.BlogRepository
 }
 
-func NewGetBlogUseCases(txManager database.TxManager, repo domain.BlogRepository) *GetBlogUseCases {
+func NewGetBlogUseCases(txManager database.TxManager, repo repository.BlogRepository) *GetBlogUseCases {
 	return &GetBlogUseCases{
 		txManager: txManager,
 		repo:      repo,
@@ -23,6 +24,6 @@ func (s *GetBlogUseCases) GetBlog(ctx context.Context, id int64) (*domain.BlogWi
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *GetBlogUseCases) GetBlogByUrlSlug(ctx context.Context, slug string) (*domain.BlogWithAuthorData, error) {
-	return s.repo.FindByUrlSlug(ctx, slug)
+func (s *GetBlogUseCases) GetBlogByUrlSlug(ctx context.Context, slug string, userID *string) (*domain.BlogWithAuthorData, error) {
+	return s.repo.FindByUrlSlug(ctx, slug, userID)
 }

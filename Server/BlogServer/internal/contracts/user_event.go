@@ -28,3 +28,7 @@ type DeleteAuthorProfileContext struct {
 
 type DeleteAuthorProfilePayload struct {
 }
+
+type UpdateUserAuthorIDSuccessContext struct {
+	UserID uuid.UUID
+}

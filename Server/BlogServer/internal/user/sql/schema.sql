@@ -9,6 +9,7 @@ CREATE TABLE users.users (
     nickname VARCHAR(50) NOT NULL UNIQUE,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
+    avatar TEXT,
     role VARCHAR(10) NOT NULL DEFAULT 'user',
     status VARCHAR DEFAULT 'active',
     points INTEGER NOT NULL DEFAULT 0,
@@ -40,11 +41,11 @@ CREATE TABLE users.notifications (
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_by UUID REFERENCES users.users(user_id),
+    created_by UUID REFERENCES users.users(user_id) ON DELETE CASCADE,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_by UUID REFERENCES users.users(user_id),
+    updated_by UUID REFERENCES users.users(user_id) ON DELETE CASCADE,
     deleted_at TIMESTAMPTZ,
-    deleted_by UUID REFERENCES users.users(user_id)
+    deleted_by UUID REFERENCES users.users(user_id) ON DELETE CASCADE
 );
 
 CREATE INDEX ON users.users (user_id);

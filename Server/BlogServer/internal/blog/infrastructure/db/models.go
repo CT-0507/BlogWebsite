@@ -10,18 +10,47 @@ import (
 )
 
 type BlogsBlog struct {
+	BlogID            int64
+	AuthorID          string
+	UrlSlug           string
+	Title             string
+	Content           pgtype.Text
+	Status            string
+	LikeCount         int64
+	DislikeCount      int64
+	DailyAccessCount  int64
+	WeeklyAccessCount int64
+	CreatedAt         pgtype.Timestamptz
+	CreatedBy         string
+	UpdatedAt         pgtype.Timestamptz
+	UpdatedBy         string
+	DeletedAt         pgtype.Timestamptz
+	DeletedBy         pgtype.Text
+}
+
+type BlogsBlogRanking struct {
+	BlogID            int64
+	RankAllTime       pgtype.Int4
+	RankTrending      pgtype.Int4
+	ScoreAllTime      pgtype.Float8
+	ScoreTrending     pgtype.Float8
+	LikeCount         int32
+	DislikeCount      int32
+	CommentCount      int32
+	WeeklyAccessCount int32
+	DailyAccessCount  int32
+	CreatedAt         pgtype.Timestamptz
+	ComputedAt        pgtype.Timestamptz
+}
+
+type BlogsBlogReaction struct {
+	ID        uuid.UUID
 	BlogID    int64
-	AuthorID  string
-	UrlSlug   string
-	Title     string
-	Content   pgtype.Text
+	UserID    string
+	Type      string
 	Status    string
 	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy pgtype.Text
 }
 
 type BlogsBlogTag struct {
@@ -35,9 +64,39 @@ type BlogsBlogTag struct {
 	DeletedBy pgtype.Text
 }
 
+type BlogsComment struct {
+	ID               uuid.UUID
+	BlogID           int64
+	Content          string
+	ActorType        string
+	ActorID          pgtype.Text
+	ActorDisplayName string
+	ActorAvatarUrl   pgtype.Text
+	Status           string
+	ParentCommentID  *uuid.UUID
+	RootCommentID    uuid.UUID
+	LikeCount        int32
+	DislikeCount     int32
+	Depth            int16
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+}
+
+type BlogsCommentReaction struct {
+	ID        uuid.UUID
+	CommentID uuid.UUID
+	UserID    string
+	Type      string
+	Status    string
+	CreatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+}
+
 type BlogsIdxUserAuthorProfile struct {
 	UserID      string
 	AuthorID    string
+	Avatar      pgtype.Text
 	Slug        string
 	DisplayName string
 	Status      string
@@ -87,6 +146,7 @@ type UsersUser struct {
 	Nickname     string
 	FirstName    string
 	LastName     string
+	Avatar       pgtype.Text
 	Role         string
 	Status       pgtype.Text
 	Points       int32

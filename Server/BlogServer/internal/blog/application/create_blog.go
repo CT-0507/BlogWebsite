@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
@@ -15,13 +16,13 @@ import (
 
 type CreateBlogUseCases struct {
 	txManager  database.TxManager
-	repo       domain.BlogRepository
+	repo       repository.BlogRepository
 	outboxRepo outboxrepo.OutboxRepository
 }
 
 func NewCreateBlogUseCases(
 	txManager database.TxManager,
-	repo domain.BlogRepository,
+	repo repository.BlogRepository,
 	outboxRepo outboxrepo.OutboxRepository,
 ) *CreateBlogUseCases {
 	return &CreateBlogUseCases{

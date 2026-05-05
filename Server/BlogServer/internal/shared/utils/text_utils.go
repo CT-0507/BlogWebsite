@@ -79,3 +79,10 @@ func Deref[T any](v *T) T {
 func StringPtr(s string) *string {
 	return &s
 }
+
+func GetEmptyStringOnNullStringPtr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}

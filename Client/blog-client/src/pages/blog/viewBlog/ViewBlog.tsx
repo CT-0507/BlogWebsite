@@ -8,15 +8,23 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import SocialShareDial from "@/components/SocialShareSpeedDial/SocialShareSpeedDial";
+import CommentSection from "./CommentSection";
+import { CircularProgress } from "@mui/material";
+import { useBlogBySlug } from "@/hooks/useBlogBySlug";
+import BlogVoteSection from "./components/BlogVoteSection";
+import { useAuth } from "@/hooks/useAuth";
 
-export default function ViewPost() {
+export default function ViewBlog() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { slug } = useParams();
+  const { isAuthenticated } = useAuth();
 
-  if (!id)
+  const { data: blog, isLoading } = useBlogBySlug(isAuthenticated, slug);
+
+  if (!slug || !blog)
     return (
       <>
-        <Typography>Id not found</Typography>
+        <Typography>Blog not found</Typography>
         <Link component={RouterLink} to="/">
           Go back
         </Link>
@@ -30,8 +38,32 @@ export default function ViewPost() {
   return (
     <Container maxWidth="md" sx={{ mt: 5 }}>
       {/* Thumbnail */}
-      <BlogSection id={id} />
+      {!isLoading ? <BlogSection blog={blog} /> : <CircularProgress />}
       <Divider />
+
+      <Box id="reaction-section" sx={{ mt: 5 }}>
+        {!isLoading ? (
+          <BlogVoteSection
+            blogID={blog.blogID}
+            slug={blog.urlSlug}
+            likeCount={blog.likeCount || 0}
+            dislikeCount={blog.dislikeCount || 0}
+            userReaction={blog.userReaction}
+          />
+        ) : (
+          <CircularProgress />
+        )}
+      </Box>
+      <Divider />
+
+      <Box id="comment-section" sx={{ mt: 5 }}>
+        {!isLoading ? (
+          <CommentSection blogID={blog.blogID} slug={blog.urlSlug} />
+        ) : (
+          <CircularProgress />
+        )}
+      </Box>
+
       <Box
         id="footer-action"
         mt={1}

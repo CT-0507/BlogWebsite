@@ -5,18 +5,21 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/infrastructure/db"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type BlogRepository struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	mapper repository.BlogRepositoryMapper
 }
 
-func NewBlogRepository(pool *pgxpool.Pool) *BlogRepository {
+func NewBlogRepository(pool *pgxpool.Pool, mapper repository.BlogRepositoryMapper) *BlogRepository {
 	return &BlogRepository{
-		pool: pool,
+		pool:   pool,
+		mapper: mapper,
 	}
 }
 
@@ -42,7 +45,7 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 		return nil, err
 	}
 
-	return BlogDTOToBlog(&newBlog), nil
+	return r.mapper.BlogDTOToBlog(&newBlog), nil
 }
 
 func (r *BlogRepository) FindAll(c context.Context) ([]domain.BlogWithAuthorData, error) {
@@ -59,7 +62,7 @@ func (r *BlogRepository) FindAll(c context.Context) ([]domain.BlogWithAuthorData
 	var blogs []domain.BlogWithAuthorData
 	for _, value := range rows {
 		v := value
-		blogs = append(blogs, *ListBlogsRowDTOToBlog(&v))
+		blogs = append(blogs, *r.mapper.ListBlogsRowDTOToBlog(&v))
 	}
 	return blogs, nil
 }
@@ -81,7 +84,7 @@ func (r *BlogRepository) ListAuthorBlogsByAuthorID(c context.Context, authorID s
 	var blogs []domain.BlogWithAuthorData
 	for _, value := range rows {
 		v := value
-		blogs = append(blogs, *ListAuthorBlogsByAuthorIDRowDTOToBlog(&v))
+		blogs = append(blogs, *r.mapper.ListAuthorBlogsByAuthorIDRowDTOToBlog(&v))
 	}
 	return blogs, nil
 }
@@ -103,7 +106,7 @@ func (r *BlogRepository) ListAuthorBlogsBySlug(c context.Context, slug string) (
 	var blogs []domain.BlogWithAuthorData
 	for _, value := range rows {
 		v := value
-		blogs = append(blogs, *ListAuthorBlogsRowDTOToBlog(&v))
+		blogs = append(blogs, *r.mapper.ListAuthorBlogsRowDTOToBlog(&v))
 	}
 	return blogs, nil
 }
@@ -118,20 +121,31 @@ func (r *BlogRepository) FindByID(c context.Context, id int64) (*domain.BlogWith
 	if err != nil {
 		return nil, err
 	}
-	return GetBlogRowDTOToBlogWithAuthorData(&row), nil
+	return r.mapper.GetBlogRowDTOToBlogWithAuthorData(&row), nil
 }
 
-func (r *BlogRepository) FindByUrlSlug(c context.Context, slug string) (*domain.BlogWithAuthorData, error) {
+func (r *BlogRepository) FindByUrlSlug(c context.Context, slug string, userID *string) (*domain.BlogWithAuthorData, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
 	q := blogdb.New(db)
 
-	row, err := q.GetBlogByUrlSlug(c, slug)
-	if err != nil {
-		return nil, err
+	if userID != nil {
+		row, err := q.GetBlogWithUserReaction(c, blogdb.GetBlogWithUserReactionParams{
+			UserID:  *userID,
+			UrlSlug: slug,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return r.mapper.GetBlogWithReactionDTOToBlogWithAuthorData(&row), nil
+	} else {
+		row, err := q.GetBlogByUrlSlug(c, slug)
+		if err != nil {
+			return nil, err
+		}
+		return r.mapper.GetBlogRowByUrlSlugDTOToBlogWithAuthorData(&row), nil
 	}
-	return GetBlogRowByUrlSlugDTOToBlogWithAuthorData(&row), nil
 }
 
 // func (r *blogRepository) Update(blog *Blog, q *blogdb.Queries) error {
@@ -227,4 +241,64 @@ func (r *BlogRepository) RestoreBlog(c context.Context, blogID int64, PreviousSt
 		BlogID: blogID,
 		Status: PreviousStatus,
 	})
+}
+
+func (r *BlogRepository) GetAuthorProfileByUserID(c context.Context, userID string) (*domain.AuthorData, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	author, err := q.GetAuthorCacheByUserID(c, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.mapper.MapBlogsIdxUserAuthorProfileToAuthorProfile(&author), nil
+}
+
+func (r *BlogRepository) UpdateBlogReactionCount(c context.Context, blogID int64, transition repository.ReactionTransition) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	var likeDelta int64 = 0
+	var dislikeDelta int64 = 0
+
+	switch transition {
+	case repository.AddLike:
+		likeDelta++
+	case repository.AddDislike:
+		dislikeDelta++
+	case repository.LikeToDislike:
+		likeDelta--
+		dislikeDelta++
+	case repository.DislikeToLike:
+		likeDelta++
+		dislikeDelta--
+	}
+
+	return q.UpdateBlogReactionCount(c, blogdb.UpdateBlogReactionCountParams{
+		LikeCount:    likeDelta,
+		DislikeCount: dislikeDelta,
+		BlogID:       blogID,
+	})
+}
+
+func (r *BlogRepository) UpdateBlogRankingTable(c context.Context) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.UpdateBlogRankingResult(c)
+}
+
+func (r *BlogRepository) TruncateBlogRankingTable(c context.Context) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.TruncateBlogRankingTable(c)
 }

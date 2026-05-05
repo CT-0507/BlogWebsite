@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS authors;
 
 CREATE TABLE authors.authors (
-    author_id TEXT PRIMARY KEY,
+    author_id VARCHAR(26) PRIMARY KEY CHECK (LENGTH(author_id) = 26),
     user_id TEXT NOT NULL UNIQUE, -- external reference (NO FK)
     display_name VARCHAR(100) NOT NULL,
 

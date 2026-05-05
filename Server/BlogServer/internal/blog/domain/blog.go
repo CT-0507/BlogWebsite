@@ -17,28 +17,21 @@ type Blog struct {
 }
 
 type BlogWithAuthorData struct {
-	BlogID  int64      `json:"blogID"`
-	Author  AuthorData `json:"author"`
-	URLSlug string     `json:"urlSlug"`
-	Title   string     `json:"title"`
-	Content string     `json:"content"`
-	Status  string     `json:"status"`
+	BlogID       int64      `json:"blogID"`
+	Author       AuthorData `json:"author"`
+	URLSlug      string     `json:"urlSlug"`
+	Title        string     `json:"title"`
+	Content      string     `json:"content"`
+	LikeCount    int64      `json:"likeCount"`
+	DislikeCount int64      `json:"dislikeCount"`
+	UserReaction *string    `json:"userReaction"`
+	Status       string     `json:"status"`
 	model.Audit
 }
 
 type AuthorData struct {
-	AuthorID    string `json:"authorID"`
-	Slug        string `json:"slug"`
-	DisplayName string `json:"displayName"`
-}
-
-type AuthorCreatedEvent struct {
-	AuthorID    string
-	UserID      string
-	Slug        string
-	DisplayName string
-}
-
-type AuthorDeletedEvent struct {
-	AuthorID string
+	AuthorID    string  `json:"authorID"`
+	AvatarURL   *string `json:"avatarURL"`
+	Slug        string  `json:"slug"`
+	DisplayName string  `json:"displayName"`
 }

@@ -30,7 +30,12 @@ type CreateBlogCompensationPayload struct {
 	BlogID int64
 }
 
-type CreateBlogAuthorCacheSuccessContext struct {
+type UpdateUserAuthorIDPayload struct {
+	AuthorID string
+	UserID   string
+}
+
+type UpdateUserAuthorIDContext struct {
 	AuthorID string
 	UserID   string
 }

@@ -9,6 +9,12 @@ CREATE TABLE blogs.blogs (
     content TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'active',
 
+    -- blog ranking
+    like_count BIGINT NOT NULL DEFAULT 0,
+    dislike_count  BIGINT NOT NULL DEFAULT 0,
+    daily_access_count BIGINT NOT NULL DEFAULT 0,
+    weekly_access_count BIGINT NOT NULL DEFAULT 0,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by TEXT NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -48,6 +54,7 @@ CREATE TABLE blogs.idx_user_author_profile (
 
     user_id TEXT NOT NULL,
     author_id TEXT NOT NULL,
+    avatar TEXT,
     slug TEXT NOT NULL,
     display_name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
@@ -62,3 +69,105 @@ CREATE TABLE blogs.idx_user_author_profile (
 CREATE INDEX ON blogs.blogs (title);
 CREATE INDEX ON blogs.blogs (url_slug);
 CREATE INDEX ON blogs.blog_tags (tag_id);
+
+-- Comment
+
+CREATE TABLE blogs.comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+
+    content TEXT NOT NULL,
+
+    -- identity
+    actor_type VARCHAR(20) NOT NULL, -- 'user' | 'author' | 'deleted'
+    actor_id TEXT, -- external ID (nullable if deleted)
+
+    -- snapshot for rendering (no joins needed)
+    actor_display_name  VARCHAR(100) NOT NULL,
+    actor_avatar_url    TEXT,
+    -- actor_badge         VARCHAR(50),
+
+    status VARCHAR(20) NOT NULL DEFAULT 'active', -- active, hidden, deleted
+    -- threading (2 levels)
+    parent_comment_id   UUID NULL,
+    root_comment_id     UUID NOT NULL,
+
+    like_count INT NOT NULL DEFAULT 0,
+    dislike_count  INT NOT NULL DEFAULT 0,
+
+    depth SMALLINT  NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ,
+
+    UNIQUE(blog_id, actor_id)
+);
+
+CREATE TABLE blogs.comment_reactions (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    comment_id  UUID NOT NULL REFERENCES blogs.comments(id) ON DELETE CASCADE,
+
+    user_id     VARCHAR(64) NOT NULL,
+    type        VARCHAR(20) NOT NULL,  -- like, dislike, etc.
+    status      VARCHAR(20) NOT NULL DEFAULT 'active', -- active | hidden | deleted
+
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at  TIMESTAMPTZ,
+
+    UNIQUE(comment_id, user_id)
+);
+
+CREATE TABLE blogs.blog_reactions (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    blog_id     BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+
+    user_id     TEXT NOT NULL,
+    type        VARCHAR(20) NOT NULL,  -- like, dislike, etc.
+    status      VARCHAR(20) NOT NULL DEFAULT 'active', -- active | hidden | deleted
+
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at  TIMESTAMPTZ,
+
+    UNIQUE(blog_id, user_id)
+);
+
+CREATE INDEX idx_comments_blog_id 
+ON blogs.comments(blog_id, created_at);
+CREATE INDEX idx_comments_root 
+ON blogs.comments(root_comment_id, created_at);
+CREATE INDEX idx_comments_parent 
+ON blogs.comments(parent_comment_id);
+CREATE INDEX idx_comments_status 
+ON blogs.comments(status);
+CREATE INDEX idx_blogs_reaction 
+ON blogs.blog_reactions(blog_id, type) WHERE status = 'active';
+CREATE INDEX idx_comments_reaction 
+ON blogs.comment_reactions(comment_id, type) WHERE status = 'active';
+
+-- Ranking table
+
+CREATE TABLE blogs.blog_ranking (
+    
+    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+
+        -- rankings
+    rank_all_time INT,
+    rank_trending INT,
+
+    -- scores
+    score_all_time DOUBLE PRECISION,
+    score_trending DOUBLE PRECISION,
+    
+    like_count INT NOT NULL  DEFAULT 0,
+    dislike_count INT NOT NULL  DEFAULT 0,
+    comment_count INT NOT NULL  DEFAULT 0,
+    weekly_access_count INT NOT NULL  DEFAULT 0,
+    daily_access_count  INT NOT NULL  DEFAULT 0,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE(blog_id)
+
+);

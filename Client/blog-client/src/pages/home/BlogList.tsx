@@ -15,19 +15,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Button from "@mui/material/Button";
 import { relativeTime } from "@/utils/timeUtils";
 import { useState } from "react";
-
-export interface Blog {
-  blogID: string;
-  author: {
-    authorID: string;
-    slug: string;
-    displayName: string;
-  };
-  title: string;
-  urlSlug: string;
-  content: string;
-  createdAt: string;
-}
+import type { Blog } from "@/types/Blog";
 
 export default function BlogList() {
   const [showLocaleDate, setShowLocaleDate] = useState(false);
