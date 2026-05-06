@@ -7,7 +7,9 @@ import type {
   BlogReaction,
   BlogReactionType,
   CommentReaction,
+  RankingBlogData,
 } from "@/types/Blog";
+import { getQueryParam } from "@/utils/mapper";
 
 const API_VERSION = "/api/v1";
 
@@ -17,8 +19,29 @@ export async function publishBlogRequest(formData: PublishBlogFormValues) {
   return data;
 }
 
-export async function listBlogs(queryParams: string) {
-  const { data } = await api.get(`${API_VERSION}/blogs` + queryParams);
+interface QueryBlogsParams {
+  title?: string | null;
+  content?: string | null;
+  author?: string | null;
+  sortBy: string;
+  sortDir: string;
+  limit: number;
+}
+
+interface ListBlogsResponse {
+  total: number;
+  blogs: Blog[];
+}
+
+export async function listBlogs(
+  queryParams: QueryBlogsParams,
+  page: number
+): Promise<ListBlogsResponse> {
+  const params = getQueryParam(queryParams);
+
+  params.append("page", page.toString());
+
+  const { data } = await api.get(`${API_VERSION}/blogs?` + params.toString());
 
   return data;
 }
@@ -166,6 +189,33 @@ export async function hideComment(commentId: string) {
 export async function deleteComment(commentId: string) {
   const { data } = await axiosAuth.delete(
     `${API_VERSION}/comments/${commentId}/delete`
+  );
+
+  return data;
+}
+
+interface GetTrendingBlogsParams {
+  limit?: number;
+  sortBy?: string;
+  sortDir?: string;
+}
+
+interface GetTrendingBlogsResponse {
+  total: number;
+  blogs: RankingBlogData[];
+}
+
+export async function getRankingBlogs(
+  queryParams: GetTrendingBlogsParams,
+  page: number,
+  type: "allTime" | "trending"
+): Promise<GetTrendingBlogsResponse> {
+  const params = getQueryParam(queryParams);
+
+  params.append("page", page.toString());
+
+  const { data } = await api.get(
+    `${API_VERSION}/blogs/ranking?type=${type}&` + params.toString()
   );
 
   return data;

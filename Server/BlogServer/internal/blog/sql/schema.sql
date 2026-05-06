@@ -6,7 +6,15 @@ CREATE TABLE blogs.blogs (
     author_id TEXT NOT NULL,
     url_slug VARCHAR(400) NOT NULL UNIQUE,
     title TEXT NOT NULL,
-    content TEXT,
+
+    content TEXT NOT NULL ,
+    title_vector tsvector GENERATED ALWAYS AS (
+        to_tsvector('english', coalesce(title, ''))
+    ) STORED,
+    content_vector tsvector GENERATED ALWAYS AS (
+        to_tsvector('english', coalesce(content, ''))
+    ) STORED,
+
     status VARCHAR(20) NOT NULL DEFAULT 'active',
 
     -- blog ranking
@@ -23,17 +31,17 @@ CREATE TABLE blogs.blogs (
     deleted_by TEXT
 );
 
+CREATE INDEX idx_title_vector ON blogs.blogs USING GIN (title_vector);
+CREATE INDEX idx_content_vector ON blogs.blogs USING GIN (content_vector);
+
 CREATE TABLE blogs.tags (
-    tag_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_by TEXT NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_by TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
-    deleted_by TEXT
+
+    UNIQUE(tag_id)
 );
 
 CREATE TABLE blogs.blog_tags (
@@ -41,11 +49,7 @@ CREATE TABLE blogs.blog_tags (
     blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    created_by TEXT NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_by TEXT NOT NULL,
     deleted_at TIMESTAMPTZ,
-    deleted_by TEXT,
 
     PRIMARY KEY (blog_id, tag_id)
 );

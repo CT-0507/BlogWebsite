@@ -31,7 +31,8 @@ type GetBlogUseCases interface {
 }
 
 type ListBlogsUseCases interface {
-	ListBlogs(ctx context.Context) ([]domain.BlogWithAuthorData, error)
+	ListBlogs(ctx context.Context, title, content, author, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error)
+	GetRankingBlogsByType(ctx context.Context, searchType string, page, limit int32, shouldGetAll bool, sortBy, sortDir string) (int64, []domain.RankingBlogData, error)
 	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
 }
@@ -88,7 +89,7 @@ func NewBlogHandler(
 //   - @access Private
 func (h *BlogHandler) createNewBlog(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	var blog CreateBlogRequest
@@ -127,15 +128,72 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 //   - @access Public
 func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	blogs, err := h.listBlogsUseCases.ListBlogs(ctx)
+	var filter GetBlogFilter
+	// ShouldBindQuery binds specifically from query parameters
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	const (
+		DEFAULT_LIMIT = 20
+		MIN_LIMIT     = 1
+		MAX_LIMIT     = 100
+	)
+
+	if filter.Title != nil && *filter.Title == "" {
+		filter.Title = nil
+	}
+	if filter.Content != nil && *filter.Content == "" {
+		filter.Content = nil
+	}
+	if filter.AuthorName != nil && *filter.AuthorName == "" {
+		filter.AuthorName = nil
+	}
+
+	limitV := int32(DEFAULT_LIMIT)
+	if filter.Limit != nil && *filter.Limit >= MIN_LIMIT && *filter.Limit <= MAX_LIMIT {
+		limitV = *filter.Limit
+	}
+
+	pageV := int32(1)
+	if filter.Page != nil && *filter.Page > 0 {
+		pageV = *filter.Page
+	}
+
+	sortByV := "createdAt"
+	if filter.SortBy != nil && *filter.SortBy != "" {
+		valid := []string{"title", "relevance", "createdAt"}
+		if slices.Contains(valid, *filter.SortBy) {
+			sortByV = *filter.SortBy
+		}
+	}
+
+	sortDirV := "desc"
+	if filter.SortDir != nil && *filter.SortDir != "" {
+		valid := []string{"asc", "desc"}
+		if slices.Contains(valid, *filter.SortDir) {
+			sortDirV = *filter.SortDir
+		}
+	}
+
+	total, blogs, err := h.listBlogsUseCases.ListBlogs(ctx, filter.Title, filter.Content, filter.AuthorName, &sortByV, &sortDirV, pageV, limitV)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, blogs)
+	c.JSON(http.StatusOK, gin.H{
+		"total": total,
+		"blogs": &blogs,
+	})
 }
 
 // Description: get all blogs
@@ -166,7 +224,7 @@ func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
 //   - @access Puclic
 func (h *BlogHandler) getBlogByID(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	blogId, valid := c.Params.Get("id")
@@ -199,7 +257,7 @@ func (h *BlogHandler) getBlogByID(c *gin.Context) {
 //   - @access Puclic
 func (h *BlogHandler) getBlogByUrlSlug(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	slug, valid := c.Params.Get("slug")
@@ -236,7 +294,7 @@ func (h *BlogHandler) getBlogByUrlSlug(c *gin.Context) {
 //   - @access Private
 func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	blogId, valid := c.Params.Get("id")
@@ -736,5 +794,73 @@ func (h *BlogHandler) CreateCommentReaction(c *gin.Context) {
 		"transitionType": transtionMap[transitionType],
 		"commentId":      commentId,
 		"type":           reaction.Type,
+	})
+}
+
+func (h *BlogHandler) GetRankingBlogsByType(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	var filter GetBlogRankingFilter
+	// ShouldBindQuery binds specifically from query parameters
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	const (
+		DEFAULT_LIMIT = 20
+		MIN_LIMIT     = 1
+		MAX_LIMIT     = 100
+	)
+
+	searchType := "createdAt"
+	if filter.Type != nil && *filter.Type != "" {
+		valid := []string{"allTime", "trending"}
+		if slices.Contains(valid, *filter.Type) {
+			searchType = *filter.Type
+		}
+	}
+
+	limitV := int32(DEFAULT_LIMIT)
+	if filter.Limit != nil && *filter.Limit >= MIN_LIMIT && *filter.Limit <= MAX_LIMIT {
+		limitV = *filter.Limit
+	}
+
+	pageV := int32(1)
+	if filter.Page != nil && *filter.Page > 0 {
+		pageV = *filter.Page
+	}
+
+	sortByV := "createdAt"
+	if filter.SortBy != nil && *filter.SortBy != "" {
+		valid := []string{"title", "relevance", "createdAt"}
+		if slices.Contains(valid, *filter.SortBy) {
+			sortByV = *filter.SortBy
+		}
+	}
+
+	sortDirV := "desc"
+	if filter.SortDir != nil && *filter.SortDir != "" {
+		valid := []string{"asc", "desc"}
+		if slices.Contains(valid, *filter.SortDir) {
+			sortDirV = *filter.SortDir
+		}
+	}
+
+	total, blogs, err := h.listBlogsUseCases.GetRankingBlogsByType(ctx, searchType, pageV, limitV, false, sortByV, sortDirV)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"total": total,
+		"blogs": &blogs,
 	})
 }

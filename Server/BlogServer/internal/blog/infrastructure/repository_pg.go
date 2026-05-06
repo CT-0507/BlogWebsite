@@ -30,13 +30,10 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 	q := blogdb.New(db)
 
 	newBlog, err := q.CreateBlog(c, blogdb.CreateBlogParams{
-		AuthorID: blog.AuthorID,
-		Title:    blog.Title,
-		UrlSlug:  blog.URLSlug,
-		Content: pgtype.Text{
-			String: blog.Content,
-			Valid:  true,
-		},
+		AuthorID:  blog.AuthorID,
+		Title:     blog.Title,
+		UrlSlug:   blog.URLSlug,
+		Content:   blog.Content,
 		CreatedBy: blog.AuthorID,
 		UpdatedBy: blog.AuthorID,
 	})
@@ -48,13 +45,33 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 	return r.mapper.BlogDTOToBlog(&newBlog), nil
 }
 
-func (r *BlogRepository) FindAll(c context.Context) ([]domain.BlogWithAuthorData, error) {
+func (r *BlogRepository) GetFindAllCount(c context.Context, title, content, author *string) (int64, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.GetListBlogsCount(c, blogdb.GetListBlogsCountParams{
+		Title:             utils.GetTextTypeFromNullableString(title),
+		Content:           utils.GetTextTypeFromNullableString(content),
+		AuthorDisplayName: utils.GetTextTypeFromNullableString(author),
+	})
+}
+
+func (r *BlogRepository) FindAll(c context.Context, title, content, author, sortBy, sortDir *string, offset, limit int32) ([]domain.BlogWithAuthorData, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
 	q := blogdb.New(db)
 
-	rows, err := q.ListBlogs(c)
+	rows, err := q.ListBlogs(c, blogdb.ListBlogsParams{
+		Title:             utils.GetTextTypeFromNullableString(title),
+		Content:           utils.GetTextTypeFromNullableString(content),
+		AuthorDisplayName: utils.GetTextTypeFromNullableString(author),
+		SortBy:            utils.GetTextTypeFromNullableString(sortBy),
+		SortDir:           utils.GetTextTypeFromNullableString(sortDir),
+		Offset:            offset,
+		Limit:             limit,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -301,4 +318,30 @@ func (r *BlogRepository) TruncateBlogRankingTable(c context.Context) error {
 	q := blogdb.New(db)
 
 	return q.TruncateBlogRankingTable(c)
+}
+
+func (r *BlogRepository) GetRankingBlogsByType(c context.Context, searchType string, offset, limit int32, shouldGetAll bool, sortBy, sortDir string) ([]domain.RankingBlogData, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	rows, err := q.ListRankingTable(c, blogdb.ListRankingTableParams{
+		GetAll:  shouldGetAll,
+		Offset:  offset,
+		Limit:   limit,
+		Type:    searchType,
+		SortBy:  sortBy,
+		SortDir: sortDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var blogs []domain.RankingBlogData
+	for _, value := range rows {
+		v := value
+		blogs = append(blogs, *r.mapper.MapDBListRankingRowToRankingBlog(&v))
+	}
+	return blogs, nil
 }

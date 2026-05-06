@@ -25,3 +25,21 @@ type CreateCommentReactionRequest struct {
 type UpdateCommentContentRequest struct {
 	Content string `json:"content" validate:"required,max=2000"`
 }
+
+type GetBlogFilter struct {
+	Title      *string `form:"title" validate:"omitempty,max=50"`
+	Content    *string `form:"content" validate:"omitempty,max=100"`
+	AuthorName *string `form:"authorName" validate:"omitempty,max=50"`
+	Page       *int32  `form:"page"  validate:"omitempty"`
+	Limit      *int32  `form:"limit" validate:"omitempty"`
+	SortBy     *string `form:"sortBy" validate:"omitempty"`
+	SortDir    *string `form:"sortDir" validate:"omitempty"`
+}
+
+type GetBlogRankingFilter struct {
+	Type    *string `form:"type" validate:"omitempty,max=10"`
+	Page    *int32  `form:"page"  validate:"omitempty,min=1"`
+	Limit   *int32  `form:"limit" validate:"omitempty,min=1"`
+	SortBy  *string `form:"sortBy" validate:"omitempty"`
+	SortDir *string `form:"sortDir" validate:"omitempty"`
+}

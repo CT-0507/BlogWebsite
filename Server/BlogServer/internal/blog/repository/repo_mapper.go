@@ -21,4 +21,5 @@ type BlogRepositoryMapper interface {
 	MapCommentsByParentCommentWithReactionRow(blogComment *blogdb.GetCommentsByParentCommentUserWithReactionRow) (*domain.Comment, error)
 	MapBlogsIdxUserAuthorProfileToAuthorProfile(author *blogdb.BlogsIdxUserAuthorProfile) *domain.AuthorData
 	MapDBBlogReactionToReaction(reaction *blogdb.BlogsBlogReaction) *domain.BlogReaction
+	MapDBListRankingRowToRankingBlog(blogDTO *blogdb.ListRankingTableRow) *domain.RankingBlogData
 }

@@ -8,7 +8,8 @@ import (
 
 type BlogRepository interface {
 	Create(c context.Context, blog *domain.Blog) (*domain.Blog, error)
-	FindAll(c context.Context) ([]domain.BlogWithAuthorData, error)
+	GetFindAllCount(c context.Context, title, content, author *string) (int64, error)
+	FindAll(c context.Context, title, content, author, sortBy, sortDir *string, offset, limit int32) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsByAuthorID(c context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(c context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
 	FindByID(c context.Context, id int64) (*domain.BlogWithAuthorData, error)
@@ -27,6 +28,7 @@ type BlogRepository interface {
 	GetAuthorProfileByUserID(c context.Context, userID string) (*domain.AuthorData, error)
 	// Blog metrics
 	UpdateBlogReactionCount(c context.Context, blogID int64, transition ReactionTransition) error
+	GetRankingBlogsByType(c context.Context, searchType string, offset, limit int32, shouldGetAll bool, sortBy, sortDir string) ([]domain.RankingBlogData, error)
 	// Worker
 	UpdateBlogRankingTable(ctx context.Context) error
 	TruncateBlogRankingTable(ctx context.Context) error

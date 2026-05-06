@@ -36,6 +36,7 @@ func NewOutboxWorker(txManager database.TxManager, publisher messaging.EventPubl
 func (w *OutboxWorker) Start(ctx context.Context) {
 
 	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 
 	for {
 		select {

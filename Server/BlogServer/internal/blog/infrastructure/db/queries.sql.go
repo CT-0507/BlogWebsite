@@ -23,14 +23,14 @@ INSERT INTO blogs.blogs(
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
-RETURNING blog_id, author_id, url_slug, title, content, status, like_count, dislike_count, daily_access_count, weekly_access_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING blog_id, author_id, url_slug, title, content, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateBlogParams struct {
 	AuthorID  string
 	Title     string
 	UrlSlug   string
-	Content   pgtype.Text
+	Content   string
 	CreatedBy string
 	UpdatedBy string
 }
@@ -51,6 +51,8 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
+		&i.TitleVector,
+		&i.ContentVector,
 		&i.Status,
 		&i.LikeCount,
 		&i.DislikeCount,
@@ -247,7 +249,7 @@ type GetBlogRow struct {
 	Title        string
 	UrlSlug      string
 	AuthorID     string
-	Content      pgtype.Text
+	Content      string
 	LikeCount    int64
 	DislikeCount int64
 	Status       string
@@ -283,7 +285,7 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 
 const getBlogByUrlSlug = `-- name: GetBlogByUrlSlug :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     i.slug,
@@ -298,7 +300,9 @@ type GetBlogByUrlSlugRow struct {
 	AuthorID          string
 	UrlSlug           string
 	Title             string
-	Content           pgtype.Text
+	Content           string
+	TitleVector       interface{}
+	ContentVector     interface{}
 	Status            string
 	LikeCount         int64
 	DislikeCount      int64
@@ -325,6 +329,8 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
+		&i.TitleVector,
+		&i.ContentVector,
 		&i.Status,
 		&i.LikeCount,
 		&i.DislikeCount,
@@ -528,7 +534,7 @@ func (q *Queries) GetBlogRootCommentWithUserReaction(ctx context.Context, arg Ge
 
 const getBlogWithUserReaction = `-- name: GetBlogWithUserReaction :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     r.type AS reaction_type
@@ -550,7 +556,9 @@ type GetBlogWithUserReactionRow struct {
 	AuthorID          string
 	UrlSlug           string
 	Title             string
-	Content           pgtype.Text
+	Content           string
+	TitleVector       interface{}
+	ContentVector     interface{}
 	Status            string
 	LikeCount         int64
 	DislikeCount      int64
@@ -576,6 +584,8 @@ func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUs
 		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
+		&i.TitleVector,
+		&i.ContentVector,
 		&i.Status,
 		&i.LikeCount,
 		&i.DislikeCount,
@@ -833,6 +843,42 @@ func (q *Queries) GetCommentsByRootComment(ctx context.Context, rootCommentID uu
 	return items, nil
 }
 
+const getListBlogsCount = `-- name: GetListBlogsCount :one
+WITH params AS (
+    SELECT
+        websearch_to_tsquery('english', COALESCE($1::TEXT, '')) AS title_q,
+        websearch_to_tsquery('english', COALESCE($2::TEXT, '')) AS content_q,
+        $3::TEXT AS author_q
+)
+SELECT
+    COUNT(*) as total_result
+
+FROM blogs.blogs b
+JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+CROSS JOIN params p
+
+WHERE
+    b.status = 'active'
+    AND (
+        ($1::TEXT IS NULL OR b.title_vector @@ p.title_q)
+        AND ($2::TEXT IS NULL OR b.content_vector @@ p.content_q)
+        AND ($3::TEXT IS NULL OR a.display_name ILIKE '%' || $3::TEXT || '%')
+    )
+`
+
+type GetListBlogsCountParams struct {
+	Title             pgtype.Text
+	Content           pgtype.Text
+	AuthorDisplayName pgtype.Text
+}
+
+func (q *Queries) GetListBlogsCount(ctx context.Context, arg GetListBlogsCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, getListBlogsCount, arg.Title, arg.Content, arg.AuthorDisplayName)
+	var total_result int64
+	err := row.Scan(&total_result)
+	return total_result, err
+}
+
 const hardDeleteBlog = `-- name: HardDeleteBlog :one
 DELETE FROM blogs.blogs
 WHERE blog_id = $1
@@ -846,6 +892,34 @@ func (q *Queries) HardDeleteBlog(ctx context.Context, blogID int64) (int64, erro
 	return blog_id, err
 }
 
+const insertTags = `-- name: InsertTags :exec
+WITH input_tags AS (
+  SELECT DISTINCT LOWER(TRIM(UNNEST($2::text[]))) AS name
+),
+inserted AS (
+  INSERT INTO blogs.tags (name)
+  SELECT name FROM input_tags
+  ON CONFLICT (name) DO NOTHING
+),
+all_tags AS (
+  SELECT id, name FROM blogs.tags
+  WHERE name IN (SELECT name FROM input_tags)
+)
+INSERT INTO blogs.blog_tags (blog_id, tag_id)
+SELECT $1, id FROM all_tags
+ON CONFLICT DO NOTHING
+`
+
+type InsertTagsParams struct {
+	BlogID int64
+	Name   []string
+}
+
+func (q *Queries) InsertTags(ctx context.Context, arg InsertTagsParams) error {
+	_, err := q.db.Exec(ctx, insertTags, arg.BlogID, arg.Name)
+	return err
+}
+
 const listAllBlogs = `-- name: ListAllBlogs :many
 SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs
 `
@@ -853,7 +927,7 @@ SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, 
 type ListAllBlogsRow struct {
 	BlogID    int64
 	Title     string
-	Content   pgtype.Text
+	Content   string
 	CreatedAt pgtype.Timestamptz
 	CreatedBy string
 	UpdatedAt pgtype.Timestamptz
@@ -893,7 +967,13 @@ func (q *Queries) ListAllBlogs(ctx context.Context) ([]ListAllBlogsRow, error) {
 }
 
 const listBlogs = `-- name: ListBlogs :many
-SELECT 
+WITH params AS (
+    SELECT
+        websearch_to_tsquery('english', COALESCE($1::TEXT, '')) AS title_q,
+        websearch_to_tsquery('english', COALESCE($2::TEXT, '')) AS content_q,
+        $3::TEXT AS author_q
+)
+SELECT
     b.blog_id,
     b.author_id,
     b.title, 
@@ -906,19 +986,64 @@ SELECT
     b.created_by, 
     b.updated_at, 
     b.updated_by,
-    i.slug,
-    i.display_name
+    a.slug,
+    a.display_name,
+
+    (
+        COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
+        COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)
+    ) AS rank
+
 FROM blogs.blogs b
-JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
-WHERE b.deleted_at IS NULL
+JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+CROSS JOIN params p
+
+WHERE
+    b.status = 'active'
+    AND (
+        ($1::TEXT IS NULL OR b.title_vector @@ p.title_q)
+        AND ($2::TEXT IS NULL OR b.content_vector @@ p.content_q)
+        AND ($3::TEXT IS NULL OR a.display_name ILIKE '%' || $3::TEXT || '%')
+    )
+
+ORDER BY
+    CASE WHEN $4::TEXT = 'title' AND $5::TEXT = 'asc'  THEN b.title END ASC,
+    CASE WHEN $4::TEXT = 'title' AND $5::TEXT = 'desc' THEN b.title END DESC,
+
+    CASE WHEN $4::TEXT = 'created_at' AND $5::TEXT = 'asc'  THEN b.created_at END ASC,
+    CASE WHEN $4::TEXT = 'created_at' AND $5::TEXT = 'desc' THEN b.created_at END DESC,
+
+    CASE
+        WHEN $4::TEXT = 'relevance' AND $5::TEXT = 'asc' THEN
+            (COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
+             COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)) END ASC,
+    CASE
+        WHEN $4::TEXT = 'relevance' AND $5::TEXT = 'desc' THEN
+            (COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
+             COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)) END DESC,
+
+    -- default sort (created_at DESC)
+    b.created_at DESC
+
+LIMIT $7 OFFSET $6
 `
+
+type ListBlogsParams struct {
+	Title             pgtype.Text
+	Content           pgtype.Text
+	AuthorDisplayName pgtype.Text
+	SortBy            pgtype.Text
+	SortDir           pgtype.Text
+	Offset            int32
+	Limit             int32
+}
 
 type ListBlogsRow struct {
 	BlogID       int64
 	AuthorID     string
 	Title        string
 	UrlSlug      string
-	Content      pgtype.Text
+	Content      string
 	LikeCount    int64
 	DislikeCount int64
 	Status       string
@@ -928,10 +1053,39 @@ type ListBlogsRow struct {
 	UpdatedBy    string
 	Slug         string
 	DisplayName  string
+	Rank         int32
 }
 
-func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
-	rows, err := q.db.Query(ctx, listBlogs)
+// SELECT
+//
+//	b.blog_id,
+//	b.author_id,
+//	b.title,
+//	b.url_slug,
+//	b.content,
+//	b.like_count,
+//	b.dislike_count,
+//	b.status,
+//	b.created_at,
+//	b.created_by,
+//	b.updated_at,
+//	b.updated_by,
+//	i.slug,
+//	i.display_name
+//
+// FROM blogs.blogs b
+// JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
+// WHERE b.deleted_at IS NULL;
+func (q *Queries) ListBlogs(ctx context.Context, arg ListBlogsParams) ([]ListBlogsRow, error) {
+	rows, err := q.db.Query(ctx, listBlogs,
+		arg.Title,
+		arg.Content,
+		arg.AuthorDisplayName,
+		arg.SortBy,
+		arg.SortDir,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -954,6 +1108,7 @@ func (q *Queries) ListBlogs(ctx context.Context) ([]ListBlogsRow, error) {
 			&i.UpdatedBy,
 			&i.Slug,
 			&i.DisplayName,
+			&i.Rank,
 		); err != nil {
 			return nil, err
 		}
@@ -996,7 +1151,7 @@ type ListBlogsByAuthorRow struct {
 	Title        string
 	UrlSlug      string
 	AuthorID     string
-	Content      pgtype.Text
+	Content      string
 	LikeCount    int64
 	DislikeCount int64
 	Status       string
@@ -1072,7 +1227,7 @@ type ListBlogsByAuthorSlugRow struct {
 	Title       string
 	UrlSlug     string
 	AuthorID    string
-	Content     pgtype.Text
+	Content     string
 	Status      string
 	CreatedAt   pgtype.Timestamptz
 	CreatedBy   string
@@ -1127,36 +1282,44 @@ WITH filtered AS (
 ),
     top20 AS (
 SELECT
-    
-FROM filtered
+    ft.blog_id, ft.rank_all_time, ft.rank_trending, ft.score_all_time, ft.score_trending, ft.like_count, ft.dislike_count, ft.comment_count, ft.weekly_access_count, ft.daily_access_count, ft.created_at, ft.computed_at
+FROM filtered ft
 ORDER BY
     CASE
-        WHEN $4::TEXT = 'allTime' THEN br.rank_all_time
-        WHEN $4 = 'trending' THEN br.rank_trending
+        WHEN $4::TEXT = 'allTime' THEN ft.rank_all_time
+        WHEN $4 = 'trending' THEN ft.rank_trending
     END ASC,
     -- daily access
-    CASE WHEN $5::TEXT = 'daily'  AND $6::TEXT = 'asc'  THEN br.daily_access_count END ASC,
-    CASE WHEN $5 = 'daily'  AND $6 = 'desc' THEN br.daily_access_count END DESC,
+    CASE WHEN $5::TEXT = 'daily'  AND $6::TEXT = 'asc'  THEN ft.daily_access_count END ASC,
+    CASE WHEN $5 = 'daily'  AND $6 = 'desc' THEN ft.daily_access_count END DESC,
 
     -- weekly access
-    CASE WHEN $5 = 'weekly' AND $6 = 'asc'  THEN br.weekly_access_count END ASC,
-    CASE WHEN $5 = 'weekly' AND $6 = 'desc' THEN br.weekly_access_count END DESC,
+    CASE WHEN $5 = 'weekly' AND $6 = 'asc'  THEN ft.weekly_access_count END ASC,
+    CASE WHEN $5 = 'weekly' AND $6 = 'desc' THEN ft.weekly_access_count END DESC,
 
     -- like count
-    CASE WHEN $5 = 'likes'  AND $6 = 'asc'  THEN br.like_count END ASC,
-    CASE WHEN $5 = 'likes'  AND $6 = 'desc' THEN br.like_count END DESC,
+    CASE WHEN $5 = 'likes'  AND $6 = 'asc'  THEN ft.like_count END ASC,
+    CASE WHEN $5 = 'likes'  AND $6 = 'desc' THEN ft.like_count END DESC,
 
     -- score
-    CASE WHEN $5 = 'score'  AND $6 = 'asc'  THEN br.score END ASC,
-    CASE WHEN $5 = 'score'  AND $6 = 'desc' THEN br.score END DESC,
+    CASE WHEN $5 = 'score' AND $4 = 'allTime'  AND $6 = 'asc'  THEN ft.score_all_time END ASC,
+    CASE WHEN $5 = 'score' AND $4 = 'allTime' AND $6 = 'desc' THEN ft.score_all_time END DESC,
+    CASE WHEN $5 = 'score' AND $4 = 'trending' AND $6 = 'asc'  THEN ft.score_trending END ASC,
+    CASE WHEN $5 = 'score' AND $4 = 'trending' AND $6 = 'desc' THEN ft.score_trending END DESC,
 
     -- rank
-    CASE WHEN $5 = 'rank'   AND $6 = 'asc'  THEN br.rank END ASC,
-    CASE WHEN $5 = 'rank'   AND $6 = 'desc' THEN br.rank END DESC
+    CASE WHEN $5 = 'rank' AND $4 = 'allTime' AND $6 = 'asc'  THEN ft.rank_all_time END ASC,
+    CASE WHEN $5 = 'rank' AND $4 = 'allTime' AND $6 = 'desc' THEN ft.rank_all_time END DESC,
+    CASE WHEN $5 = 'rank' AND $4 = 'trending' AND $6 = 'asc'  THEN ft.rank_trending END ASC,
+    CASE WHEN $5 = 'rank' AND $4 = 'trending' AND $6 = 'desc' THEN ft.rank_trending END DESC
     LIMIT 20
 )
-SELECT 
-FROM top20
+SELECT t.blog_id, t.rank_all_time, t.rank_trending, t.score_all_time, t.score_trending, t.like_count, t.dislike_count, t.comment_count, t.weekly_access_count, t.daily_access_count, t.created_at, t.computed_at, b.title, b.author_id, b.url_slug, a.avatar, a.display_name, a.slug, 
+    COUNT(t.rank_all_time) OVER() as total_all_time, 
+    COUNT(t.rank_trending) OVER() as total_trending
+FROM top20 t
+LEFT JOIN blogs.blogs b ON b.blog_id = t.blog_id AND b.status = 'active'
+LEFT JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id AND a.deleted_at IS NULL 
 LIMIT
 CASE
     WHEN $1::BOOLEAN THEN 20
@@ -1179,6 +1342,26 @@ type ListRankingTableParams struct {
 }
 
 type ListRankingTableRow struct {
+	BlogID            int64
+	RankAllTime       pgtype.Int4
+	RankTrending      pgtype.Int4
+	ScoreAllTime      pgtype.Float8
+	ScoreTrending     pgtype.Float8
+	LikeCount         int32
+	DislikeCount      int32
+	CommentCount      int32
+	WeeklyAccessCount int32
+	DailyAccessCount  int32
+	CreatedAt         pgtype.Timestamptz
+	ComputedAt        pgtype.Timestamptz
+	Title             pgtype.Text
+	AuthorID          pgtype.Text
+	UrlSlug           pgtype.Text
+	Avatar            pgtype.Text
+	DisplayName       pgtype.Text
+	Slug              pgtype.Text
+	TotalAllTime      int64
+	TotalTrending     int64
 }
 
 // params:
@@ -1204,7 +1387,28 @@ func (q *Queries) ListRankingTable(ctx context.Context, arg ListRankingTablePara
 	var items []ListRankingTableRow
 	for rows.Next() {
 		var i ListRankingTableRow
-		if err := rows.Scan(); err != nil {
+		if err := rows.Scan(
+			&i.BlogID,
+			&i.RankAllTime,
+			&i.RankTrending,
+			&i.ScoreAllTime,
+			&i.ScoreTrending,
+			&i.LikeCount,
+			&i.DislikeCount,
+			&i.CommentCount,
+			&i.WeeklyAccessCount,
+			&i.DailyAccessCount,
+			&i.CreatedAt,
+			&i.ComputedAt,
+			&i.Title,
+			&i.AuthorID,
+			&i.UrlSlug,
+			&i.Avatar,
+			&i.DisplayName,
+			&i.Slug,
+			&i.TotalAllTime,
+			&i.TotalTrending,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1284,7 +1488,7 @@ RETURNING blog_id
 
 type UpdateBlogParams struct {
 	Title   string
-	Content pgtype.Text
+	Content string
 	BlogID  int64
 }
 
@@ -1327,6 +1531,7 @@ base AS (
     FROM blogs.blogs b
     LEFT JOIN comment_stats cs
         ON cs.blog_id = b.blog_id
+    WHERE b.status = 'active'
 ),
 scored AS (
     SELECT

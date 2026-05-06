@@ -9,6 +9,7 @@ func (h *BlogHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 
 	blogs := v1.Group("/blogs")
 	blogs.GET("", h.getAllBlogs)
+	blogs.GET("/ranking", h.GetRankingBlogsByType)
 	blogs.GET("/slug/:slug", h.getBlogByUrlSlug)
 	blogs.GET("/author/slug/:authorSlug", h.getBlogsByAuthorSlug)
 	blog := blogs.Group("/:id")

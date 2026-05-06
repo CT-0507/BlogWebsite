@@ -35,3 +35,27 @@ type AuthorData struct {
 	Slug        string  `json:"slug"`
 	DisplayName string  `json:"displayName"`
 }
+
+type RankingBlogData struct {
+	BlogID              int64    `json:"blogID"`
+	TotalAllTimeResult  *int64   `json:"totalAllTime,omitempty"`
+	TotalTrendingResult *int64   `json:"totalTrending,omitempty"`
+	RankAllTime         *int32   `json:"rankAllTime"`
+	RankTrending        *int32   `json:"rankTrending"`
+	ScoreAllTime        *float64 `json:"scoreAllTime"`
+	ScoreTrending       *float64 `json:"scoreTrending"`
+	LikeCount           int32    `json:"likeCount"`
+	DislikeCount        int32    `json:"dislikeCount"`
+	CommentCount        int32    `json:"commentCount"`
+	WeeklyAccessCount   int32    `json:"weeklyAccessCount"`
+	DailyAccessCount    int32    `json:"dailyAccessCount"`
+	CreatedAt           string   `json:"createdAt"`
+	ComputedAt          string   `json:"computedAt"`
+	Title               *string  `json:"title"`
+	AuthorID            *string  `json:"authorID"`
+	UrlSlug             *string  `json:"urlSlug"`
+	Content             string   `json:"content"`
+	Avatar              *string  `json:"avatar"`
+	DisplayName         *string  `json:"displayName"`
+	Slug                *string  `json:"slug"`
+}

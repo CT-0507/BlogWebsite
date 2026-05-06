@@ -23,6 +23,13 @@ func GetExecutor(ctx context.Context, db DBTX) DBTX {
 	return db
 }
 
+func GetStringPointerFromText(text pgtype.Text) *string {
+	if text.Valid {
+		return &text.String
+	}
+	return nil
+}
+
 func GetTextTypeFromNullableString(s *string) pgtype.Text {
 	if s == nil {
 		return pgtype.Text{
@@ -33,4 +40,18 @@ func GetTextTypeFromNullableString(s *string) pgtype.Text {
 		Valid:  true,
 		String: *s,
 	}
+}
+
+func GetInt32PointerFromInt4(n pgtype.Int4) *int32 {
+	if n.Valid {
+		return &n.Int32
+	}
+	return nil
+}
+
+func GetFloat64PointerFromFloat8(f pgtype.Float8) *float64 {
+	if f.Valid {
+		return &f.Float64
+	}
+	return nil
 }

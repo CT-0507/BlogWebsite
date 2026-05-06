@@ -83,8 +83,54 @@ WHERE i.slug = $1 AND b.deleted_at IS NULL AND b.status = $2;
 -- name: ListAllBlogs :many
 SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs;
 
+-- name: GetListBlogsCount :one
+WITH params AS (
+    SELECT
+        websearch_to_tsquery('english', COALESCE(sqlc.narg('title')::TEXT, '')) AS title_q,
+        websearch_to_tsquery('english', COALESCE(sqlc.narg('content')::TEXT, '')) AS content_q,
+        sqlc.narg('author_display_name')::TEXT AS author_q
+)
+SELECT
+    COUNT(*) as total_result
+
+FROM blogs.blogs b
+JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+CROSS JOIN params p
+
+WHERE
+    b.status = 'active'
+    AND (
+        (sqlc.narg('title')::TEXT IS NULL OR b.title_vector @@ p.title_q)
+        AND (sqlc.narg('content')::TEXT IS NULL OR b.content_vector @@ p.content_q)
+        AND (sqlc.narg('author_display_name')::TEXT IS NULL OR a.display_name ILIKE '%' || sqlc.narg('author_display_name')::TEXT || '%')
+    );
+
 -- name: ListBlogs :many
-SELECT 
+-- SELECT 
+--     b.blog_id,
+--     b.author_id,
+--     b.title, 
+--     b.url_slug,
+--     b.content,
+--     b.like_count,
+--     b.dislike_count, 
+--     b.status,
+--     b.created_at, 
+--     b.created_by, 
+--     b.updated_at, 
+--     b.updated_by,
+--     i.slug,
+--     i.display_name
+-- FROM blogs.blogs b
+-- JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
+-- WHERE b.deleted_at IS NULL;
+WITH params AS (
+    SELECT
+        websearch_to_tsquery('english', COALESCE(sqlc.narg('title')::TEXT, '')) AS title_q,
+        websearch_to_tsquery('english', COALESCE(sqlc.narg('content')::TEXT, '')) AS content_q,
+        sqlc.narg('author_display_name')::TEXT AS author_q
+)
+SELECT
     b.blog_id,
     b.author_id,
     b.title, 
@@ -97,11 +143,46 @@ SELECT
     b.created_by, 
     b.updated_at, 
     b.updated_by,
-    i.slug,
-    i.display_name
+    a.slug,
+    a.display_name,
+
+    (
+        COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
+        COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)
+    ) AS rank
+
 FROM blogs.blogs b
-JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
-WHERE b.deleted_at IS NULL;
+JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+CROSS JOIN params p
+
+WHERE
+    b.status = 'active'
+    AND (
+        (sqlc.narg('title')::TEXT IS NULL OR b.title_vector @@ p.title_q)
+        AND (sqlc.narg('content')::TEXT IS NULL OR b.content_vector @@ p.content_q)
+        AND (sqlc.narg('author_display_name')::TEXT IS NULL OR a.display_name ILIKE '%' || sqlc.narg('author_display_name')::TEXT || '%')
+    )
+
+ORDER BY
+    CASE WHEN sqlc.narg('sort_by')::TEXT = 'title' AND sqlc.narg('sort_dir')::TEXT = 'asc'  THEN b.title END ASC,
+    CASE WHEN sqlc.narg('sort_by')::TEXT = 'title' AND sqlc.narg('sort_dir')::TEXT = 'desc' THEN b.title END DESC,
+
+    CASE WHEN sqlc.narg('sort_by')::TEXT = 'created_at' AND sqlc.narg('sort_dir')::TEXT = 'asc'  THEN b.created_at END ASC,
+    CASE WHEN sqlc.narg('sort_by')::TEXT = 'created_at' AND sqlc.narg('sort_dir')::TEXT = 'desc' THEN b.created_at END DESC,
+
+    CASE
+        WHEN sqlc.narg('sort_by')::TEXT = 'relevance' AND sqlc.narg('sort_dir')::TEXT = 'asc' THEN
+            (COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
+             COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)) END ASC,
+    CASE
+        WHEN sqlc.narg('sort_by')::TEXT = 'relevance' AND sqlc.narg('sort_dir')::TEXT = 'desc' THEN
+            (COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
+             COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)) END DESC,
+
+    -- default sort (created_at DESC)
+    b.created_at DESC
+
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CreateBlog :one
 INSERT INTO blogs.blogs(
@@ -461,36 +542,44 @@ WITH filtered AS (
 ),
     top20 AS (
 SELECT
-    br.*
-FROM filtered
+    ft.*
+FROM filtered ft
 ORDER BY
     CASE
-        WHEN sqlc.arg('type')::TEXT = 'allTime' THEN br.rank_all_time
-        WHEN sqlc.arg('type') = 'trending' THEN br.rank_trending
+        WHEN sqlc.arg('type')::TEXT = 'allTime' THEN ft.rank_all_time
+        WHEN sqlc.arg('type') = 'trending' THEN ft.rank_trending
     END ASC,
     -- daily access
-    CASE WHEN sqlc.arg('sort_by')::TEXT = 'daily'  AND sqlc.arg('sort_dir')::TEXT = 'asc'  THEN br.daily_access_count END ASC,
-    CASE WHEN sqlc.arg('sort_by') = 'daily'  AND sqlc.arg('sort_dir') = 'desc' THEN br.daily_access_count END DESC,
+    CASE WHEN sqlc.arg('sort_by')::TEXT = 'daily'  AND sqlc.arg('sort_dir')::TEXT = 'asc'  THEN ft.daily_access_count END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'daily'  AND sqlc.arg('sort_dir') = 'desc' THEN ft.daily_access_count END DESC,
 
     -- weekly access
-    CASE WHEN sqlc.arg('sort_by') = 'weekly' AND sqlc.arg('sort_dir') = 'asc'  THEN br.weekly_access_count END ASC,
-    CASE WHEN sqlc.arg('sort_by') = 'weekly' AND sqlc.arg('sort_dir') = 'desc' THEN br.weekly_access_count END DESC,
+    CASE WHEN sqlc.arg('sort_by') = 'weekly' AND sqlc.arg('sort_dir') = 'asc'  THEN ft.weekly_access_count END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'weekly' AND sqlc.arg('sort_dir') = 'desc' THEN ft.weekly_access_count END DESC,
 
     -- like count
-    CASE WHEN sqlc.arg('sort_by') = 'likes'  AND sqlc.arg('sort_dir') = 'asc'  THEN br.like_count END ASC,
-    CASE WHEN sqlc.arg('sort_by') = 'likes'  AND sqlc.arg('sort_dir') = 'desc' THEN br.like_count END DESC,
+    CASE WHEN sqlc.arg('sort_by') = 'likes'  AND sqlc.arg('sort_dir') = 'asc'  THEN ft.like_count END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'likes'  AND sqlc.arg('sort_dir') = 'desc' THEN ft.like_count END DESC,
 
     -- score
-    CASE WHEN sqlc.arg('sort_by') = 'score'  AND sqlc.arg('sort_dir') = 'asc'  THEN br.score END ASC,
-    CASE WHEN sqlc.arg('sort_by') = 'score'  AND sqlc.arg('sort_dir') = 'desc' THEN br.score END DESC,
+    CASE WHEN sqlc.arg('sort_by') = 'score' AND sqlc.arg('type') = 'allTime'  AND sqlc.arg('sort_dir') = 'asc'  THEN ft.score_all_time END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'score' AND sqlc.arg('type') = 'allTime' AND sqlc.arg('sort_dir') = 'desc' THEN ft.score_all_time END DESC,
+    CASE WHEN sqlc.arg('sort_by') = 'score' AND sqlc.arg('type') = 'trending' AND sqlc.arg('sort_dir') = 'asc'  THEN ft.score_trending END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'score' AND sqlc.arg('type') = 'trending' AND sqlc.arg('sort_dir') = 'desc' THEN ft.score_trending END DESC,
 
     -- rank
-    CASE WHEN sqlc.arg('sort_by') = 'rank'   AND sqlc.arg('sort_dir') = 'asc'  THEN br.rank END ASC,
-    CASE WHEN sqlc.arg('sort_by') = 'rank'   AND sqlc.arg('sort_dir') = 'desc' THEN br.rank END DESC
+    CASE WHEN sqlc.arg('sort_by') = 'rank' AND sqlc.arg('type') = 'allTime' AND sqlc.arg('sort_dir') = 'asc'  THEN ft.rank_all_time END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'rank' AND sqlc.arg('type') = 'allTime' AND sqlc.arg('sort_dir') = 'desc' THEN ft.rank_all_time END DESC,
+    CASE WHEN sqlc.arg('sort_by') = 'rank' AND sqlc.arg('type') = 'trending' AND sqlc.arg('sort_dir') = 'asc'  THEN ft.rank_trending END ASC,
+    CASE WHEN sqlc.arg('sort_by') = 'rank' AND sqlc.arg('type') = 'trending' AND sqlc.arg('sort_dir') = 'desc' THEN ft.rank_trending END DESC
     LIMIT 20
 )
-SELECT *
-FROM top20
+SELECT t.*, b.title, b.author_id, b.url_slug, a.avatar, a.display_name, a.slug, 
+    COUNT(t.rank_all_time) OVER() as total_all_time, 
+    COUNT(t.rank_trending) OVER() as total_trending
+FROM top20 t
+LEFT JOIN blogs.blogs b ON b.blog_id = t.blog_id AND b.status = 'active'
+LEFT JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id AND a.deleted_at IS NULL 
 -- paging control
 LIMIT
 CASE
@@ -538,6 +627,7 @@ base AS (
     FROM blogs.blogs b
     LEFT JOIN comment_stats cs
         ON cs.blog_id = b.blog_id
+    WHERE b.status = 'active'
 ),
 scored AS (
     SELECT
@@ -587,3 +677,20 @@ SELECT
 FROM ranked
 WHERE rank_all_time <= 20
    OR rank_trending <= 20;
+
+-- name: InsertTags :exec
+WITH input_tags AS (
+  SELECT DISTINCT LOWER(TRIM(UNNEST(sqlc.arg('name')::text[]))) AS name
+),
+inserted AS (
+  INSERT INTO blogs.tags (name)
+  SELECT name FROM input_tags
+  ON CONFLICT (name) DO NOTHING
+),
+all_tags AS (
+  SELECT id, name FROM blogs.tags
+  WHERE name IN (SELECT name FROM input_tags)
+)
+INSERT INTO blogs.blog_tags (blog_id, tag_id)
+SELECT $1, id FROM all_tags
+ON CONFLICT DO NOTHING;

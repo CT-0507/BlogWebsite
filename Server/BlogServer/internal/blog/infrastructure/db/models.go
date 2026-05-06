@@ -14,7 +14,9 @@ type BlogsBlog struct {
 	AuthorID          string
 	UrlSlug           string
 	Title             string
-	Content           pgtype.Text
+	Content           string
+	TitleVector       interface{}
+	ContentVector     interface{}
 	Status            string
 	LikeCount         int64
 	DislikeCount      int64
@@ -57,11 +59,7 @@ type BlogsBlogTag struct {
 	TagID     int64
 	BlogID    int64
 	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy pgtype.Text
 }
 
 type BlogsComment struct {
@@ -105,15 +103,10 @@ type BlogsIdxUserAuthorProfile struct {
 }
 
 type BlogsTag struct {
-	TagID     int64
+	ID        int64
 	Name      string
-	Slug      string
 	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy pgtype.Text
 }
 
 type UsersNotification struct {
