@@ -10,6 +10,7 @@ export interface Blog {
   dislikeCount: number;
   urlSlug: string;
   content: string;
+  tags: string[];
   userReaction?: string | null;
   createdAt: string;
 }

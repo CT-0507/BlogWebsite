@@ -30,12 +30,13 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 	q := blogdb.New(db)
 
 	newBlog, err := q.CreateBlog(c, blogdb.CreateBlogParams{
-		AuthorID:  blog.AuthorID,
-		Title:     blog.Title,
-		UrlSlug:   blog.URLSlug,
-		Content:   blog.Content,
-		CreatedBy: blog.AuthorID,
-		UpdatedBy: blog.AuthorID,
+		AuthorID:     blog.AuthorID,
+		Title:        blog.Title,
+		UrlSlug:      blog.URLSlug,
+		Content:      blog.Content,
+		ThumbnailUrl: utils.GetTextTypeFromNullableString(blog.ThumbnailUrl),
+		CreatedBy:    blog.AuthorID,
+		UpdatedBy:    blog.AuthorID,
 	})
 
 	if err != nil {
@@ -344,4 +345,58 @@ func (r *BlogRepository) GetRankingBlogsByType(c context.Context, searchType str
 		blogs = append(blogs, *r.mapper.MapDBListRankingRowToRankingBlog(&v))
 	}
 	return blogs, nil
+}
+
+func (r *BlogRepository) UpdateViewCount(c context.Context, blogID int64) error {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.UpdateViewCount(c, blogID)
+}
+
+func (r *BlogRepository) GetWeeksViews(c context.Context, blogID int64, numberOfWeeks int32) ([]domain.WeekViewData, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	rows, err := q.GetWeeksViews(c, blogdb.GetWeeksViewsParams{
+		BlogID:       blogID,
+		NumberOfWeek: numberOfWeeks,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var result []domain.WeekViewData
+	for _, value := range rows {
+		v := value
+		result = append(result, domain.WeekViewData{
+			WeekStart: v.WeekStart.Time.String(),
+			Views:     v.WeeklyViews,
+		})
+	}
+	return result, nil
+}
+
+func (r *BlogRepository) GetDaysViews(c context.Context, blogID int64, numberOfDays int32) ([]domain.DateViewData, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	rows, err := q.GetDaysView(c, blogdb.GetDaysViewParams{
+		BlogID:       blogID,
+		NumberOfDays: numberOfDays,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var result []domain.DateViewData
+	for _, value := range rows {
+		v := value
+		result = append(result, domain.DateViewData{
+			Date:  v.Date.Time.String(),
+			Views: v.Views,
+		})
+	}
+	return result, nil
 }

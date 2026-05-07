@@ -15,6 +15,7 @@ type BlogsBlog struct {
 	UrlSlug           string
 	Title             string
 	Content           string
+	ThumbnailUrl      pgtype.Text
 	TitleVector       interface{}
 	ContentVector     interface{}
 	Status            string
@@ -22,12 +23,19 @@ type BlogsBlog struct {
 	DislikeCount      int64
 	DailyAccessCount  int64
 	WeeklyAccessCount int64
+	AccessCount       int64
 	CreatedAt         pgtype.Timestamptz
 	CreatedBy         string
 	UpdatedAt         pgtype.Timestamptz
 	UpdatedBy         string
 	DeletedAt         pgtype.Timestamptz
 	DeletedBy         pgtype.Text
+}
+
+type BlogsBlogMetric struct {
+	BlogID int64
+	Date   pgtype.Date
+	Views  int64
 }
 
 type BlogsBlogRanking struct {
@@ -53,6 +61,11 @@ type BlogsBlogReaction struct {
 	Status    string
 	CreatedAt pgtype.Timestamptz
 	DeletedAt pgtype.Timestamptz
+}
+
+type BlogsBlogRequestTracking struct {
+	BlogID    int64
+	RequestID string
 }
 
 type BlogsBlogTag struct {

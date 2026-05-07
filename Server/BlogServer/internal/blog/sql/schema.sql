@@ -7,7 +7,8 @@ CREATE TABLE blogs.blogs (
     url_slug VARCHAR(400) NOT NULL UNIQUE,
     title TEXT NOT NULL,
 
-    content TEXT NOT NULL ,
+    content TEXT NOT NULL,
+    thumbnail_url TEXT,
     title_vector tsvector GENERATED ALWAYS AS (
         to_tsvector('english', coalesce(title, ''))
     ) STORED,
@@ -22,6 +23,7 @@ CREATE TABLE blogs.blogs (
     dislike_count  BIGINT NOT NULL DEFAULT 0,
     daily_access_count BIGINT NOT NULL DEFAULT 0,
     weekly_access_count BIGINT NOT NULL DEFAULT 0,
+    access_count BIGINT NOT NULL DEFAULT 0,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by TEXT NOT NULL,
@@ -41,11 +43,12 @@ CREATE TABLE blogs.tags (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
 
-    UNIQUE(tag_id)
+    UNIQUE(tag_id),
+    UNIQUE(name)
 );
 
 CREATE TABLE blogs.blog_tags (
-    tag_id BIGINT NOT NULL REFERENCES blogs.tags(tag_id) ON DELETE CASCADE,
+    tag_id BIGINT NOT NULL REFERENCES blogs.tags(id) ON DELETE CASCADE,
     blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -173,5 +176,26 @@ CREATE TABLE blogs.blog_ranking (
     computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     UNIQUE(blog_id)
+
+);
+CREATE TABLE blogs.blog_metrics (
+    
+    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+
+        -- rankings
+    date DATE NOT NULL,
+    views BIGINT NOT NULL DEFAULT 1,
+
+    UNIQUE(blog_id, date)
+
+);
+
+CREATE TABLE blogs.blog_request_tracking (
+    
+    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+    request_id TEXT NOT NULL,
+    -- rankings
+
+    UNIQUE(blog_id, request_id)
 
 );

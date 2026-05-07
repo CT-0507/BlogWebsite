@@ -9,6 +9,7 @@ import (
 	mocks "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/application/mocks"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	mocks_test "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/mocks"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -147,7 +148,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_Success() {
 	author := &domain.AuthorProfile{}
 	userID := "user-1"
 	createdBy := userID
-	fileParams := &domain.CreateUserFileStorageParams{}
+	fileParams := &storage.FileStorageParams{}
 	// Expectation
 	s.mockRepo.
 		On("CreateAuthorProfile", ctx, mock.MatchedBy(func(a *domain.AuthorProfile) bool {
@@ -180,7 +181,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_ErrorOnInsertingAutho
 	}
 	userID := "user-1"
 	createdBy := userID
-	fileParams := &domain.CreateUserFileStorageParams{}
+	fileParams := &storage.FileStorageParams{}
 
 	expectedErr := &domain.ErrFailedToCreateAuthorProfile{
 		Message: "Failed to create author profile",
@@ -214,7 +215,7 @@ func (s *AuthorIdentityUseCasesTestSuite) TestCreateAuthor_ErrorOnInsertingOutbo
 	}
 	userID := "user-1"
 	createdBy := userID
-	fileParams := &domain.CreateUserFileStorageParams{}
+	fileParams := &storage.FileStorageParams{}
 
 	expectedErr := &domain.ErrFailedToCreateAuthorProfile{
 		Message: "Failed to create author profile",

@@ -226,3 +226,21 @@ func (r *SagaRepository) GetCompensatingStep(ctx context.Context, sagaID uuid.UU
 
 	return mapStepToDomainStep(&sagaStep), nil
 }
+
+func (r *SagaRepository) GetSagaState(ctx context.Context, sagaID uuid.UUID) (*domain.SagaStatusData, error) {
+
+	db := utils.GetExecutor(ctx, r.pool)
+
+	q := sagadb.New(db)
+
+	sagaStatus, err := q.GetSagaState(ctx, sagaID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.SagaStatusData{
+		ID:       sagaStatus.ID,
+		StepName: sagaStatus.CurrentStep,
+		Status:   domain.SagaStatus(sagaStatus.Status),
+	}, nil
+}

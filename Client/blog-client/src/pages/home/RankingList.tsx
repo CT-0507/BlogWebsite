@@ -38,6 +38,7 @@ function TrendingBlogList({ type }: BlogListProps) {
           {!isLoading &&
             data?.blogs.map((item, i) => (
               <Box key={i} sx={{ height: 30, background: "#f0f0f0" }}>
+                {`${i}. `}
                 {item.title ?? "Deleted"}
               </Box>
             ))}
@@ -69,7 +70,9 @@ function TrendingBlogList({ type }: BlogListProps) {
                 justifyContent: "center",
               }}
             >
-              <Typography>{item.title ?? "Deleted"}</Typography>
+              <Typography>
+                {`${i}. `} {item.title ?? "Deleted"}
+              </Typography>
               <Typography>{item.content ?? "Deleted"}</Typography>
             </Box>
           ))}

@@ -3,7 +3,12 @@ import Box from "@mui/material/Box";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { useForm, useWatch } from "react-hook-form";
+import {
+  Controller,
+  useForm,
+  useWatch,
+  type ControllerRenderProps,
+} from "react-hook-form";
 import { publishBlogSchema, type PublishBlogFormValues } from "./model/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Divider from "@mui/material/Divider";
@@ -11,7 +16,7 @@ import Button from "@mui/material/Button";
 import PublishIcon from "@mui/icons-material/Publish";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -24,6 +29,9 @@ import { ClockBanner } from "@/components/banner/Clock";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { publishBlogRequest } from "@/api/blogApi";
 import slugify from "slugify";
+import type { Blog } from "@/types/Blog";
+import Stack from "@mui/material/Stack";
+import Chip from "@mui/material/Chip";
 
 function getFieldName(fieldName: string) {
   switch (fieldName) {
@@ -33,11 +41,120 @@ function getFieldName(fieldName: string) {
       return "Content";
   }
 }
+interface ImageFieldProps {
+  field: ControllerRenderProps<
+    {
+      title: string;
+      urlSlug: string;
+      content: string;
+      tags?: string[] | null | undefined;
+      thumbnail?: File | null | undefined;
+    },
+    "thumbnail"
+  >;
+}
+function ImageField({ field }: ImageFieldProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!field.value) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(field.value);
+
+    setPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [field.value]);
+
+  return (
+    <Box>
+      <Typography variant="subtitle1" gutterBottom>
+        Upload Image
+      </Typography>
+
+      {/* Upload Button */}
+      <Button variant="outlined" component="label">
+        Choose File
+        <input
+          ref={inputRef}
+          hidden
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0] || null;
+
+            field.onChange(file);
+            e.target.value = "";
+          }}
+        />
+      </Button>
+
+      {/* Preview */}
+      {previewUrl && (
+        <Box
+          sx={{
+            mt: 2,
+            width: 240,
+            height: 240,
+            position: "relative",
+            border: "1px dashed #ccc",
+            borderRadius: 2,
+            overflow: "hidden",
+            background: "#fafafa",
+          }}
+        >
+          {/* Remove Button */}
+          <Button
+            size="small"
+            onClick={() => field.onChange(null)}
+            sx={{
+              minWidth: 0,
+              width: 32,
+              height: 32,
+              position: "absolute",
+              top: 8,
+              right: 8,
+              borderRadius: "50%",
+              background: "rgba(0,0,0,0.6)",
+              color: "#fff",
+              zIndex: 1,
+
+              "&:hover": {
+                background: "rgba(0,0,0,0.8)",
+              },
+            }}
+          >
+            ✕
+          </Button>
+
+          {/* Image */}
+          <Box
+            component="img"
+            src={previewUrl}
+            alt="Preview"
+            sx={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 export default function PublishPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [tagInput, setTagInput] = useState("");
 
   const {
     register,
@@ -51,9 +168,13 @@ export default function PublishPage() {
       title: "",
       urlSlug: "",
       content: "",
+      tags: [],
+      thumbnail: null,
     },
     mode: "all",
   });
+
+  const tags = useWatch({ control, name: "tags" });
 
   const title = useWatch({ control, name: "title" });
 
@@ -75,7 +196,10 @@ export default function PublishPage() {
     retry: false,
     onSuccess: (data) => {
       console.log(data);
-      queryClient.invalidateQueries({ queryKey: ["blogs"] });
+      queryClient.setQueryData(
+        ["author_blogs", data.author.slug],
+        (old: Blog[]) => [...old, data]
+      );
     },
     onError: (error) => {
       if (error.message.includes("500")) {
@@ -95,6 +219,30 @@ export default function PublishPage() {
     } else {
       navigate("/dashboard");
     }
+  };
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+
+      const trimmed = tagInput.trim();
+
+      if (!tags!.includes(trimmed)) {
+        setValue("tags", [...tags!, trimmed], {
+          shouldValidate: true,
+        });
+      }
+
+      setTagInput("");
+    }
+  };
+
+  const handleDeleteTag = (tagToDelete: string) => {
+    setValue(
+      "tags",
+      tags!.filter((tag) => tag !== tagToDelete),
+      { shouldValidate: true }
+    );
   };
 
   const dirtyFieldNames = getDirtyFieldNames(dirtyFields);
@@ -123,6 +271,13 @@ export default function PublishPage() {
             <ClockBanner />
           </Box>
           <Typography variant="h4">Let publish new blog</Typography>
+        </Box>
+        <Box>
+          <Controller
+            name="thumbnail"
+            control={control}
+            render={({ field }) => <ImageField field={field} />}
+          />
         </Box>
         <Box id="blog-title-section">
           <Box sx={{ width: "45%", p: 1 }}>
@@ -157,6 +312,34 @@ export default function PublishPage() {
               helperText={errors.urlSlug?.message || " "}
             />
           </Box>
+        </Box>
+        {/* ----------------------------- */}
+        {/* Tags */}
+        {/* ----------------------------- */}
+
+        <Box>
+          <Typography variant="subtitle1" gutterBottom>
+            Tags
+          </Typography>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1 }}>
+            {tags &&
+              tags.map((tag) => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  onDelete={() => handleDeleteTag(tag)}
+                />
+              ))}
+          </Stack>
+
+          <TextField
+            fullWidth
+            label="Add tag"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleAddTag}
+          />
         </Box>
         <Box id="blog-content-section">
           <Box sx={{ width: "100%", p: 1 }}>

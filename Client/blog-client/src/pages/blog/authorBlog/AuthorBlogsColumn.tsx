@@ -2,11 +2,11 @@ import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
-import type { Blog } from "@/pages/home/BlogList";
 import { getAuthorBlogsRequest } from "@/api/authorApi";
 import { useQuery } from "@tanstack/react-query";
 import { relativeTime } from "@/utils/timeUtils";
 import { truncate } from "@/utils/textUtils";
+import type { Blog } from "@/types/Blog";
 
 interface AuthorBlogsColumnProps {
   slug: string;

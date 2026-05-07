@@ -5,19 +5,23 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 )
 
 type CreateBlogUseCases interface {
 	CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error
+	CreateBlog(c context.Context, blog *domain.Blog, userID string, fileParams *storage.FileStorageParams) (*domain.Blog, error)
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
 }
 
@@ -50,8 +54,14 @@ type CommentUsecases interface {
 type CommentReactionUseCases interface {
 	CreateCommentReaction(c context.Context, commentReaction *domain.CreateCommentReaction) (int, error)
 }
+
 type BlogReactionUseCases interface {
 	CreateBlogReaction(c context.Context, blogReaction *domain.CreateBlogReaction) (int, error)
+}
+
+type BlogMetricsUsecases interface {
+	GetWeeksViews(ctx context.Context, blogID int64, numberOfDays int32) ([]domain.WeekViewData, error)
+	GetDateViews(ctx context.Context, blogID int64, numberOfDays int32) ([]domain.DateViewData, error)
 }
 
 type BlogHandler struct {
@@ -62,6 +72,7 @@ type BlogHandler struct {
 	commentUsecases         CommentUsecases
 	commentReactionUsecases CommentReactionUseCases
 	blogReactionUsecases    BlogReactionUseCases
+	blogMetricsUsecases     BlogMetricsUsecases
 }
 
 func NewBlogHandler(
@@ -72,6 +83,7 @@ func NewBlogHandler(
 	commentUsecases CommentUsecases,
 	commentReactionUsecases CommentReactionUseCases,
 	blogReactionUsecases BlogReactionUseCases,
+	blogMetricsUsecases BlogMetricsUsecases,
 ) *BlogHandler {
 	return &BlogHandler{
 		createBlogUseCases:      createBlogUseCases,
@@ -81,6 +93,7 @@ func NewBlogHandler(
 		commentUsecases:         commentUsecases,
 		commentReactionUsecases: commentReactionUsecases,
 		blogReactionUsecases:    blogReactionUsecases,
+		blogMetricsUsecases:     blogMetricsUsecases,
 	}
 }
 
@@ -93,7 +106,7 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 	defer cancel()
 
 	var blog CreateBlogRequest
-	if err := c.ShouldBindJSON(&blog); err != nil {
+	if err := c.ShouldBind(&blog); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -111,16 +124,43 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
-	if err := h.createBlogUseCases.CreateBlogStartSaga(ctx, &domain.Blog{
+	var fileParams *storage.FileStorageParams = nil
+	fileHeader, err := c.FormFile("thumbnail")
+	if err != nil && err != http.ErrMissingFile {
+		c.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if fileHeader != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+			return
+		}
+		defer file.Close()
+		ext := filepath.Ext(fileHeader.Filename)
+		fileName := ulid.Make().String() + ext
+		contentType := fileHeader.Header.Get("Content-Type")
+
+		fileParams = &storage.FileStorageParams{
+			File:        file,
+			FileName:    fileName,
+			ContentType: contentType,
+		}
+	}
+
+	newBlog, err := h.createBlogUseCases.CreateBlog(ctx, &domain.Blog{
 		Title:   blog.Title,
 		URLSlug: blog.URLSlug,
 		Content: blog.Content,
-	}, userID); err != nil {
+		Tags:    blog.Tags,
+	}, userID, fileParams)
+	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, "Okay")
+	c.JSON(http.StatusCreated, newBlog)
 }
 
 // Description: get all blogs
@@ -863,4 +903,78 @@ func (h *BlogHandler) GetRankingBlogsByType(c *gin.Context) {
 		"total": total,
 		"blogs": &blogs,
 	})
+}
+
+func (h *BlogHandler) getInt64ValueFromParams(c *gin.Context, key string, fieldName string) (int64, error) {
+	value, valid := c.Params.Get(key)
+	if !valid {
+		return 0, errors.New(messages.MsgRequiredField.FormatLang(messages.ENGLISH, fieldName))
+	}
+	valueInt64, parseErr := strconv.ParseInt(value, 10, 64)
+	if parseErr != nil {
+		return 0, errors.New("blogId not valid")
+	}
+	return valueInt64, nil
+}
+
+func (h *BlogHandler) getInt64ValueFromQuery(c *gin.Context, key string, fieldName string) (int64, error) {
+	value := c.Query(key)
+	if value == "" {
+		return 0, errors.New(messages.MsgRequiredField.FormatLang(messages.ENGLISH, fieldName))
+	}
+	valueInt64, parseErr := strconv.ParseInt(value, 10, 64)
+	if parseErr != nil {
+		return 0, errors.New("blogId not valid")
+	}
+	return valueInt64, nil
+}
+
+// params: queryParams: resultLength(number) number of requested rows, default 1
+// params: queryParams: viewType(string, valid: "days" and "weeks") type of request, default  "days"
+func (h *BlogHandler) GetViewsData(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 1*time.Second)
+	defer cancel()
+
+	blogId, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	resultLength, err := h.getInt64ValueFromQuery(c, "resultLength", "resultLength")
+	if err != nil {
+		resultLength = 1
+	}
+
+	viewType := c.Query("viewType")
+	if viewType == "" || (viewType != "days" && viewType != "weeks") {
+		viewType = "days"
+	}
+
+	if viewType == "weeks" {
+		data, err := h.blogMetricsUsecases.GetWeeksViews(ctx, blogId, int32(resultLength))
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"type": "week",
+			"data": data,
+		})
+	} else {
+		data, err := h.blogMetricsUsecases.GetDateViews(ctx, blogId, int32(resultLength))
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"type": "days",
+			"data": data,
+		})
+	}
 }

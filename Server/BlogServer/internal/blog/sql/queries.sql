@@ -5,6 +5,7 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.thumbnail_url,
     b.like_count,
     b.dislike_count,
     b.status,
@@ -49,6 +50,7 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.thumbnail_url,
     b.like_count,
     b.dislike_count,
     b.status,
@@ -69,6 +71,7 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.thumbnail_url,
     b.status,
     b.created_at, 
     b.created_by, 
@@ -136,6 +139,7 @@ SELECT
     b.title, 
     b.url_slug,
     b.content,
+    b.thumbnail_url,
     b.like_count,
     b.dislike_count, 
     b.status,
@@ -145,7 +149,7 @@ SELECT
     b.updated_by,
     a.slug,
     a.display_name,
-
+    tags_data.tags::text[] as tags,
     (
         COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
         COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)
@@ -153,6 +157,16 @@ SELECT
 
 FROM blogs.blogs b
 JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+LEFT JOIN LATERAL (
+    SELECT COALESCE(
+        ARRAY_AGG(DISTINCT t.name)
+        FILTER (WHERE t.name IS NOT NULL),
+        '{}'
+    ) AS tags
+    FROM blogs.blog_tags bt
+    JOIN blogs.tags t ON t.id = bt.tag_id
+    WHERE bt.blog_id = b.blog_id
+) tags_data ON TRUE
 CROSS JOIN params p
 
 WHERE
@@ -190,10 +204,11 @@ INSERT INTO blogs.blogs(
     title,
     url_slug,
     content,
+    thumbnail_url,
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING *;
 
@@ -574,7 +589,7 @@ ORDER BY
     CASE WHEN sqlc.arg('sort_by') = 'rank' AND sqlc.arg('type') = 'trending' AND sqlc.arg('sort_dir') = 'desc' THEN ft.rank_trending END DESC
     LIMIT 20
 )
-SELECT t.*, b.title, b.author_id, b.url_slug, a.avatar, a.display_name, a.slug, 
+SELECT t.*, b.title, b.author_id, b.url_slug, b.thumbnail_url,a.avatar, a.display_name, a.slug, 
     COUNT(t.rank_all_time) OVER() as total_all_time, 
     COUNT(t.rank_trending) OVER() as total_trending
 FROM top20 t
@@ -603,30 +618,79 @@ WITH comment_stats AS (
     FROM blogs.comments c
     GROUP BY c.blog_id
 ),
+weekly_metrics AS (
+    SELECT
+        bm.blog_id,
+
+        date_trunc('week', bm.date)::date AS week_start,
+
+        SUM(bm.views) AS weekly_views
+
+    FROM blogs.blog_metrics bm
+    WHERE bm.date >= date_trunc('week', CURRENT_DATE) - interval '4 weeks'
+    GROUP BY bm.blog_id, week_start
+),
+
+averaged_metrics AS (
+    SELECT
+        blog_id,
+
+        ROUND(AVG(weekly_views)) AS weekly_access_count
+
+    FROM weekly_metrics
+    GROUP BY blog_id
+),
 base AS (
     SELECT
         b.blog_id,
         b.created_at,
-        b.daily_access_count,
-        b.weekly_access_count,
+
+        CASE
+            WHEN COALESCE(am.weekly_access_count, 0) > 0
+            THEN GREATEST(1, ROUND(am.weekly_access_count / 7.0))
+            ELSE 0
+        END AS daily_access_count,
+
+        COALESCE(am.weekly_access_count, 0) AS weekly_access_count,
+
         b.like_count,
         b.dislike_count,
         COALESCE(cs.comment_count, 0) AS comment_count,
 
-        -- base score (shared)
         (
-            b.daily_access_count * 2 +
-            b.weekly_access_count * 1 +
+            -- daily
+            (
+                CASE
+                    WHEN COALESCE(am.weekly_access_count, 0) > 0
+                    THEN GREATEST(1, ROUND(am.weekly_access_count / 7.0))
+                    ELSE 0
+                END
+            ) * 2 +
+
+            -- weekly
+            COALESCE(am.weekly_access_count, 0) * 1 +
+
+            -- likes/dislikes
             (b.like_count + 0.25 * b.dislike_count) * 2 +
+
+            -- sentiment
             (b.like_count - b.dislike_count) * 1 +
+
+            -- comments
             COALESCE(cs.comment_count, 0) * 2
+
         ) AS base_score,
 
         EXTRACT(EPOCH FROM (NOW() - b.created_at)) / 3600 AS hours_since_created
 
     FROM blogs.blogs b
+
+    LEFT JOIN averaged_metrics am
+        ON am.blog_id = b.blog_id
+
     LEFT JOIN comment_stats cs
         ON cs.blog_id = b.blog_id
+
     WHERE b.status = 'active'
 ),
 scored AS (
@@ -678,7 +742,7 @@ FROM ranked
 WHERE rank_all_time <= 20
    OR rank_trending <= 20;
 
--- name: InsertTags :exec
+-- name: UpsertTags :exec
 WITH input_tags AS (
   SELECT DISTINCT LOWER(TRIM(UNNEST(sqlc.arg('name')::text[]))) AS name
 ),
@@ -694,3 +758,53 @@ all_tags AS (
 INSERT INTO blogs.blog_tags (blog_id, tag_id)
 SELECT $1, id FROM all_tags
 ON CONFLICT DO NOTHING;
+
+-- name: UpdateViewCount :exec
+INSERT INTO blogs.blog_metrics (blog_id, date, views)
+VALUES ($1, CURRENT_DATE, 1)
+ON CONFLICT (blog_id, date)
+DO UPDATE
+SET views = blogs.blog_metrics.views + EXCLUDED.views;
+
+-- name: GetWeeksViews :many
+WITH weeks AS (
+    SELECT generate_series(
+        date_trunc('week', CURRENT_DATE) - ((sqlc.arg('numberOfWeek')::INT - 1) || ' weeks')::interval,
+        date_trunc('week', CURRENT_DATE),
+        interval '1 week'
+    )::date AS week_start
+)
+
+SELECT
+    w.week_start,
+    COALESCE(SUM(bm.views), 0)::BIGINT AS weekly_views
+
+FROM weeks w
+
+LEFT JOIN blogs.blog_metrics bm
+    ON bm.blog_id = sqlc.arg('blogID')
+   AND date_trunc('week', bm.date)::date = w.week_start
+
+GROUP BY w.week_start
+ORDER BY w.week_start DESC;
+
+-- name: GetDaysView :many
+WITH days AS (
+    SELECT generate_series(
+        CURRENT_DATE - (sqlc.arg('numberOfDays')::INT - 1),
+        CURRENT_DATE,
+        interval '1 day'
+    )::date AS day
+)
+
+SELECT
+    d.day AS date,
+    COALESCE(bm.views, 0) AS views
+
+FROM days d
+
+LEFT JOIN blogs.blog_metrics bm
+    ON bm.blog_id = $1
+   AND bm.date = d.day
+
+ORDER BY d.day DESC;

@@ -16,11 +16,12 @@ func NewBlogMapper() *BlogMapperPG {
 
 func (b *BlogMapperPG) BlogDTOToBlog(blogDTO *blogdb.BlogsBlog) *domain.Blog {
 	return &domain.Blog{
-		BlogID:  blogDTO.BlogID,
-		Title:   blogDTO.Title,
-		URLSlug: blogDTO.UrlSlug,
-		Content: blogDTO.Content,
-		Status:  blogDTO.Status,
+		BlogID:       blogDTO.BlogID,
+		Title:        blogDTO.Title,
+		URLSlug:      blogDTO.UrlSlug,
+		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
+		Status:       blogDTO.Status,
 		Audit: model.Audit{
 			CreatedAt: blogDTO.CreatedAt.Time,
 			CreatedBy: &blogDTO.CreatedBy,
@@ -38,9 +39,11 @@ func (b *BlogMapperPG) ListBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsRow) *doma
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
 		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		LikeCount:    blogDTO.LikeCount,
 		DislikeCount: blogDTO.DislikeCount,
 		Status:       blogDTO.Status,
+		Tags:         blogDTO.Tags,
 		Author: domain.AuthorData{
 			AuthorID:    blogDTO.AuthorID,
 			Slug:        blogDTO.Slug,
@@ -57,11 +60,12 @@ func (b *BlogMapperPG) ListBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsRow) *doma
 
 func (b *BlogMapperPG) ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorRow) *domain.BlogWithAuthorData {
 	return &domain.BlogWithAuthorData{
-		BlogID:  blogDTO.BlogID,
-		Title:   blogDTO.Title,
-		URLSlug: blogDTO.UrlSlug,
-		Content: blogDTO.Content,
-		Status:  blogDTO.Status,
+		BlogID:       blogDTO.BlogID,
+		Title:        blogDTO.Title,
+		URLSlug:      blogDTO.UrlSlug,
+		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
+		Status:       blogDTO.Status,
 		Author: domain.AuthorData{
 			AuthorID:    blogDTO.AuthorID,
 			Slug:        blogDTO.Slug,
@@ -78,11 +82,12 @@ func (b *BlogMapperPG) ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.Lis
 
 func (b *BlogMapperPG) ListAuthorBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorSlugRow) *domain.BlogWithAuthorData {
 	return &domain.BlogWithAuthorData{
-		BlogID:  blogDTO.BlogID,
-		Title:   blogDTO.Title,
-		URLSlug: blogDTO.UrlSlug,
-		Content: blogDTO.Content,
-		Status:  blogDTO.Status,
+		BlogID:       blogDTO.BlogID,
+		Title:        blogDTO.Title,
+		URLSlug:      blogDTO.UrlSlug,
+		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
+		Status:       blogDTO.Status,
 		Author: domain.AuthorData{
 			AuthorID:    blogDTO.AuthorID,
 			Slug:        blogDTO.Slug,
@@ -103,6 +108,7 @@ func (b *BlogMapperPG) GetBlogRowDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlog
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
 		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		LikeCount:    blogDTO.LikeCount,
 		DislikeCount: blogDTO.DislikeCount,
 		Status:       blogDTO.Status,
@@ -126,6 +132,7 @@ func (b *BlogMapperPG) GetBlogWithReactionDTOToBlogWithAuthorData(blogDTO *blogd
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
 		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		LikeCount:    blogDTO.LikeCount,
 		DislikeCount: blogDTO.DislikeCount,
 		UserReaction: utils.GetStringPointerFromText(blogDTO.ReactionType),
@@ -146,11 +153,12 @@ func (b *BlogMapperPG) GetBlogWithReactionDTOToBlogWithAuthorData(blogDTO *blogd
 
 func (b *BlogMapperPG) GetBlogRowByUrlSlugDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlogByUrlSlugRow) *domain.BlogWithAuthorData {
 	return &domain.BlogWithAuthorData{
-		BlogID:  blogDTO.BlogID,
-		Title:   blogDTO.Title,
-		URLSlug: blogDTO.UrlSlug,
-		Content: blogDTO.Content,
-		Status:  blogDTO.Status,
+		BlogID:       blogDTO.BlogID,
+		Title:        blogDTO.Title,
+		URLSlug:      blogDTO.UrlSlug,
+		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
+		Status:       blogDTO.Status,
 		Author: domain.AuthorData{
 			AuthorID:    blogDTO.AuthorID,
 			Slug:        blogDTO.Slug,
@@ -167,10 +175,11 @@ func (b *BlogMapperPG) GetBlogRowByUrlSlugDTOToBlogWithAuthorData(blogDTO *blogd
 
 func (b *BlogMapperPG) GetBlogRowDTOToBlog(blogDTO *blogdb.GetBlogRow) *domain.Blog {
 	return &domain.Blog{
-		BlogID:  blogDTO.BlogID,
-		Title:   blogDTO.Title,
-		Content: blogDTO.Content,
-		Status:  blogDTO.Status,
+		BlogID:       blogDTO.BlogID,
+		Title:        blogDTO.Title,
+		Content:      blogDTO.Content,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
+		Status:       blogDTO.Status,
 		Audit: model.Audit{
 			CreatedAt: blogDTO.CreatedAt.Time,
 			CreatedBy: &blogDTO.CreatedBy,
@@ -327,6 +336,7 @@ func (b *BlogMapperPG) MapDBBlogReactionToReaction(reaction *blogdb.BlogsBlogRea
 func (b *BlogMapperPG) MapDBListRankingRowToRankingBlog(blogDTO *blogdb.ListRankingTableRow) *domain.RankingBlogData {
 	return &domain.RankingBlogData{
 		BlogID:              blogDTO.BlogID,
+		ThumbnailUrl:        utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		TotalAllTimeResult:  &blogDTO.TotalAllTime,
 		TotalTrendingResult: &blogDTO.TotalTrending,
 		RankAllTime:         utils.GetInt32PointerFromInt4(blogDTO.RankAllTime),

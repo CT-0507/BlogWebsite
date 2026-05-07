@@ -29,6 +29,9 @@ type BlogRepository interface {
 	// Blog metrics
 	UpdateBlogReactionCount(c context.Context, blogID int64, transition ReactionTransition) error
 	GetRankingBlogsByType(c context.Context, searchType string, offset, limit int32, shouldGetAll bool, sortBy, sortDir string) ([]domain.RankingBlogData, error)
+	GetWeeksViews(c context.Context, blogID int64, numberOfWeeks int32) ([]domain.WeekViewData, error)
+	GetDaysViews(c context.Context, blogID int64, numberOfDays int32) ([]domain.DateViewData, error)
+	UpdateViewCount(c context.Context, blogID int64) error
 	// Worker
 	UpdateBlogRankingTable(ctx context.Context) error
 	TruncateBlogRankingTable(ctx context.Context) error

@@ -22,6 +22,8 @@ func (h *BlogHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 	comment := comments.Group("/:id")
 	comment.GET("/children", h.getChildrenComments)
 	comment.GET("", h.getCommentByID)
+
+	blog.GET("/metrics", h.GetViewsData)
 }
 
 func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {

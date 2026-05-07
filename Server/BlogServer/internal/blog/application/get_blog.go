@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"log"
+	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
@@ -25,5 +27,19 @@ func (s *GetBlogUseCases) GetBlog(ctx context.Context, id int64) (*domain.BlogWi
 }
 
 func (s *GetBlogUseCases) GetBlogByUrlSlug(ctx context.Context, slug string, userID *string) (*domain.BlogWithAuthorData, error) {
-	return s.repo.FindByUrlSlug(ctx, slug, userID)
+	result, err := s.repo.FindByUrlSlug(ctx, slug, userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	go func(id int64) {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := s.repo.UpdateViewCount(ctx, id); err != nil {
+			log.Println("daily metric failed:", err)
+		}
+	}(result.BlogID)
+
+	return result, err
 }

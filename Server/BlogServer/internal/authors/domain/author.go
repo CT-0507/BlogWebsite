@@ -1,8 +1,6 @@
 package domain
 
 import (
-	"io"
-
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 )
 
@@ -53,11 +51,4 @@ type ErrAuthorNotFound struct {
 
 func (e *ErrAuthorNotFound) Error() string {
 	return e.Message
-}
-
-// Shared
-type CreateUserFileStorageParams struct {
-	File        io.Reader
-	FileName    string
-	ContentType string
 }

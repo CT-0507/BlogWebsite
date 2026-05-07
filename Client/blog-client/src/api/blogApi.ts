@@ -13,8 +13,23 @@ import { getQueryParam } from "@/utils/mapper";
 
 const API_VERSION = "/api/v1";
 
-export async function publishBlogRequest(formData: PublishBlogFormValues) {
-  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formData);
+export async function publishBlogRequest(
+  formData: PublishBlogFormValues
+): Promise<Blog> {
+  const formDataV = new FormData();
+  formDataV.append("title", formData.title);
+  formDataV.append("urlSlug", formData.urlSlug);
+  formDataV.append("content", formData.content);
+
+  if (formData.thumbnail) {
+    formDataV.append("thumbnail", formData.thumbnail);
+  }
+  if (formData.tags) {
+    formData.tags.forEach((item) => {
+      formDataV.append("tags", item);
+    });
+  }
+  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formDataV);
 
   return data;
 }

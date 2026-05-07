@@ -286,6 +286,35 @@ export default function BlogList() {
                           </Typography>
                         </Typography>
 
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          useFlexGap
+                          gap={0.5}
+                          flexWrap="wrap"
+                          sx={{ mt: 1 }}
+                        >
+                          {blog.tags.map((tag) => (
+                            <Typography
+                              key={tag}
+                              component="span"
+                              sx={{
+                                color: "primary.main",
+                                cursor: "pointer",
+                                fontWeight: 500,
+                                fontSize: "0.7em",
+                                "&:hover": {
+                                  textDecoration: "underline",
+                                },
+                              }}
+                            >
+                              <Link component={RouterLink} to={`/?tag=${tag}`}>
+                                #{tag}
+                              </Link>
+                            </Typography>
+                          ))}
+                        </Stack>
+
                         {/* Preview */}
                         <Typography variant="body1">
                           {truncate(blog.content)}
@@ -304,7 +333,7 @@ export default function BlogList() {
               >
                 <Pagination
                   sx={{ mt: 2 }}
-                  count={Math.ceil(data?.total ?? 0 / 10) || 1}
+                  count={Math.ceil((data?.total ?? 0) / 10) || 1}
                   page={page}
                   onChange={(_, v) => setPage(v)}
                 />

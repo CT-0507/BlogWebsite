@@ -11,6 +11,7 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/oklog/ulid/v2"
@@ -21,7 +22,7 @@ type AuthorDiscoveryUsecases interface {
 }
 
 type AuthorIdentityUsecases interface {
-	CreateAuthor(ctx context.Context, fileParams *domain.CreateUserFileStorageParams, author *domain.AuthorProfile, userID string, createdBy string) error
+	CreateAuthor(ctx context.Context, fileParams *storage.FileStorageParams, author *domain.AuthorProfile, userID string, createdBy string) error
 	GetAuthorProfileByID(ctx context.Context, authorID string) (*domain.AuthorProfile, error)
 	GetAuthorProfileBySlug(ctx context.Context, slug string) (*domain.AuthorProfile, error)
 	ListAuthorProfiles(ctx context.Context, page int64, limit int64) (*[]domain.AuthorProfile, error)
@@ -85,7 +86,7 @@ func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
-	var fileParams *domain.CreateUserFileStorageParams = nil
+	var fileParams *storage.FileStorageParams = nil
 	fileHeader, err := c.FormFile("avatar")
 	if err != nil && err != http.ErrMissingFile {
 		c.JSON(http.StatusBadRequest, err.Error())
@@ -103,7 +104,7 @@ func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 		fileName := ulid.Make().String() + ext
 		contentType := fileHeader.Header.Get("Content-Type")
 
-		fileParams = &domain.CreateUserFileStorageParams{
+		fileParams = &storage.FileStorageParams{
 			File:        file,
 			FileName:    fileName,
 			ContentType: contentType,

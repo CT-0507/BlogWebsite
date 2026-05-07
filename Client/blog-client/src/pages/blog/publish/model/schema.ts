@@ -23,6 +23,8 @@ export const publishBlogSchema = z.object({
     .max(10000, "Blog title cannot exceed 15 characters")
     .trim()
     .nonempty("This is a required field"),
+  tags: z.array(z.string().min(1).max(20)).max(5).optional().nullable(),
+  thumbnail: z.instanceof(File).nullable().optional(),
 });
 
 export type PublishBlogFormValues = z.infer<typeof publishBlogSchema>;

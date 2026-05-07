@@ -5,13 +5,14 @@ import (
 )
 
 type Blog struct {
-	BlogID   int64  `json:"id"`
-	AuthorID string `json:"authorID"`
-	Title    string `json:"title"`
-	URLSlug  string `json:"urlSlug"`
-	Content  string `json:"content"`
-	Status   string `json:"status"`
-	// Tags    []Tag  `json:"tags"`
+	BlogID       int64    `json:"id"`
+	AuthorID     string   `json:"authorID"`
+	Title        string   `json:"title"`
+	URLSlug      string   `json:"urlSlug"`
+	Content      string   `json:"content"`
+	Status       string   `json:"status"`
+	Tags         []string `json:"tags"`
+	ThumbnailUrl *string  `json:"thumbnailUrl"`
 	// Images  []string
 	model.Audit
 }
@@ -22,10 +23,12 @@ type BlogWithAuthorData struct {
 	URLSlug      string     `json:"urlSlug"`
 	Title        string     `json:"title"`
 	Content      string     `json:"content"`
+	ThumbnailUrl *string    `json:"thumbnailUrl"`
 	LikeCount    int64      `json:"likeCount"`
 	DislikeCount int64      `json:"dislikeCount"`
 	UserReaction *string    `json:"userReaction"`
 	Status       string     `json:"status"`
+	Tags         []string   `json:"tags"`
 	model.Audit
 }
 
@@ -38,6 +41,7 @@ type AuthorData struct {
 
 type RankingBlogData struct {
 	BlogID              int64    `json:"blogID"`
+	ThumbnailUrl        *string  `json:"thumbnailUrl"`
 	TotalAllTimeResult  *int64   `json:"totalAllTime,omitempty"`
 	TotalTrendingResult *int64   `json:"totalTrending,omitempty"`
 	RankAllTime         *int32   `json:"rankAllTime"`
@@ -58,4 +62,14 @@ type RankingBlogData struct {
 	Avatar              *string  `json:"avatar"`
 	DisplayName         *string  `json:"displayName"`
 	Slug                *string  `json:"slug"`
+}
+
+type WeekViewData struct {
+	WeekStart string `json:"weekStart"`
+	Views     int64  `json:"views"`
+}
+
+type DateViewData struct {
+	Date  string `json:"date"`
+	Views int64  `json:"views"`
 }

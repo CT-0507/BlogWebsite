@@ -556,6 +556,71 @@ func (e *EventHandler) OnBlogCreated(ctx context.Context, evt *messaging.OutboxE
 	return nil
 }
 
+// Not for saga
+func (e *EventHandler) OnBlogCreated1(ctx context.Context, evt *messaging.OutboxEvent) error {
+	timeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	err := e.txManager.WithVoidTx(timeCtx, func(ctx context.Context) error {
+
+		var payload contracts.BlogCreatedEventPayload
+		err := json.Unmarshal(evt.Payload, &payload)
+		if err != nil {
+			return err
+		}
+
+		err = e.repo.UpdateAuthorBlogCount(ctx, payload.AuthorID, true)
+		if err != nil {
+			return err
+		}
+
+		author, err := e.repo.GetAuthorProfileByID(ctx, payload.AuthorID, "active", "check_null")
+		if err != nil {
+			return err
+		}
+
+		followerIds, err := e.repo.GetAuthorFollowersByID(ctx, payload.AuthorID)
+		if err != nil {
+			return err
+		}
+
+		newPayload := &contracts.BlogCreatedNotifyEventPayload{
+			BlogID:           payload.BlogID,
+			AuthorID:         payload.AuthorID,
+			TruncatedContent: payload.TruncatedContent,
+			TruncatedTitle:   payload.TruncatedTitle,
+			BlogThumbnail:    payload.BlogThumbnail,
+			AuthorName:       author.DisplayName,
+			AuthorSlug:       author.Slug,
+			FollowerIds:      followerIds,
+		}
+
+		payloadMarshal, _ := json.Marshal(newPayload)
+
+		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType: "evt.NotifyFollower",
+			Payload:   payloadMarshal,
+		})
+	})
+
+	if err != nil {
+		ctx = context.WithValue(ctx, database.TxKey{}, nil)
+		// Fail to create blog
+		m := map[string]any{}
+		b, _ := json.Marshal(m)
+		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			SagaID:    evt.SagaID,
+			EventType: flows.InceaseAuthorBlogCountFailed,
+			Payload:   b,
+			Error:     utils.StringPtr(err.Error()),
+		})
+		if err1 != nil {
+			return err1
+		}
+		return nil
+	}
+	return nil
+}
+
 func (e *EventHandler) OnDecreaseAuthorBlogCount(c context.Context, evt *messaging.OutboxEvent) error {
 
 	var outboxPayload contracts.DeleteBlogPayload

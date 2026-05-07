@@ -1,9 +1,10 @@
 package http
 
 type CreateBlogRequest struct {
-	Title   string `json:"title" validate:"required"`
-	URLSlug string `json:"urlSlug" validate:"required,max=500"`
-	Content string `json:"content" validate:"required"`
+	Title   string   `form:"title" validate:"required"`
+	URLSlug string   `form:"urlSlug" validate:"required,max=500"`
+	Content string   `form:"content" validate:"required"`
+	Tags    []string `form:"tags" validate:"max=5"`
 }
 
 type CreateCommentRequest struct {

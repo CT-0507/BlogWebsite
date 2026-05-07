@@ -18,21 +18,23 @@ INSERT INTO blogs.blogs(
     title,
     url_slug,
     content,
+    thumbnail_url,
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 )
-RETURNING blog_id, author_id, url_slug, title, content, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING blog_id, author_id, url_slug, title, content, thumbnail_url, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, access_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateBlogParams struct {
-	AuthorID  string
-	Title     string
-	UrlSlug   string
-	Content   string
-	CreatedBy string
-	UpdatedBy string
+	AuthorID     string
+	Title        string
+	UrlSlug      string
+	Content      string
+	ThumbnailUrl pgtype.Text
+	CreatedBy    string
+	UpdatedBy    string
 }
 
 func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBlog, error) {
@@ -41,6 +43,7 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		arg.Title,
 		arg.UrlSlug,
 		arg.Content,
+		arg.ThumbnailUrl,
 		arg.CreatedBy,
 		arg.UpdatedBy,
 	)
@@ -51,6 +54,7 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
+		&i.ThumbnailUrl,
 		&i.TitleVector,
 		&i.ContentVector,
 		&i.Status,
@@ -58,6 +62,7 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.DislikeCount,
 		&i.DailyAccessCount,
 		&i.WeeklyAccessCount,
+		&i.AccessCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -230,6 +235,7 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.thumbnail_url,
     b.like_count,
     b.dislike_count,
     b.status,
@@ -250,6 +256,7 @@ type GetBlogRow struct {
 	UrlSlug      string
 	AuthorID     string
 	Content      string
+	ThumbnailUrl pgtype.Text
 	LikeCount    int64
 	DislikeCount int64
 	Status       string
@@ -270,6 +277,7 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 		&i.UrlSlug,
 		&i.AuthorID,
 		&i.Content,
+		&i.ThumbnailUrl,
 		&i.LikeCount,
 		&i.DislikeCount,
 		&i.Status,
@@ -285,7 +293,7 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 
 const getBlogByUrlSlug = `-- name: GetBlogByUrlSlug :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.thumbnail_url, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     i.slug,
@@ -301,6 +309,7 @@ type GetBlogByUrlSlugRow struct {
 	UrlSlug           string
 	Title             string
 	Content           string
+	ThumbnailUrl      pgtype.Text
 	TitleVector       interface{}
 	ContentVector     interface{}
 	Status            string
@@ -308,6 +317,7 @@ type GetBlogByUrlSlugRow struct {
 	DislikeCount      int64
 	DailyAccessCount  int64
 	WeeklyAccessCount int64
+	AccessCount       int64
 	CreatedAt         pgtype.Timestamptz
 	CreatedBy         string
 	UpdatedAt         pgtype.Timestamptz
@@ -329,6 +339,7 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
+		&i.ThumbnailUrl,
 		&i.TitleVector,
 		&i.ContentVector,
 		&i.Status,
@@ -336,6 +347,7 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.DislikeCount,
 		&i.DailyAccessCount,
 		&i.WeeklyAccessCount,
+		&i.AccessCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -534,7 +546,7 @@ func (q *Queries) GetBlogRootCommentWithUserReaction(ctx context.Context, arg Ge
 
 const getBlogWithUserReaction = `-- name: GetBlogWithUserReaction :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.thumbnail_url, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     r.type AS reaction_type
@@ -557,6 +569,7 @@ type GetBlogWithUserReactionRow struct {
 	UrlSlug           string
 	Title             string
 	Content           string
+	ThumbnailUrl      pgtype.Text
 	TitleVector       interface{}
 	ContentVector     interface{}
 	Status            string
@@ -564,6 +577,7 @@ type GetBlogWithUserReactionRow struct {
 	DislikeCount      int64
 	DailyAccessCount  int64
 	WeeklyAccessCount int64
+	AccessCount       int64
 	CreatedAt         pgtype.Timestamptz
 	CreatedBy         string
 	UpdatedAt         pgtype.Timestamptz
@@ -584,6 +598,7 @@ func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUs
 		&i.UrlSlug,
 		&i.Title,
 		&i.Content,
+		&i.ThumbnailUrl,
 		&i.TitleVector,
 		&i.ContentVector,
 		&i.Status,
@@ -591,6 +606,7 @@ func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUs
 		&i.DislikeCount,
 		&i.DailyAccessCount,
 		&i.WeeklyAccessCount,
+		&i.AccessCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -843,6 +859,58 @@ func (q *Queries) GetCommentsByRootComment(ctx context.Context, rootCommentID uu
 	return items, nil
 }
 
+const getDaysView = `-- name: GetDaysView :many
+WITH days AS (
+    SELECT generate_series(
+        CURRENT_DATE - ($2::INT - 1),
+        CURRENT_DATE,
+        interval '1 day'
+    )::date AS day
+)
+
+SELECT
+    d.day AS date,
+    COALESCE(bm.views, 0) AS views
+
+FROM days d
+
+LEFT JOIN blogs.blog_metrics bm
+    ON bm.blog_id = $1
+   AND bm.date = d.day
+
+ORDER BY d.day DESC
+`
+
+type GetDaysViewParams struct {
+	BlogID       int64
+	NumberOfDays int32
+}
+
+type GetDaysViewRow struct {
+	Date  pgtype.Date
+	Views int64
+}
+
+func (q *Queries) GetDaysView(ctx context.Context, arg GetDaysViewParams) ([]GetDaysViewRow, error) {
+	rows, err := q.db.Query(ctx, getDaysView, arg.BlogID, arg.NumberOfDays)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDaysViewRow
+	for rows.Next() {
+		var i GetDaysViewRow
+		if err := rows.Scan(&i.Date, &i.Views); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getListBlogsCount = `-- name: GetListBlogsCount :one
 WITH params AS (
     SELECT
@@ -879,6 +947,59 @@ func (q *Queries) GetListBlogsCount(ctx context.Context, arg GetListBlogsCountPa
 	return total_result, err
 }
 
+const getWeeksViews = `-- name: GetWeeksViews :many
+WITH weeks AS (
+    SELECT generate_series(
+        date_trunc('week', CURRENT_DATE) - (($2::INT - 1) || ' weeks')::interval,
+        date_trunc('week', CURRENT_DATE),
+        interval '1 week'
+    )::date AS week_start
+)
+
+SELECT
+    w.week_start,
+    COALESCE(SUM(bm.views), 0)::BIGINT AS weekly_views
+
+FROM weeks w
+
+LEFT JOIN blogs.blog_metrics bm
+    ON bm.blog_id = $1
+   AND date_trunc('week', bm.date)::date = w.week_start
+
+GROUP BY w.week_start
+ORDER BY w.week_start DESC
+`
+
+type GetWeeksViewsParams struct {
+	BlogID       int64
+	NumberOfWeek int32
+}
+
+type GetWeeksViewsRow struct {
+	WeekStart   pgtype.Date
+	WeeklyViews int64
+}
+
+func (q *Queries) GetWeeksViews(ctx context.Context, arg GetWeeksViewsParams) ([]GetWeeksViewsRow, error) {
+	rows, err := q.db.Query(ctx, getWeeksViews, arg.BlogID, arg.NumberOfWeek)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetWeeksViewsRow
+	for rows.Next() {
+		var i GetWeeksViewsRow
+		if err := rows.Scan(&i.WeekStart, &i.WeeklyViews); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const hardDeleteBlog = `-- name: HardDeleteBlog :one
 DELETE FROM blogs.blogs
 WHERE blog_id = $1
@@ -890,34 +1011,6 @@ func (q *Queries) HardDeleteBlog(ctx context.Context, blogID int64) (int64, erro
 	var blog_id int64
 	err := row.Scan(&blog_id)
 	return blog_id, err
-}
-
-const insertTags = `-- name: InsertTags :exec
-WITH input_tags AS (
-  SELECT DISTINCT LOWER(TRIM(UNNEST($2::text[]))) AS name
-),
-inserted AS (
-  INSERT INTO blogs.tags (name)
-  SELECT name FROM input_tags
-  ON CONFLICT (name) DO NOTHING
-),
-all_tags AS (
-  SELECT id, name FROM blogs.tags
-  WHERE name IN (SELECT name FROM input_tags)
-)
-INSERT INTO blogs.blog_tags (blog_id, tag_id)
-SELECT $1, id FROM all_tags
-ON CONFLICT DO NOTHING
-`
-
-type InsertTagsParams struct {
-	BlogID int64
-	Name   []string
-}
-
-func (q *Queries) InsertTags(ctx context.Context, arg InsertTagsParams) error {
-	_, err := q.db.Exec(ctx, insertTags, arg.BlogID, arg.Name)
-	return err
 }
 
 const listAllBlogs = `-- name: ListAllBlogs :many
@@ -979,6 +1072,7 @@ SELECT
     b.title, 
     b.url_slug,
     b.content,
+    b.thumbnail_url,
     b.like_count,
     b.dislike_count, 
     b.status,
@@ -988,7 +1082,7 @@ SELECT
     b.updated_by,
     a.slug,
     a.display_name,
-
+    tags_data.tags::text[] as tags,
     (
         COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
         COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)
@@ -996,6 +1090,16 @@ SELECT
 
 FROM blogs.blogs b
 JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+LEFT JOIN LATERAL (
+    SELECT COALESCE(
+        ARRAY_AGG(DISTINCT t.name)
+        FILTER (WHERE t.name IS NOT NULL),
+        '{}'
+    ) AS tags
+    FROM blogs.blog_tags bt
+    JOIN blogs.tags t ON t.id = bt.tag_id
+    WHERE bt.blog_id = b.blog_id
+) tags_data ON TRUE
 CROSS JOIN params p
 
 WHERE
@@ -1044,6 +1148,7 @@ type ListBlogsRow struct {
 	Title        string
 	UrlSlug      string
 	Content      string
+	ThumbnailUrl pgtype.Text
 	LikeCount    int64
 	DislikeCount int64
 	Status       string
@@ -1053,6 +1158,7 @@ type ListBlogsRow struct {
 	UpdatedBy    string
 	Slug         string
 	DisplayName  string
+	Tags         []string
 	Rank         int32
 }
 
@@ -1099,6 +1205,7 @@ func (q *Queries) ListBlogs(ctx context.Context, arg ListBlogsParams) ([]ListBlo
 			&i.Title,
 			&i.UrlSlug,
 			&i.Content,
+			&i.ThumbnailUrl,
 			&i.LikeCount,
 			&i.DislikeCount,
 			&i.Status,
@@ -1108,6 +1215,7 @@ func (q *Queries) ListBlogs(ctx context.Context, arg ListBlogsParams) ([]ListBlo
 			&i.UpdatedBy,
 			&i.Slug,
 			&i.DisplayName,
+			&i.Tags,
 			&i.Rank,
 		); err != nil {
 			return nil, err
@@ -1127,6 +1235,7 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.thumbnail_url,
     b.like_count,
     b.dislike_count,
     b.status,
@@ -1152,6 +1261,7 @@ type ListBlogsByAuthorRow struct {
 	UrlSlug      string
 	AuthorID     string
 	Content      string
+	ThumbnailUrl pgtype.Text
 	LikeCount    int64
 	DislikeCount int64
 	Status       string
@@ -1178,6 +1288,7 @@ func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorPa
 			&i.UrlSlug,
 			&i.AuthorID,
 			&i.Content,
+			&i.ThumbnailUrl,
 			&i.LikeCount,
 			&i.DislikeCount,
 			&i.Status,
@@ -1205,6 +1316,7 @@ SELECT
     b.url_slug,
     b.author_id,
     b.content,
+    b.thumbnail_url,
     b.status,
     b.created_at, 
     b.created_by, 
@@ -1223,18 +1335,19 @@ type ListBlogsByAuthorSlugParams struct {
 }
 
 type ListBlogsByAuthorSlugRow struct {
-	BlogID      int64
-	Title       string
-	UrlSlug     string
-	AuthorID    string
-	Content     string
-	Status      string
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   string
-	UpdatedAt   pgtype.Timestamptz
-	UpdatedBy   string
-	Slug        string
-	DisplayName string
+	BlogID       int64
+	Title        string
+	UrlSlug      string
+	AuthorID     string
+	Content      string
+	ThumbnailUrl pgtype.Text
+	Status       string
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    string
+	UpdatedAt    pgtype.Timestamptz
+	UpdatedBy    string
+	Slug         string
+	DisplayName  string
 }
 
 func (q *Queries) ListBlogsByAuthorSlug(ctx context.Context, arg ListBlogsByAuthorSlugParams) ([]ListBlogsByAuthorSlugRow, error) {
@@ -1252,6 +1365,7 @@ func (q *Queries) ListBlogsByAuthorSlug(ctx context.Context, arg ListBlogsByAuth
 			&i.UrlSlug,
 			&i.AuthorID,
 			&i.Content,
+			&i.ThumbnailUrl,
 			&i.Status,
 			&i.CreatedAt,
 			&i.CreatedBy,
@@ -1314,7 +1428,7 @@ ORDER BY
     CASE WHEN $5 = 'rank' AND $4 = 'trending' AND $6 = 'desc' THEN ft.rank_trending END DESC
     LIMIT 20
 )
-SELECT t.blog_id, t.rank_all_time, t.rank_trending, t.score_all_time, t.score_trending, t.like_count, t.dislike_count, t.comment_count, t.weekly_access_count, t.daily_access_count, t.created_at, t.computed_at, b.title, b.author_id, b.url_slug, a.avatar, a.display_name, a.slug, 
+SELECT t.blog_id, t.rank_all_time, t.rank_trending, t.score_all_time, t.score_trending, t.like_count, t.dislike_count, t.comment_count, t.weekly_access_count, t.daily_access_count, t.created_at, t.computed_at, b.title, b.author_id, b.url_slug, b.thumbnail_url,a.avatar, a.display_name, a.slug, 
     COUNT(t.rank_all_time) OVER() as total_all_time, 
     COUNT(t.rank_trending) OVER() as total_trending
 FROM top20 t
@@ -1357,6 +1471,7 @@ type ListRankingTableRow struct {
 	Title             pgtype.Text
 	AuthorID          pgtype.Text
 	UrlSlug           pgtype.Text
+	ThumbnailUrl      pgtype.Text
 	Avatar            pgtype.Text
 	DisplayName       pgtype.Text
 	Slug              pgtype.Text
@@ -1403,6 +1518,7 @@ func (q *Queries) ListRankingTable(ctx context.Context, arg ListRankingTablePara
 			&i.Title,
 			&i.AuthorID,
 			&i.UrlSlug,
+			&i.ThumbnailUrl,
 			&i.Avatar,
 			&i.DisplayName,
 			&i.Slug,
@@ -1507,30 +1623,79 @@ WITH comment_stats AS (
     FROM blogs.comments c
     GROUP BY c.blog_id
 ),
+weekly_metrics AS (
+    SELECT
+        bm.blog_id,
+
+        date_trunc('week', bm.date)::date AS week_start,
+
+        SUM(bm.views) AS weekly_views
+
+    FROM blogs.blog_metrics bm
+    WHERE bm.date >= date_trunc('week', CURRENT_DATE) - interval '4 weeks'
+    GROUP BY bm.blog_id, week_start
+),
+
+averaged_metrics AS (
+    SELECT
+        blog_id,
+
+        ROUND(AVG(weekly_views)) AS weekly_access_count
+
+    FROM weekly_metrics
+    GROUP BY blog_id
+),
 base AS (
     SELECT
         b.blog_id,
         b.created_at,
-        b.daily_access_count,
-        b.weekly_access_count,
+
+        CASE
+            WHEN COALESCE(am.weekly_access_count, 0) > 0
+            THEN GREATEST(1, ROUND(am.weekly_access_count / 7.0))
+            ELSE 0
+        END AS daily_access_count,
+
+        COALESCE(am.weekly_access_count, 0) AS weekly_access_count,
+
         b.like_count,
         b.dislike_count,
         COALESCE(cs.comment_count, 0) AS comment_count,
 
-        -- base score (shared)
         (
-            b.daily_access_count * 2 +
-            b.weekly_access_count * 1 +
+            -- daily
+            (
+                CASE
+                    WHEN COALESCE(am.weekly_access_count, 0) > 0
+                    THEN GREATEST(1, ROUND(am.weekly_access_count / 7.0))
+                    ELSE 0
+                END
+            ) * 2 +
+
+            -- weekly
+            COALESCE(am.weekly_access_count, 0) * 1 +
+
+            -- likes/dislikes
             (b.like_count + 0.25 * b.dislike_count) * 2 +
+
+            -- sentiment
             (b.like_count - b.dislike_count) * 1 +
+
+            -- comments
             COALESCE(cs.comment_count, 0) * 2
+
         ) AS base_score,
 
         EXTRACT(EPOCH FROM (NOW() - b.created_at)) / 3600 AS hours_since_created
 
     FROM blogs.blogs b
+
+    LEFT JOIN averaged_metrics am
+        ON am.blog_id = b.blog_id
+
     LEFT JOIN comment_stats cs
         ON cs.blog_id = b.blog_id
+
     WHERE b.status = 'active'
 ),
 scored AS (
@@ -1741,6 +1906,19 @@ func (q *Queries) UpdateCommentReactionCount(ctx context.Context, arg UpdateComm
 	return err
 }
 
+const updateViewCount = `-- name: UpdateViewCount :exec
+INSERT INTO blogs.blog_metrics (blog_id, date, views)
+VALUES ($1, CURRENT_DATE, 1)
+ON CONFLICT (blog_id, date)
+DO UPDATE
+SET views = blogs.blog_metrics.views + EXCLUDED.views
+`
+
+func (q *Queries) UpdateViewCount(ctx context.Context, blogID int64) error {
+	_, err := q.db.Exec(ctx, updateViewCount, blogID)
+	return err
+}
+
 const upsertBlogReaction = `-- name: UpsertBlogReaction :one
 WITH existing AS (
     SELECT type
@@ -1813,6 +1991,34 @@ func (q *Queries) UpsertCommentReaction(ctx context.Context, arg UpsertCommentRe
 	var i UpsertCommentReactionRow
 	err := row.Scan(&i.OldType, &i.NewType)
 	return i, err
+}
+
+const upsertTags = `-- name: UpsertTags :exec
+WITH input_tags AS (
+  SELECT DISTINCT LOWER(TRIM(UNNEST($2::text[]))) AS name
+),
+inserted AS (
+  INSERT INTO blogs.tags (name)
+  SELECT name FROM input_tags
+  ON CONFLICT (name) DO NOTHING
+),
+all_tags AS (
+  SELECT id, name FROM blogs.tags
+  WHERE name IN (SELECT name FROM input_tags)
+)
+INSERT INTO blogs.blog_tags (blog_id, tag_id)
+SELECT $1, id FROM all_tags
+ON CONFLICT DO NOTHING
+`
+
+type UpsertTagsParams struct {
+	BlogID int64
+	Name   []string
+}
+
+func (q *Queries) UpsertTags(ctx context.Context, arg UpsertTagsParams) error {
+	_, err := q.db.Exec(ctx, upsertTags, arg.BlogID, arg.Name)
+	return err
 }
 
 const verifyAuthorIDByUserID = `-- name: VerifyAuthorIDByUserID :one
