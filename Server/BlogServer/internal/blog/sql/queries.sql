@@ -4,7 +4,8 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.like_count,
     b.dislike_count,
@@ -49,7 +50,8 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.like_count,
     b.dislike_count,
@@ -70,7 +72,8 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.status,
     b.created_at, 
@@ -84,7 +87,7 @@ JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
 WHERE i.slug = $1 AND b.deleted_at IS NULL AND b.status = $2;
 
 -- name: ListAllBlogs :many
-SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs;
+SELECT blog_id, title, content_text, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs;
 
 -- name: GetListBlogsCount :one
 WITH params AS (
@@ -114,7 +117,8 @@ WHERE
 --     b.author_id,
 --     b.title, 
 --     b.url_slug,
---     b.content,
+--     b.content_json,
+--     b.content_text,
 --     b.like_count,
 --     b.dislike_count, 
 --     b.status,
@@ -138,7 +142,8 @@ SELECT
     b.author_id,
     b.title, 
     b.url_slug,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.like_count,
     b.dislike_count, 
@@ -203,20 +208,22 @@ INSERT INTO blogs.blogs(
     author_id,
     title,
     url_slug,
-    content,
+    content_json,
+    content_text,
     thumbnail_url,
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING *;
 
 -- name: UpdateBlog :one
 UPDATE blogs.blogs
     SET title = $1,
-    content = $2
-WHERE blog_id = $3
+    content_json = $2,
+    content_text = $3
+WHERE blog_id = $4
 RETURNING blog_id;
 
 -- name: HardDeleteBlog :one
@@ -808,3 +815,33 @@ LEFT JOIN blogs.blog_metrics bm
    AND bm.date = d.day
 
 ORDER BY d.day DESC;
+
+-- name: UpdateBlogReportCount :one
+UPDATE blogs.blogs
+    SET report_count = report_count + sqlc.arg('delta')
+WHERE blog_id = $1
+RETURNING report_count;
+
+-- name: InsertBlogReport :one
+INSERT INTO blogs.reports (
+    blog_id, user_id, user_display_name, reason
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING *;
+
+-- name: GetBlogReportByBlogID :many
+SELECT *
+FROM blogs.reports
+WHERE blog_id = $1;
+
+-- name: DeleteBlogReport :one
+DELETE FROM blogs.reports
+WHERE id = $1
+RETURNING id;
+
+-- name: UpdateBlogStatus :exec
+UPDATE blogs.blogs
+SET status = $1,
+    updated_at = NOW()
+WHERE blog_id = $2;

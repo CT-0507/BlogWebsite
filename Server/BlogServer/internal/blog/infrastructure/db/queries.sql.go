@@ -17,21 +17,23 @@ INSERT INTO blogs.blogs(
     author_id,
     title,
     url_slug,
-    content,
+    content_json,
+    content_text,
     thumbnail_url,
     created_by,
     updated_by
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING blog_id, author_id, url_slug, title, content, thumbnail_url, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, access_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+RETURNING blog_id, author_id, url_slug, title, content_json, content_text, thumbnail_url, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, access_count, is_approved, report_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
 
 type CreateBlogParams struct {
 	AuthorID     string
 	Title        string
 	UrlSlug      string
-	Content      string
+	ContentJson  []byte
+	ContentText  string
 	ThumbnailUrl pgtype.Text
 	CreatedBy    string
 	UpdatedBy    string
@@ -42,7 +44,8 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		arg.AuthorID,
 		arg.Title,
 		arg.UrlSlug,
-		arg.Content,
+		arg.ContentJson,
+		arg.ContentText,
 		arg.ThumbnailUrl,
 		arg.CreatedBy,
 		arg.UpdatedBy,
@@ -53,7 +56,8 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.AuthorID,
 		&i.UrlSlug,
 		&i.Title,
-		&i.Content,
+		&i.ContentJson,
+		&i.ContentText,
 		&i.ThumbnailUrl,
 		&i.TitleVector,
 		&i.ContentVector,
@@ -63,6 +67,8 @@ func (q *Queries) CreateBlog(ctx context.Context, arg CreateBlogParams) (BlogsBl
 		&i.DailyAccessCount,
 		&i.WeeklyAccessCount,
 		&i.AccessCount,
+		&i.IsApproved,
+		&i.ReportCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -206,6 +212,18 @@ func (q *Queries) DeleteBlog(ctx context.Context, arg DeleteBlogParams) (int64, 
 	return blog_id, err
 }
 
+const deleteBlogReport = `-- name: DeleteBlogReport :one
+DELETE FROM blogs.reports
+WHERE id = $1
+RETURNING id
+`
+
+func (q *Queries) DeleteBlogReport(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteBlogReport, id)
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getAuthorCacheByUserID = `-- name: GetAuthorCacheByUserID :one
 SELECT user_id, author_id, avatar, slug, display_name, status, created_at, deleted_at
 FROM blogs.idx_user_author_profile
@@ -234,7 +252,8 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.like_count,
     b.dislike_count,
@@ -255,7 +274,8 @@ type GetBlogRow struct {
 	Title        string
 	UrlSlug      string
 	AuthorID     string
-	Content      string
+	ContentJson  []byte
+	ContentText  string
 	ThumbnailUrl pgtype.Text
 	LikeCount    int64
 	DislikeCount int64
@@ -276,7 +296,8 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 		&i.Title,
 		&i.UrlSlug,
 		&i.AuthorID,
-		&i.Content,
+		&i.ContentJson,
+		&i.ContentText,
 		&i.ThumbnailUrl,
 		&i.LikeCount,
 		&i.DislikeCount,
@@ -293,7 +314,7 @@ func (q *Queries) GetBlog(ctx context.Context, blogID int64) (GetBlogRow, error)
 
 const getBlogByUrlSlug = `-- name: GetBlogByUrlSlug :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.thumbnail_url, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content_json, b.content_text, b.thumbnail_url, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.access_count, b.is_approved, b.report_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     i.slug,
@@ -308,7 +329,8 @@ type GetBlogByUrlSlugRow struct {
 	AuthorID          string
 	UrlSlug           string
 	Title             string
-	Content           string
+	ContentJson       []byte
+	ContentText       string
 	ThumbnailUrl      pgtype.Text
 	TitleVector       interface{}
 	ContentVector     interface{}
@@ -318,6 +340,8 @@ type GetBlogByUrlSlugRow struct {
 	DailyAccessCount  int64
 	WeeklyAccessCount int64
 	AccessCount       int64
+	IsApproved        bool
+	ReportCount       int64
 	CreatedAt         pgtype.Timestamptz
 	CreatedBy         string
 	UpdatedAt         pgtype.Timestamptz
@@ -338,7 +362,8 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.AuthorID,
 		&i.UrlSlug,
 		&i.Title,
-		&i.Content,
+		&i.ContentJson,
+		&i.ContentText,
 		&i.ThumbnailUrl,
 		&i.TitleVector,
 		&i.ContentVector,
@@ -348,6 +373,8 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.DailyAccessCount,
 		&i.WeeklyAccessCount,
 		&i.AccessCount,
+		&i.IsApproved,
+		&i.ReportCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -360,6 +387,39 @@ func (q *Queries) GetBlogByUrlSlug(ctx context.Context, urlSlug string) (GetBlog
 		&i.DisplayName_2,
 	)
 	return i, err
+}
+
+const getBlogReportByBlogID = `-- name: GetBlogReportByBlogID :many
+SELECT id, blog_id, user_id, user_display_name, reason, created_at
+FROM blogs.reports
+WHERE blog_id = $1
+`
+
+func (q *Queries) GetBlogReportByBlogID(ctx context.Context, blogID int64) ([]BlogsReport, error) {
+	rows, err := q.db.Query(ctx, getBlogReportByBlogID, blogID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BlogsReport
+	for rows.Next() {
+		var i BlogsReport
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlogID,
+			&i.UserID,
+			&i.UserDisplayName,
+			&i.Reason,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getBlogRootComment = `-- name: GetBlogRootComment :many
@@ -546,7 +606,7 @@ func (q *Queries) GetBlogRootCommentWithUserReaction(ctx context.Context, arg Ge
 
 const getBlogWithUserReaction = `-- name: GetBlogWithUserReaction :one
 SELECT 
-    b.blog_id, b.author_id, b.url_slug, b.title, b.content, b.thumbnail_url, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.access_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
+    b.blog_id, b.author_id, b.url_slug, b.title, b.content_json, b.content_text, b.thumbnail_url, b.title_vector, b.content_vector, b.status, b.like_count, b.dislike_count, b.daily_access_count, b.weekly_access_count, b.access_count, b.is_approved, b.report_count, b.created_at, b.created_by, b.updated_at, b.updated_by, b.deleted_at, b.deleted_by,
     i.slug,
     i.display_name,
     r.type AS reaction_type
@@ -568,7 +628,8 @@ type GetBlogWithUserReactionRow struct {
 	AuthorID          string
 	UrlSlug           string
 	Title             string
-	Content           string
+	ContentJson       []byte
+	ContentText       string
 	ThumbnailUrl      pgtype.Text
 	TitleVector       interface{}
 	ContentVector     interface{}
@@ -578,6 +639,8 @@ type GetBlogWithUserReactionRow struct {
 	DailyAccessCount  int64
 	WeeklyAccessCount int64
 	AccessCount       int64
+	IsApproved        bool
+	ReportCount       int64
 	CreatedAt         pgtype.Timestamptz
 	CreatedBy         string
 	UpdatedAt         pgtype.Timestamptz
@@ -597,7 +660,8 @@ func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUs
 		&i.AuthorID,
 		&i.UrlSlug,
 		&i.Title,
-		&i.Content,
+		&i.ContentJson,
+		&i.ContentText,
 		&i.ThumbnailUrl,
 		&i.TitleVector,
 		&i.ContentVector,
@@ -607,6 +671,8 @@ func (q *Queries) GetBlogWithUserReaction(ctx context.Context, arg GetBlogWithUs
 		&i.DailyAccessCount,
 		&i.WeeklyAccessCount,
 		&i.AccessCount,
+		&i.IsApproved,
+		&i.ReportCount,
 		&i.CreatedAt,
 		&i.CreatedBy,
 		&i.UpdatedAt,
@@ -1013,20 +1079,55 @@ func (q *Queries) HardDeleteBlog(ctx context.Context, blogID int64) (int64, erro
 	return blog_id, err
 }
 
+const insertBlogReport = `-- name: InsertBlogReport :one
+INSERT INTO blogs.reports (
+    blog_id, user_id, user_display_name, reason
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING id, blog_id, user_id, user_display_name, reason, created_at
+`
+
+type InsertBlogReportParams struct {
+	BlogID          int64
+	UserID          string
+	UserDisplayName string
+	Reason          string
+}
+
+func (q *Queries) InsertBlogReport(ctx context.Context, arg InsertBlogReportParams) (BlogsReport, error) {
+	row := q.db.QueryRow(ctx, insertBlogReport,
+		arg.BlogID,
+		arg.UserID,
+		arg.UserDisplayName,
+		arg.Reason,
+	)
+	var i BlogsReport
+	err := row.Scan(
+		&i.ID,
+		&i.BlogID,
+		&i.UserID,
+		&i.UserDisplayName,
+		&i.Reason,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listAllBlogs = `-- name: ListAllBlogs :many
-SELECT blog_id, title, content, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs
+SELECT blog_id, title, content_text, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by FROM blogs.blogs
 `
 
 type ListAllBlogsRow struct {
-	BlogID    int64
-	Title     string
-	Content   string
-	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
-	DeletedAt pgtype.Timestamptz
-	DeletedBy pgtype.Text
+	BlogID      int64
+	Title       string
+	ContentText string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   string
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   string
+	DeletedAt   pgtype.Timestamptz
+	DeletedBy   pgtype.Text
 }
 
 func (q *Queries) ListAllBlogs(ctx context.Context) ([]ListAllBlogsRow, error) {
@@ -1041,7 +1142,7 @@ func (q *Queries) ListAllBlogs(ctx context.Context) ([]ListAllBlogsRow, error) {
 		if err := rows.Scan(
 			&i.BlogID,
 			&i.Title,
-			&i.Content,
+			&i.ContentText,
 			&i.CreatedAt,
 			&i.CreatedBy,
 			&i.UpdatedAt,
@@ -1071,7 +1172,8 @@ SELECT
     b.author_id,
     b.title, 
     b.url_slug,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.like_count,
     b.dislike_count, 
@@ -1147,7 +1249,8 @@ type ListBlogsRow struct {
 	AuthorID     string
 	Title        string
 	UrlSlug      string
-	Content      string
+	ContentJson  []byte
+	ContentText  string
 	ThumbnailUrl pgtype.Text
 	LikeCount    int64
 	DislikeCount int64
@@ -1168,7 +1271,8 @@ type ListBlogsRow struct {
 //	b.author_id,
 //	b.title,
 //	b.url_slug,
-//	b.content,
+//	b.content_json,
+//	b.content_text,
 //	b.like_count,
 //	b.dislike_count,
 //	b.status,
@@ -1204,7 +1308,8 @@ func (q *Queries) ListBlogs(ctx context.Context, arg ListBlogsParams) ([]ListBlo
 			&i.AuthorID,
 			&i.Title,
 			&i.UrlSlug,
-			&i.Content,
+			&i.ContentJson,
+			&i.ContentText,
 			&i.ThumbnailUrl,
 			&i.LikeCount,
 			&i.DislikeCount,
@@ -1234,7 +1339,8 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.like_count,
     b.dislike_count,
@@ -1260,7 +1366,8 @@ type ListBlogsByAuthorRow struct {
 	Title        string
 	UrlSlug      string
 	AuthorID     string
-	Content      string
+	ContentJson  []byte
+	ContentText  string
 	ThumbnailUrl pgtype.Text
 	LikeCount    int64
 	DislikeCount int64
@@ -1287,7 +1394,8 @@ func (q *Queries) ListBlogsByAuthor(ctx context.Context, arg ListBlogsByAuthorPa
 			&i.Title,
 			&i.UrlSlug,
 			&i.AuthorID,
-			&i.Content,
+			&i.ContentJson,
+			&i.ContentText,
 			&i.ThumbnailUrl,
 			&i.LikeCount,
 			&i.DislikeCount,
@@ -1315,7 +1423,8 @@ SELECT
     b.title,
     b.url_slug,
     b.author_id,
-    b.content,
+    b.content_json,
+    b.content_text,
     b.thumbnail_url,
     b.status,
     b.created_at, 
@@ -1339,7 +1448,8 @@ type ListBlogsByAuthorSlugRow struct {
 	Title        string
 	UrlSlug      string
 	AuthorID     string
-	Content      string
+	ContentJson  []byte
+	ContentText  string
 	ThumbnailUrl pgtype.Text
 	Status       string
 	CreatedAt    pgtype.Timestamptz
@@ -1364,7 +1474,8 @@ func (q *Queries) ListBlogsByAuthorSlug(ctx context.Context, arg ListBlogsByAuth
 			&i.Title,
 			&i.UrlSlug,
 			&i.AuthorID,
-			&i.Content,
+			&i.ContentJson,
+			&i.ContentText,
 			&i.ThumbnailUrl,
 			&i.Status,
 			&i.CreatedAt,
@@ -1597,19 +1708,26 @@ func (q *Queries) TruncateBlogRankingTable(ctx context.Context) error {
 const updateBlog = `-- name: UpdateBlog :one
 UPDATE blogs.blogs
     SET title = $1,
-    content = $2
-WHERE blog_id = $3
+    content_json = $2,
+    content_text = $3
+WHERE blog_id = $4
 RETURNING blog_id
 `
 
 type UpdateBlogParams struct {
-	Title   string
-	Content string
-	BlogID  int64
+	Title       string
+	ContentJson []byte
+	ContentText string
+	BlogID      int64
 }
 
 func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (int64, error) {
-	row := q.db.QueryRow(ctx, updateBlog, arg.Title, arg.Content, arg.BlogID)
+	row := q.db.QueryRow(ctx, updateBlog,
+		arg.Title,
+		arg.ContentJson,
+		arg.ContentText,
+		arg.BlogID,
+	)
 	var blog_id int64
 	err := row.Scan(&blog_id)
 	return blog_id, err
@@ -1810,6 +1928,42 @@ type UpdateBlogReactionCountParams struct {
 // SELECT id FROM updated;
 func (q *Queries) UpdateBlogReactionCount(ctx context.Context, arg UpdateBlogReactionCountParams) error {
 	_, err := q.db.Exec(ctx, updateBlogReactionCount, arg.LikeCount, arg.DislikeCount, arg.BlogID)
+	return err
+}
+
+const updateBlogReportCount = `-- name: UpdateBlogReportCount :one
+UPDATE blogs.blogs
+    SET report_count = report_count + $2
+WHERE blog_id = $1
+RETURNING report_count
+`
+
+type UpdateBlogReportCountParams struct {
+	BlogID int64
+	Delta  int64
+}
+
+func (q *Queries) UpdateBlogReportCount(ctx context.Context, arg UpdateBlogReportCountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, updateBlogReportCount, arg.BlogID, arg.Delta)
+	var report_count int64
+	err := row.Scan(&report_count)
+	return report_count, err
+}
+
+const updateBlogStatus = `-- name: UpdateBlogStatus :exec
+UPDATE blogs.blogs
+SET status = $1,
+    updated_at = NOW()
+WHERE blog_id = $2
+`
+
+type UpdateBlogStatusParams struct {
+	Status string
+	BlogID int64
+}
+
+func (q *Queries) UpdateBlogStatus(ctx context.Context, arg UpdateBlogStatusParams) error {
+	_, err := q.db.Exec(ctx, updateBlogStatus, arg.Status, arg.BlogID)
 	return err
 }
 

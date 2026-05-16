@@ -7,13 +7,15 @@ CREATE TABLE blogs.blogs (
     url_slug VARCHAR(400) NOT NULL UNIQUE,
     title TEXT NOT NULL,
 
-    content TEXT NOT NULL,
+    content_json JSONB NOT NULL,
+
+    content_text TEXT NOT NULL,
     thumbnail_url TEXT,
     title_vector tsvector GENERATED ALWAYS AS (
         to_tsvector('english', coalesce(title, ''))
     ) STORED,
     content_vector tsvector GENERATED ALWAYS AS (
-        to_tsvector('english', coalesce(content, ''))
+        to_tsvector('english', coalesce(content_text, ''))
     ) STORED,
 
     status VARCHAR(20) NOT NULL DEFAULT 'active',
@@ -24,6 +26,10 @@ CREATE TABLE blogs.blogs (
     daily_access_count BIGINT NOT NULL DEFAULT 0,
     weekly_access_count BIGINT NOT NULL DEFAULT 0,
     access_count BIGINT NOT NULL DEFAULT 0,
+
+    -- moderation
+    is_approved BOOLEAN NOT NULL DEFAULT FALSE,
+    report_count BIGINT NOT NULL DEFAULT 0,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by TEXT NOT NULL,
@@ -198,4 +204,18 @@ CREATE TABLE blogs.blog_request_tracking (
 
     UNIQUE(blog_id, request_id)
 
+);
+
+CREATE TABLE blogs.reports (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+    user_id     VARCHAR(64) NOT NULL,
+    user_display_name TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    
+
+    -- audit
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    
+    UNIQUE(blog_id, user_id)
 );

@@ -44,8 +44,9 @@ func NewBlogModule(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo 
 	blogReactionUsecases := application.NewBlogReactionUseCases(txManager, repo, blogReactionRepo, outboxRepo)
 	commentReactionUsecases := application.NewCommentReactionUseCases(txManager, commentRepo, commentReactionRepo, outboxRepo)
 	blogMetricsUsecases := application.NewBlogMetricsUsecases(txManager, repo)
+	blogReportUsecases := application.NewBlogReportUsecases(txManager, repo)
 
-	handler := http.NewBlogHandler(createBlog, getBlog, listBlogs, deleteBlog, commentUsecase, commentReactionUsecases, blogReactionUsecases, blogMetricsUsecases)
+	handler := http.NewBlogHandler(createBlog, getBlog, listBlogs, deleteBlog, commentUsecase, commentReactionUsecases, blogReactionUsecases, blogMetricsUsecases, blogReportUsecases)
 
 	eventHandler := event.NewEventHandler(txManager, repo, outboxRepo)
 

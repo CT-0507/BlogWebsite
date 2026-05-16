@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -23,6 +24,7 @@ type CreateBlogUseCases interface {
 	CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error
 	CreateBlog(c context.Context, blog *domain.Blog, userID string, fileParams *storage.FileStorageParams) (*domain.Blog, error)
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
+	SaveBlogImageToTempFolder(c context.Context, fileParams storage.FileStorageParams) (string, error)
 }
 
 type DeleteBlogUseCase interface {
@@ -64,6 +66,10 @@ type BlogMetricsUsecases interface {
 	GetDateViews(ctx context.Context, blogID int64, numberOfDays int32) ([]domain.DateViewData, error)
 }
 
+type BlogReportUsecases interface {
+	CreateBlogReport(ctx context.Context, report *domain.BlogReport) (*domain.BlogReport, error)
+}
+
 type BlogHandler struct {
 	createBlogUseCases      CreateBlogUseCases
 	getBlogUseCases         GetBlogUseCases
@@ -73,6 +79,7 @@ type BlogHandler struct {
 	commentReactionUsecases CommentReactionUseCases
 	blogReactionUsecases    BlogReactionUseCases
 	blogMetricsUsecases     BlogMetricsUsecases
+	blogReportUsecases      BlogReportUsecases
 }
 
 func NewBlogHandler(
@@ -84,6 +91,7 @@ func NewBlogHandler(
 	commentReactionUsecases CommentReactionUseCases,
 	blogReactionUsecases BlogReactionUseCases,
 	blogMetricsUsecases BlogMetricsUsecases,
+	blogReportUsecases BlogReportUsecases,
 ) *BlogHandler {
 	return &BlogHandler{
 		createBlogUseCases:      createBlogUseCases,
@@ -94,6 +102,7 @@ func NewBlogHandler(
 		commentReactionUsecases: commentReactionUsecases,
 		blogReactionUsecases:    blogReactionUsecases,
 		blogMetricsUsecases:     blogMetricsUsecases,
+		blogReportUsecases:      blogReportUsecases,
 	}
 }
 
@@ -149,11 +158,43 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		}
 	}
 
+	// var contentFiles []storage.FileStorageParams = nil
+	// form, err := c.MultipartForm()
+	// if err != nil {
+	// 	c.String(http.StatusBadRequest, "get form err: %s", err.Error())
+	// 	return
+	// }
+	// files := form.File["files"]
+	// for _, fileHeader := range files {
+	// 	// 3. Save each file individually
+	// 	// log.Println(file.Filename)
+	// 	// dst := "./uploads/" + file.Filename
+	// 	// if err := c.SaveUploadedFile(file, dst); err != nil {
+	// 	//     c.String(http.StatusInternalServerError, "upload file err: %s", err.Error())
+	// 	//     return
+	// 	// }
+	// 	file, err := fileHeader.Open()
+	// 	if err != nil {
+	// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+	// 		return
+	// 	}
+	// 	defer file.Close()
+	// 	contentType := fileHeader.Header.Get("Content-Type")
+
+	// 	fileParams := storage.FileStorageParams{
+	// 		File:        file,
+	// 		FileName:    fileHeader.Filename,
+	// 		ContentType: contentType,
+	// 	}
+	// 	contentFiles = append(contentFiles, fileParams)
+	// }
+
 	newBlog, err := h.createBlogUseCases.CreateBlog(ctx, &domain.Blog{
-		Title:   blog.Title,
-		URLSlug: blog.URLSlug,
-		Content: blog.Content,
-		Tags:    blog.Tags,
+		Title:       blog.Title,
+		URLSlug:     blog.URLSlug,
+		ContentText: blog.ContentText,
+		ContentJson: blog.ContentJson,
+		Tags:        blog.Tags,
 	}, userID, fileParams)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -977,4 +1018,71 @@ func (h *BlogHandler) GetViewsData(c *gin.Context) {
 			"data": data,
 		})
 	}
+}
+
+func (h *BlogHandler) uploadImage(c *gin.Context) {
+	// get uploaded file
+	fileHeader, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": 0,
+			"message": "failed to get image",
+		})
+		return
+	}
+
+	var fileParams *storage.FileStorageParams = nil
+
+	if fileHeader != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+			return
+		}
+		defer file.Close()
+
+		// validate extension
+		ext := filepath.Ext(fileHeader.Filename)
+		switch ext {
+		case ".jpg", ".jpeg", ".png", ".webp":
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": 0,
+				"message": "invalid image format",
+			})
+			return
+		}
+
+		fileName := ulid.Make().String() + ext
+		contentType := fileHeader.Header.Get("Content-Type")
+
+		fileParams = &storage.FileStorageParams{
+			File:        file,
+			FileName:    fileName,
+			ContentType: contentType,
+		}
+	}
+
+	// savePath := filepath.Join("uploads", filename)
+	savePath, err := h.createBlogUseCases.SaveBlogImageToTempFolder(c, *fileParams)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": 0,
+			"message": "failed to save image",
+		})
+		return
+	}
+
+	// generate public URL
+	url := fmt.Sprintf(
+		"http://localhost:8080/uploads/%s",
+		savePath,
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": 1,
+		"file": gin.H{
+			"url": url,
+		},
+	})
 }

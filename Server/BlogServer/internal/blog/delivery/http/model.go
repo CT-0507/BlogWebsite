@@ -1,10 +1,13 @@
 package http
 
+import "encoding/json"
+
 type CreateBlogRequest struct {
-	Title   string   `form:"title" validate:"required"`
-	URLSlug string   `form:"urlSlug" validate:"required,max=500"`
-	Content string   `form:"content" validate:"required"`
-	Tags    []string `form:"tags" validate:"max=5"`
+	Title       string          `form:"title" validate:"required"`
+	URLSlug     string          `form:"urlSlug" validate:"required,max=500"`
+	ContentText string          `form:"contentText" validate:"required"`
+	ContentJson json.RawMessage `form:"contentJson" validate:"required"`
+	Tags        []string        `form:"tags" validate:"max=5"`
 }
 
 type CreateCommentRequest struct {

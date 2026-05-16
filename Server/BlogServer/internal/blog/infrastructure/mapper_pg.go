@@ -19,7 +19,8 @@ func (b *BlogMapperPG) BlogDTOToBlog(blogDTO *blogdb.BlogsBlog) *domain.Blog {
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		Status:       blogDTO.Status,
 		Audit: model.Audit{
@@ -38,7 +39,8 @@ func (b *BlogMapperPG) ListBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsRow) *doma
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		LikeCount:    blogDTO.LikeCount,
 		DislikeCount: blogDTO.DislikeCount,
@@ -63,7 +65,8 @@ func (b *BlogMapperPG) ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.Lis
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		Status:       blogDTO.Status,
 		Author: domain.AuthorData{
@@ -85,7 +88,8 @@ func (b *BlogMapperPG) ListAuthorBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsByAu
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		Status:       blogDTO.Status,
 		Author: domain.AuthorData{
@@ -107,7 +111,8 @@ func (b *BlogMapperPG) GetBlogRowDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlog
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		LikeCount:    blogDTO.LikeCount,
 		DislikeCount: blogDTO.DislikeCount,
@@ -131,7 +136,8 @@ func (b *BlogMapperPG) GetBlogWithReactionDTOToBlogWithAuthorData(blogDTO *blogd
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		LikeCount:    blogDTO.LikeCount,
 		DislikeCount: blogDTO.DislikeCount,
@@ -156,7 +162,8 @@ func (b *BlogMapperPG) GetBlogRowByUrlSlugDTOToBlogWithAuthorData(blogDTO *blogd
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
 		URLSlug:      blogDTO.UrlSlug,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		Status:       blogDTO.Status,
 		Author: domain.AuthorData{
@@ -177,7 +184,8 @@ func (b *BlogMapperPG) GetBlogRowDTOToBlog(blogDTO *blogdb.GetBlogRow) *domain.B
 	return &domain.Blog{
 		BlogID:       blogDTO.BlogID,
 		Title:        blogDTO.Title,
-		Content:      blogDTO.Content,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
 		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
 		Status:       blogDTO.Status,
 		Audit: model.Audit{
@@ -356,5 +364,15 @@ func (b *BlogMapperPG) MapDBListRankingRowToRankingBlog(blogDTO *blogdb.ListRank
 		Avatar:              utils.GetStringPointerFromText(blogDTO.Avatar),
 		DisplayName:         utils.GetStringPointerFromText(blogDTO.DisplayName),
 		Slug:                utils.GetStringPointerFromText(blogDTO.Slug),
+	}
+}
+
+func (b *BlogMapperPG) MapDBReportToBlogReport(report *blogdb.BlogsReport) *domain.BlogReport {
+	return &domain.BlogReport{
+		ReportID:        report.ID,
+		BlogID:          report.BlogID,
+		UserID:          report.UserID,
+		UserDisplayName: report.UserDisplayName,
+		Reason:          report.Reason,
 	}
 }

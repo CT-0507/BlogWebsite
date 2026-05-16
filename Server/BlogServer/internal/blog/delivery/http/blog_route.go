@@ -46,4 +46,8 @@ func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 	sComment.DELETE("/delete", h.DeleteCommentByID)
 	sComment.PATCH("/hidden", h.HideCommentByID)
 	sComment.PATCH("", h.UpdateCommentContentByID)
+
+	r.MaxMultipartMemory = 8 << 20
+	uploads := v1.Group("/uploads")
+	uploads.POST("/image", h.uploadImage)
 }

@@ -14,7 +14,8 @@ type BlogsBlog struct {
 	AuthorID          string
 	UrlSlug           string
 	Title             string
-	Content           string
+	ContentJson       []byte
+	ContentText       string
 	ThumbnailUrl      pgtype.Text
 	TitleVector       interface{}
 	ContentVector     interface{}
@@ -24,6 +25,8 @@ type BlogsBlog struct {
 	DailyAccessCount  int64
 	WeeklyAccessCount int64
 	AccessCount       int64
+	IsApproved        bool
+	ReportCount       int64
 	CreatedAt         pgtype.Timestamptz
 	CreatedBy         string
 	UpdatedAt         pgtype.Timestamptz
@@ -113,6 +116,15 @@ type BlogsIdxUserAuthorProfile struct {
 	Status      string
 	CreatedAt   pgtype.Timestamptz
 	DeletedAt   pgtype.Timestamptz
+}
+
+type BlogsReport struct {
+	ID              int64
+	BlogID          int64
+	UserID          string
+	UserDisplayName string
+	Reason          string
+	CreatedAt       pgtype.Timestamptz
 }
 
 type BlogsTag struct {

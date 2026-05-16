@@ -1,34 +1,38 @@
 package domain
 
 import (
+	"encoding/json"
+
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 )
 
 type Blog struct {
-	BlogID       int64    `json:"id"`
-	AuthorID     string   `json:"authorID"`
-	Title        string   `json:"title"`
-	URLSlug      string   `json:"urlSlug"`
-	Content      string   `json:"content"`
-	Status       string   `json:"status"`
-	Tags         []string `json:"tags"`
-	ThumbnailUrl *string  `json:"thumbnailUrl"`
+	BlogID       int64           `json:"id"`
+	AuthorID     string          `json:"authorID"`
+	Title        string          `json:"title"`
+	URLSlug      string          `json:"urlSlug"`
+	ContentText  string          `json:"contentText"`
+	ContentJson  json.RawMessage `json:"contentJson"`
+	Status       string          `json:"status"`
+	Tags         []string        `json:"tags"`
+	ThumbnailUrl *string         `json:"thumbnailUrl"`
 	// Images  []string
 	model.Audit
 }
 
 type BlogWithAuthorData struct {
-	BlogID       int64      `json:"blogID"`
-	Author       AuthorData `json:"author"`
-	URLSlug      string     `json:"urlSlug"`
-	Title        string     `json:"title"`
-	Content      string     `json:"content"`
-	ThumbnailUrl *string    `json:"thumbnailUrl"`
-	LikeCount    int64      `json:"likeCount"`
-	DislikeCount int64      `json:"dislikeCount"`
-	UserReaction *string    `json:"userReaction"`
-	Status       string     `json:"status"`
-	Tags         []string   `json:"tags"`
+	BlogID       int64           `json:"blogID"`
+	Author       AuthorData      `json:"author"`
+	URLSlug      string          `json:"urlSlug"`
+	Title        string          `json:"title"`
+	ContentText  string          `json:"contentText"`
+	ContentJson  json.RawMessage `json:"contentJson"`
+	ThumbnailUrl *string         `json:"thumbnailUrl"`
+	LikeCount    int64           `json:"likeCount"`
+	DislikeCount int64           `json:"dislikeCount"`
+	UserReaction *string         `json:"userReaction"`
+	Status       string          `json:"status"`
+	Tags         []string        `json:"tags"`
 	model.Audit
 }
 
@@ -72,4 +76,12 @@ type WeekViewData struct {
 type DateViewData struct {
 	Date  string `json:"date"`
 	Views int64  `json:"views"`
+}
+
+type BlogReport struct {
+	ReportID        int64  `json:"reportID"`
+	BlogID          int64  `json:"blogID"`
+	UserID          string `json:"userID"`
+	UserDisplayName string `json:"userDisplayName"`
+	Reason          string `json:"reason"`
 }

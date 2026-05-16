@@ -35,4 +35,11 @@ type BlogRepository interface {
 	// Worker
 	UpdateBlogRankingTable(ctx context.Context) error
 	TruncateBlogRankingTable(ctx context.Context) error
+
+	// Reports
+	UpdateBlogReportCount(c context.Context, blogID int64, delta int64) (int64, error)
+	InsertBlogReport(c context.Context, report *domain.BlogReport) (*domain.BlogReport, error)
+	DeleteBlogReportByID(c context.Context, reportID int64) (int64, error)
+	GetBlogReportsByBlogID(c context.Context, blogID int64) ([]domain.BlogReport, error)
+	UpdateBlogStatus(c context.Context, blogID int64, status string) error
 }

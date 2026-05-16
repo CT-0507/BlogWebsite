@@ -9,7 +9,11 @@ import {
   useWatch,
   type ControllerRenderProps,
 } from "react-hook-form";
-import { publishBlogSchema, type PublishBlogFormValues } from "./model/schema";
+import {
+  editorContentSchema,
+  publishBlogSchema,
+  type PublishBlogFormValues,
+} from "./model/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Divider from "@mui/material/Divider";
 import Button from "@mui/material/Button";
@@ -32,6 +36,10 @@ import slugify from "slugify";
 import type { Blog } from "@/types/Blog";
 import Stack from "@mui/material/Stack";
 import Chip from "@mui/material/Chip";
+import Editor, { type EditorHandle } from "./EditorField";
+import type { OutputData } from "@editorjs/editorjs";
+import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
 
 function getFieldName(fieldName: string) {
   switch (fieldName) {
@@ -42,16 +50,7 @@ function getFieldName(fieldName: string) {
   }
 }
 interface ImageFieldProps {
-  field: ControllerRenderProps<
-    {
-      title: string;
-      urlSlug: string;
-      content: string;
-      tags?: string[] | null | undefined;
-      thumbnail?: File | null | undefined;
-    },
-    "thumbnail"
-  >;
+  field: ControllerRenderProps<PublishBlogFormValues, "thumbnail">;
 }
 function ImageField({ field }: ImageFieldProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -156,6 +155,7 @@ export default function PublishPage() {
   const [open, setOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
 
+  const editorRef = useRef<EditorHandle>(null);
   const {
     register,
     handleSubmit,
@@ -167,7 +167,12 @@ export default function PublishPage() {
     defaultValues: {
       title: "",
       urlSlug: "",
-      content: "",
+      content: {
+        json: {
+          blocks: [],
+        },
+        plainText: "",
+      },
       tags: [],
       thumbnail: null,
     },
@@ -208,9 +213,66 @@ export default function PublishPage() {
     },
   });
 
+  function extractPlainText(data?: OutputData | null): string {
+    if (!data || !data?.blocks) return "";
+
+    return data.blocks
+      .map((block) => {
+        switch (block.type) {
+          case "paragraph":
+          case "header":
+            return block.data.text;
+
+          default:
+            return "";
+        }
+      })
+      .join(" ")
+      .replace(/<[^>]*>/g, "")
+      .trim();
+  }
+
+  const [editorError, setEditorError] = useState("");
+
   const onSubmit = async (data: PublishBlogFormValues) => {
     console.log("Form Data:", data);
-    mutate(data);
+    let saveData: PublishBlogFormValues & {
+      files: Map<string, File>;
+    };
+    try {
+      const editorData = await editorRef.current?.save();
+      if (
+        !editorData ||
+        !editorData.content ||
+        editorData.content.blocks.length === 0
+      ) {
+        alert("Null");
+        return;
+      }
+      setEditorError("");
+      const plainText = extractPlainText(editorData.content);
+      const validation = editorContentSchema.safeParse({
+        plainText: plainText,
+      });
+      if (!validation.success) {
+        setEditorError(validation.error.issues[0]?.message);
+
+        return;
+      }
+      saveData = {
+        ...data,
+        content: {
+          json: editorData.content,
+          plainText: plainText,
+        },
+        files: editorData.files,
+      };
+
+      console.log(saveData);
+      mutate(saveData);
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const handleCancel = () => {
@@ -248,7 +310,10 @@ export default function PublishPage() {
   const dirtyFieldNames = getDirtyFieldNames(dirtyFields);
 
   const handleConfirm = () => {};
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onErr = (err: any) => {
+    console.log(err);
+  };
   return (
     <>
       <QuoteBanner />
@@ -257,7 +322,8 @@ export default function PublishPage() {
         sx={{
           p: 2,
         }}
-        onSubmit={handleSubmit(onSubmit)}
+        // eslint-disable-next-line react-hooks/refs
+        onSubmit={handleSubmit(onSubmit, onErr)}
       >
         <Box
           sx={{
@@ -343,10 +409,11 @@ export default function PublishPage() {
         </Box>
         <Box id="blog-content-section">
           <Box sx={{ width: "100%", p: 1 }}>
-            <InputLabel htmlFor="blog-content" sx={{ mb: 1 }}>
-              Content
-            </InputLabel>
-            <TextField
+            <FormControl fullWidth>
+              <InputLabel htmlFor="blog-content" sx={{ mb: 1 }}>
+                Content
+              </InputLabel>
+              {/* <TextField
               id="blog-content"
               placeholder="What are you going to write?"
               {...register("content")}
@@ -356,7 +423,12 @@ export default function PublishPage() {
               rows={4}
               error={!!errors.content}
               helperText={errors.content?.message || " "}
-            />
+            /> */}
+              <Editor ref={editorRef} initialData={undefined} />
+              <FormHelperText error={editorError !== ""}>
+                {editorError || " "}
+              </FormHelperText>
+            </FormControl>
           </Box>
         </Box>
         <Divider />

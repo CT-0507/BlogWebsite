@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	blogdb "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/infrastructure/db"
@@ -29,11 +30,14 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 
 	q := blogdb.New(db)
 
+	marshalledContent, _ := json.Marshal(blog.ContentJson)
+
 	newBlog, err := q.CreateBlog(c, blogdb.CreateBlogParams{
 		AuthorID:     blog.AuthorID,
 		Title:        blog.Title,
 		UrlSlug:      blog.URLSlug,
-		Content:      blog.Content,
+		ContentJson:  marshalledContent,
+		ContentText:  blog.ContentText,
 		ThumbnailUrl: utils.GetTextTypeFromNullableString(blog.ThumbnailUrl),
 		CreatedBy:    blog.AuthorID,
 		UpdatedBy:    blog.AuthorID,
@@ -399,4 +403,76 @@ func (r *BlogRepository) GetDaysViews(c context.Context, blogID int64, numberOfD
 		})
 	}
 	return result, nil
+}
+
+func (r *BlogRepository) UpdateBlogReportCount(c context.Context, blogID int64, delta int64) (int64, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.UpdateBlogReportCount(c, blogdb.UpdateBlogReportCountParams{
+		BlogID: blogID,
+		Delta:  delta,
+	})
+}
+
+func (r *BlogRepository) InsertBlogReport(c context.Context, report *domain.BlogReport) (*domain.BlogReport, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	inserted, err := q.InsertBlogReport(c, blogdb.InsertBlogReportParams{
+		BlogID:          report.BlogID,
+		UserID:          report.UserID,
+		UserDisplayName: report.UserDisplayName,
+		Reason:          report.Reason,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return r.mapper.MapDBReportToBlogReport(&inserted), nil
+}
+
+func (r *BlogRepository) DeleteBlogReportByID(c context.Context, reportID int64) (int64, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.DeleteBlogReport(c, reportID)
+}
+
+func (r *BlogRepository) GetBlogReportsByBlogID(c context.Context, blogID int64) ([]domain.BlogReport, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	rows, err := q.GetBlogReportByBlogID(c, blogID)
+	if err != nil {
+		return nil, err
+	}
+
+	var reports []domain.BlogReport
+	for _, value := range rows {
+		v := value
+		reports = append(reports, *r.mapper.MapDBReportToBlogReport(&v))
+	}
+
+	return reports, nil
+}
+
+func (r *BlogRepository) UpdateBlogStatus(c context.Context, blogID int64, status string) error {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	return q.UpdateBlogStatus(c, blogdb.UpdateBlogStatusParams{
+		BlogID: blogID,
+		Status: status,
+	})
 }

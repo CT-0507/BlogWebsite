@@ -11,15 +11,23 @@ import type {
 } from "@/types/Blog";
 import { getQueryParam } from "@/utils/mapper";
 
-const API_VERSION = "/api/v1";
+export const API_VERSION = "/api/v1";
 
 export async function publishBlogRequest(
-  formData: PublishBlogFormValues
+  formData: PublishBlogFormValues & {
+    files: Map<string, File>;
+  }
 ): Promise<Blog> {
   const formDataV = new FormData();
   formDataV.append("title", formData.title);
   formDataV.append("urlSlug", formData.urlSlug);
-  formDataV.append("content", formData.content);
+  formDataV.append("contentText", formData.content.plainText);
+  formDataV.append("contentJson", formData.content.json);
+  formDataV.append("contentJson", formData.content.json);
+
+  formData.files.forEach((file, tempId) => {
+    formDataV.append(tempId, file);
+  });
 
   if (formData.thumbnail) {
     formDataV.append("thumbnail", formData.thumbnail);
@@ -234,4 +242,13 @@ export async function getRankingBlogs(
   );
 
   return data;
+}
+
+export async function uploadByFile(file: File) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await axiosAuth.post(`${API_VERSION}/api/upload/image`, formData);
+
+  return res.data;
 }
