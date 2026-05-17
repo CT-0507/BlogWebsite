@@ -60,3 +60,10 @@ type SagaDefinition struct {
 	Name  string
 	Steps []Step
 }
+
+type SagaStatusData struct {
+	ID          uuid.UUID  `json:"requestId"`
+	CurrentStep int32      `json:"-"`
+	StepName    int32      `json:"stepName"`
+	Status      SagaStatus `json:"status"`
+}

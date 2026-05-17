@@ -24,9 +24,10 @@ func NewBlogWorker(txManager database.TxManager, blogRankingOperator BlogRanking
 	}
 }
 
-func (w *BlogWorker) Start(ctx context.Context) {
+func (w *BlogWorker) StartUpdateRankingTable(ctx context.Context) {
 
 	ticker := time.NewTicker(2 * time.Hour)
+	defer ticker.Stop()
 
 	for {
 		select {

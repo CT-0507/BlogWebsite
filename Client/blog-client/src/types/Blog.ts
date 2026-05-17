@@ -10,6 +10,7 @@ export interface Blog {
   dislikeCount: number;
   urlSlug: string;
   content: string;
+  tags: string[];
   userReaction?: string | null;
   createdAt: string;
 }
@@ -47,4 +48,25 @@ export interface CommentReaction {
   commentId: string;
   userId: string;
   type: CommentReactionType;
+}
+
+export interface RankingBlogData {
+  blogID: number;
+  rankAllTime?: number;
+  scoreAllTime?: number;
+  scoreTrending?: number;
+  likeCount: number;
+  dislikeCount: number;
+  commentCount: number;
+  weeklyAccessCount: number;
+  dailyAccessCount: number;
+  createdAt: string;
+  computedAt: string;
+  title?: string;
+  authorID?: string;
+  urlSlug?: string;
+  content: string;
+  avatar?: string;
+  displayName?: string;
+  slug?: string;
 }

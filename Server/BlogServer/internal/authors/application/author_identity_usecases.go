@@ -37,7 +37,7 @@ func NewAuthorIdentityUsecases(
 	}
 }
 
-func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *domain.CreateUserFileStorageParams, author *domain.AuthorProfile, userID string, createdBy string) error {
+func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *storage.FileStorageParams, author *domain.AuthorProfile, userID string, createdBy string) error {
 
 	var err error
 

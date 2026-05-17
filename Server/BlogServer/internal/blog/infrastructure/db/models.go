@@ -14,18 +14,31 @@ type BlogsBlog struct {
 	AuthorID          string
 	UrlSlug           string
 	Title             string
-	Content           pgtype.Text
+	ContentJson       []byte
+	ContentText       string
+	ThumbnailUrl      pgtype.Text
+	TitleVector       interface{}
+	ContentVector     interface{}
 	Status            string
 	LikeCount         int64
 	DislikeCount      int64
 	DailyAccessCount  int64
 	WeeklyAccessCount int64
+	AccessCount       int64
+	IsApproved        bool
+	ReportCount       int64
 	CreatedAt         pgtype.Timestamptz
 	CreatedBy         string
 	UpdatedAt         pgtype.Timestamptz
 	UpdatedBy         string
 	DeletedAt         pgtype.Timestamptz
 	DeletedBy         pgtype.Text
+}
+
+type BlogsBlogMetric struct {
+	BlogID int64
+	Date   pgtype.Date
+	Views  int64
 }
 
 type BlogsBlogRanking struct {
@@ -53,15 +66,16 @@ type BlogsBlogReaction struct {
 	DeletedAt pgtype.Timestamptz
 }
 
+type BlogsBlogRequestTracking struct {
+	BlogID    int64
+	RequestID string
+}
+
 type BlogsBlogTag struct {
 	TagID     int64
 	BlogID    int64
 	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy pgtype.Text
 }
 
 type BlogsComment struct {
@@ -104,16 +118,20 @@ type BlogsIdxUserAuthorProfile struct {
 	DeletedAt   pgtype.Timestamptz
 }
 
+type BlogsReport struct {
+	ID              int64
+	BlogID          int64
+	UserID          string
+	UserDisplayName string
+	Reason          string
+	CreatedAt       pgtype.Timestamptz
+}
+
 type BlogsTag struct {
-	TagID     int64
+	ID        int64
 	Name      string
-	Slug      string
 	CreatedAt pgtype.Timestamptz
-	CreatedBy string
-	UpdatedAt pgtype.Timestamptz
-	UpdatedBy string
 	DeletedAt pgtype.Timestamptz
-	DeletedBy pgtype.Text
 }
 
 type UsersNotification struct {

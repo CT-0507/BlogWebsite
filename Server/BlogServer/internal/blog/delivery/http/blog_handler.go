@@ -3,22 +3,28 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 )
 
 type CreateBlogUseCases interface {
 	CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error
+	CreateBlog(c context.Context, blog *domain.Blog, userID string, fileParams *storage.FileStorageParams) (*domain.Blog, error)
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
+	SaveBlogImageToTempFolder(c context.Context, fileParams storage.FileStorageParams) (string, error)
 }
 
 type DeleteBlogUseCase interface {
@@ -31,7 +37,8 @@ type GetBlogUseCases interface {
 }
 
 type ListBlogsUseCases interface {
-	ListBlogs(ctx context.Context) ([]domain.BlogWithAuthorData, error)
+	ListBlogs(ctx context.Context, title, content, author, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error)
+	GetRankingBlogsByType(ctx context.Context, searchType string, page, limit int32, shouldGetAll bool, sortBy, sortDir string) (int64, []domain.RankingBlogData, error)
 	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
 }
@@ -49,8 +56,19 @@ type CommentUsecases interface {
 type CommentReactionUseCases interface {
 	CreateCommentReaction(c context.Context, commentReaction *domain.CreateCommentReaction) (int, error)
 }
+
 type BlogReactionUseCases interface {
 	CreateBlogReaction(c context.Context, blogReaction *domain.CreateBlogReaction) (int, error)
+}
+
+type BlogMetricsUsecases interface {
+	GetWeeksViews(ctx context.Context, blogID int64, numberOfDays int32) ([]domain.WeekViewData, error)
+	GetDateViews(ctx context.Context, blogID int64, numberOfDays int32) ([]domain.DateViewData, error)
+}
+
+type BlogReportUsecases interface {
+	CreateBlogReport(ctx context.Context, report *domain.BlogReport) (*domain.BlogReport, error)
+	GetBlogReportsByBlogID(ctx context.Context, blogID int64, userID string) ([]domain.BlogReport, error)
 }
 
 type BlogHandler struct {
@@ -61,6 +79,8 @@ type BlogHandler struct {
 	commentUsecases         CommentUsecases
 	commentReactionUsecases CommentReactionUseCases
 	blogReactionUsecases    BlogReactionUseCases
+	blogMetricsUsecases     BlogMetricsUsecases
+	blogReportUsecases      BlogReportUsecases
 }
 
 func NewBlogHandler(
@@ -71,6 +91,8 @@ func NewBlogHandler(
 	commentUsecases CommentUsecases,
 	commentReactionUsecases CommentReactionUseCases,
 	blogReactionUsecases BlogReactionUseCases,
+	blogMetricsUsecases BlogMetricsUsecases,
+	blogReportUsecases BlogReportUsecases,
 ) *BlogHandler {
 	return &BlogHandler{
 		createBlogUseCases:      createBlogUseCases,
@@ -80,6 +102,8 @@ func NewBlogHandler(
 		commentUsecases:         commentUsecases,
 		commentReactionUsecases: commentReactionUsecases,
 		blogReactionUsecases:    blogReactionUsecases,
+		blogMetricsUsecases:     blogMetricsUsecases,
+		blogReportUsecases:      blogReportUsecases,
 	}
 }
 
@@ -88,11 +112,11 @@ func NewBlogHandler(
 //   - @access Private
 func (h *BlogHandler) createNewBlog(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	var blog CreateBlogRequest
-	if err := c.ShouldBindJSON(&blog); err != nil {
+	if err := c.ShouldBind(&blog); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -110,16 +134,44 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
-	if err := h.createBlogUseCases.CreateBlogStartSaga(ctx, &domain.Blog{
-		Title:   blog.Title,
-		URLSlug: blog.URLSlug,
-		Content: blog.Content,
-	}, userID); err != nil {
+	var fileParams *storage.FileStorageParams = nil
+	fileHeader, err := c.FormFile("thumbnail")
+	if err != nil && err != http.ErrMissingFile {
+		c.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if fileHeader != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+			return
+		}
+		defer file.Close()
+		ext := filepath.Ext(fileHeader.Filename)
+		fileName := ulid.Make().String() + ext
+		contentType := fileHeader.Header.Get("Content-Type")
+
+		fileParams = &storage.FileStorageParams{
+			File:        file,
+			FileName:    fileName,
+			ContentType: contentType,
+		}
+	}
+
+	newBlog, err := h.createBlogUseCases.CreateBlog(ctx, &domain.Blog{
+		Title:       blog.Title,
+		URLSlug:     blog.URLSlug,
+		ContentText: blog.ContentText,
+		ContentJson: blog.ContentJson,
+		Tags:        blog.Tags,
+	}, userID, fileParams)
+	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, "Okay")
+	c.JSON(http.StatusCreated, newBlog)
 }
 
 // Description: get all blogs
@@ -127,15 +179,76 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 //   - @access Public
 func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	blogs, err := h.listBlogsUseCases.ListBlogs(ctx)
+	var filter GetBlogFilter
+	// ShouldBindQuery binds specifically from query parameters
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	const (
+		DEFAULT_LIMIT = 20
+		MIN_LIMIT     = 1
+		MAX_LIMIT     = 100
+	)
+
+	if filter.Title != nil && *filter.Title == "" {
+		filter.Title = nil
+	}
+	if filter.Content != nil && *filter.Content == "" {
+		filter.Content = nil
+	}
+	if filter.AuthorName != nil && *filter.AuthorName == "" {
+		filter.AuthorName = nil
+	}
+
+	limitV := int32(DEFAULT_LIMIT)
+	if filter.Limit != nil && *filter.Limit >= MIN_LIMIT && *filter.Limit <= MAX_LIMIT {
+		limitV = *filter.Limit
+	}
+
+	pageV := int32(1)
+	if filter.Page != nil && *filter.Page > 0 {
+		pageV = *filter.Page
+	}
+
+	sortByV := "createdAt"
+	if filter.SortBy != nil && *filter.SortBy != "" {
+		valid := []string{"title", "relevance", "createdAt"}
+		if slices.Contains(valid, *filter.SortBy) {
+			sortByV = *filter.SortBy
+		}
+	}
+
+	sortDirV := "desc"
+	if filter.SortDir != nil && *filter.SortDir != "" {
+		valid := []string{"asc", "desc"}
+		if slices.Contains(valid, *filter.SortDir) {
+			sortDirV = *filter.SortDir
+		}
+	}
+
+	total, blogs, err := h.listBlogsUseCases.ListBlogs(ctx, filter.Title, filter.Content, filter.AuthorName, &sortByV, &sortDirV, pageV, limitV)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, blogs)
+	for i, v := range blogs {
+		blogs[i].ContentJson = nil
+		blogs[i].ContentText = utils.Truncate(v.ContentText, 50, true)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"total": total,
+		"blogs": &blogs,
+	})
 }
 
 // Description: get all blogs
@@ -158,6 +271,10 @@ func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
+	for i, v := range blogs {
+		blogs[i].ContentJson = nil
+		blogs[i].ContentText = utils.Truncate(v.ContentText, 50, true)
+	}
 	c.JSON(http.StatusOK, blogs)
 }
 
@@ -166,7 +283,7 @@ func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
 //   - @access Puclic
 func (h *BlogHandler) getBlogByID(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	blogId, valid := c.Params.Get("id")
@@ -199,7 +316,7 @@ func (h *BlogHandler) getBlogByID(c *gin.Context) {
 //   - @access Puclic
 func (h *BlogHandler) getBlogByUrlSlug(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	slug, valid := c.Params.Get("slug")
@@ -236,7 +353,7 @@ func (h *BlogHandler) getBlogByUrlSlug(c *gin.Context) {
 //   - @access Private
 func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 
-	ctx, cancel := context.WithTimeout(c, 10*time.Second)
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
 	blogId, valid := c.Params.Get("id")
@@ -737,4 +854,307 @@ func (h *BlogHandler) CreateCommentReaction(c *gin.Context) {
 		"commentId":      commentId,
 		"type":           reaction.Type,
 	})
+}
+
+func (h *BlogHandler) GetRankingBlogsByType(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	var filter GetBlogRankingFilter
+	// ShouldBindQuery binds specifically from query parameters
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	const (
+		DEFAULT_LIMIT = 20
+		MIN_LIMIT     = 1
+		MAX_LIMIT     = 100
+	)
+
+	searchType := "createdAt"
+	if filter.Type != nil && *filter.Type != "" {
+		valid := []string{"allTime", "trending"}
+		if slices.Contains(valid, *filter.Type) {
+			searchType = *filter.Type
+		}
+	}
+
+	limitV := int32(DEFAULT_LIMIT)
+	if filter.Limit != nil && *filter.Limit >= MIN_LIMIT && *filter.Limit <= MAX_LIMIT {
+		limitV = *filter.Limit
+	}
+
+	pageV := int32(1)
+	if filter.Page != nil && *filter.Page > 0 {
+		pageV = *filter.Page
+	}
+
+	sortByV := "createdAt"
+	if filter.SortBy != nil && *filter.SortBy != "" {
+		valid := []string{"title", "relevance", "createdAt"}
+		if slices.Contains(valid, *filter.SortBy) {
+			sortByV = *filter.SortBy
+		}
+	}
+
+	sortDirV := "desc"
+	if filter.SortDir != nil && *filter.SortDir != "" {
+		valid := []string{"asc", "desc"}
+		if slices.Contains(valid, *filter.SortDir) {
+			sortDirV = *filter.SortDir
+		}
+	}
+
+	total, blogs, err := h.listBlogsUseCases.GetRankingBlogsByType(ctx, searchType, pageV, limitV, false, sortByV, sortDirV)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"total": total,
+		"blogs": &blogs,
+	})
+}
+
+func (h *BlogHandler) getInt64ValueFromParams(c *gin.Context, key string, fieldName string) (int64, error) {
+	value, valid := c.Params.Get(key)
+	if !valid {
+		return 0, errors.New(messages.MsgRequiredField.FormatLang(messages.ENGLISH, fieldName))
+	}
+	valueInt64, parseErr := strconv.ParseInt(value, 10, 64)
+	if parseErr != nil {
+		return 0, errors.New("blogId not valid")
+	}
+	return valueInt64, nil
+}
+
+func (h *BlogHandler) getInt64ValueFromQuery(c *gin.Context, key string, fieldName string) (int64, error) {
+	value := c.Query(key)
+	if value == "" {
+		return 0, errors.New(messages.MsgRequiredField.FormatLang(messages.ENGLISH, fieldName))
+	}
+	valueInt64, parseErr := strconv.ParseInt(value, 10, 64)
+	if parseErr != nil {
+		return 0, errors.New("blogId not valid")
+	}
+	return valueInt64, nil
+}
+
+// params: queryParams: resultLength(number) number of requested rows, default 1
+// params: queryParams: viewType(string, valid: "days" and "weeks") type of request, default  "days"
+func (h *BlogHandler) GetViewsData(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 1*time.Second)
+	defer cancel()
+
+	blogId, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	resultLength, err := h.getInt64ValueFromQuery(c, "resultLength", "resultLength")
+	if err != nil {
+		resultLength = 1
+	}
+
+	viewType := c.Query("viewType")
+	if viewType == "" || (viewType != "days" && viewType != "weeks") {
+		viewType = "days"
+	}
+
+	if viewType == "weeks" {
+		data, err := h.blogMetricsUsecases.GetWeeksViews(ctx, blogId, int32(resultLength))
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"type": "week",
+			"data": data,
+		})
+	} else {
+		data, err := h.blogMetricsUsecases.GetDateViews(ctx, blogId, int32(resultLength))
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"type": "days",
+			"data": data,
+		})
+	}
+}
+
+func (h *BlogHandler) uploadImage(c *gin.Context) {
+	// get uploaded file
+	fileHeader, err := c.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": 0,
+			"message": "failed to get image",
+		})
+		return
+	}
+
+	var fileParams *storage.FileStorageParams = nil
+
+	if fileHeader != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+			return
+		}
+		defer file.Close()
+
+		// validate extension
+		ext := filepath.Ext(fileHeader.Filename)
+		switch ext {
+		case ".jpg", ".jpeg", ".png", ".webp":
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": 0,
+				"message": "invalid image format",
+			})
+			return
+		}
+
+		fileName := ulid.Make().String() + ext
+		contentType := fileHeader.Header.Get("Content-Type")
+
+		fileParams = &storage.FileStorageParams{
+			File:        file,
+			FileName:    fileName,
+			ContentType: contentType,
+		}
+	}
+
+	// savePath := filepath.Join("uploads", filename)
+	savePath, err := h.createBlogUseCases.SaveBlogImageToTempFolder(c, *fileParams)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": 0,
+			"message": "failed to save image",
+		})
+		return
+	}
+
+	// generate public URL
+	url := fmt.Sprintf(
+		"http://localhost:8080/uploads/%s",
+		savePath,
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": 1,
+		"file": gin.H{
+			"url": url,
+		},
+	})
+}
+
+func (h *BlogHandler) CreateBlogReport(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 1*time.Second)
+	defer cancel()
+
+	blogID, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogID"),
+		})
+		return
+	}
+
+	var report CreateBlogReportRequest
+	if err := c.ShouldBind(&report); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, report); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userId not found",
+		})
+		return
+	}
+
+	username, err := utils.GetUsernameFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "username not found",
+		})
+		return
+	}
+
+	newReport, err := h.blogReportUsecases.CreateBlogReport(ctx, &domain.BlogReport{
+		BlogID:          blogID,
+		Reason:          report.Reason,
+		UserID:          userID,
+		UserDisplayName: username,
+	})
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusUnauthorized, newReport)
+}
+
+func (h *BlogHandler) getBlogReportsByBlogID(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	blogID, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogID"),
+		})
+		return
+	}
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userId not found",
+		})
+		return
+	}
+
+	reports, err := h.blogReportUsecases.GetBlogReportsByBlogID(ctx, blogID, userID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	var authorBlogReport = []GetBlogReportsForAuthorResponse{}
+	for _, value := range reports {
+		v := value
+		authorBlogReport = append(authorBlogReport, GetBlogReportsForAuthorResponse{
+			ReportID: value.ReportID,
+			BlogID:   v.BlogID,
+			Reason:   v.Reason,
+		})
+	}
+
+	c.JSON(http.StatusOK, authorBlogReport)
 }

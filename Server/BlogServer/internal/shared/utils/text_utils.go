@@ -61,13 +61,6 @@ func Truncate(s string, max int, withEllipsis bool) string {
 	return result
 }
 
-func DerefTextNullable(text pgtype.Text) *string {
-	if text.Valid {
-		return &text.String
-	}
-	return nil
-}
-
 func Deref[T any](v *T) T {
 	if v != nil {
 		return *v

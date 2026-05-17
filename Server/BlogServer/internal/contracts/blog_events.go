@@ -65,3 +65,22 @@ type DeleteBlogContext struct {
 type DeleteBlogPayload struct {
 	AuthorID string
 }
+
+type BlogCreatedEventPayload struct {
+	BlogID           int64
+	AuthorID         string
+	TruncatedContent string
+	TruncatedTitle   string
+	BlogThumbnail    *string
+}
+
+type BlogCreatedNotifyEventPayload struct {
+	BlogID           int64
+	AuthorID         string
+	TruncatedContent string
+	TruncatedTitle   string
+	BlogThumbnail    *string
+	FollowerIds      []string
+	AuthorName       string
+	AuthorSlug       string
+}

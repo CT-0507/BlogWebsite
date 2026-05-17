@@ -212,11 +212,11 @@ func (e *EventHandler) CreateBlog(c context.Context, evt *messaging.OutboxEvent)
 	err = e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
 		insertedBlog, err := e.repo.Create(ctx, &domain.Blog{
-			AuthorID: payload.AuthorID,
-			Title:    payload.Title,
-			Content:  payload.Content,
-			Status:   payload.Status,
-			URLSlug:  payload.UrlSlug,
+			AuthorID:    payload.AuthorID,
+			Title:       payload.Title,
+			ContentText: payload.Content,
+			Status:      payload.Status,
+			URLSlug:     payload.UrlSlug,
 		})
 		if err != nil {
 			return err

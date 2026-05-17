@@ -151,6 +151,25 @@ func (q *Queries) GetSagaByID(ctx context.Context, id uuid.UUID) (SagaSaga, erro
 	return i, err
 }
 
+const getSagaState = `-- name: GetSagaState :one
+SELECT id, current_step, status
+FROM saga.sagas
+WHERE id = $1
+`
+
+type GetSagaStateRow struct {
+	ID          uuid.UUID
+	CurrentStep int32
+	Status      string
+}
+
+func (q *Queries) GetSagaState(ctx context.Context, id uuid.UUID) (GetSagaStateRow, error) {
+	row := q.db.QueryRow(ctx, getSagaState, id)
+	var i GetSagaStateRow
+	err := row.Scan(&i.ID, &i.CurrentStep, &i.Status)
+	return i, err
+}
+
 const getStepByIndexAndSagaID = `-- name: GetStepByIndexAndSagaID :one
 SELECT id, saga_id, step_index, step_name, status, event_id, retry_count, next_retry_at, input, output, last_error, created_at, updated_at, compensated_at
 FROM saga.saga_steps

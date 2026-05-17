@@ -9,6 +9,7 @@ func (h *BlogHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 
 	blogs := v1.Group("/blogs")
 	blogs.GET("", h.getAllBlogs)
+	blogs.GET("/ranking", h.GetRankingBlogsByType)
 	blogs.GET("/slug/:slug", h.getBlogByUrlSlug)
 	blogs.GET("/author/slug/:authorSlug", h.getBlogsByAuthorSlug)
 	blog := blogs.Group("/:id")
@@ -21,6 +22,8 @@ func (h *BlogHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 	comment := comments.Group("/:id")
 	comment.GET("/children", h.getChildrenComments)
 	comment.GET("", h.getCommentByID)
+
+	blog.GET("/metrics", h.GetViewsData)
 }
 
 func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
@@ -34,6 +37,10 @@ func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 	blog.DELETE("", h.deleteBlogByID)
 	blog.POST("/reaction", h.CreateBlogReaction)
 
+	reports := blog.Group("/reports")
+	reports.GET("", h.getBlogReportsByBlogID)
+	reports.POST("", h.CreateBlogReport)
+
 	comments := blog.Group("/comments")
 	comments.POST("", h.createComment)
 
@@ -43,4 +50,8 @@ func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 	sComment.DELETE("/delete", h.DeleteCommentByID)
 	sComment.PATCH("/hidden", h.HideCommentByID)
 	sComment.PATCH("", h.UpdateCommentContentByID)
+
+	r.MaxMultipartMemory = 8 << 20
+	uploads := v1.Group("/uploads")
+	uploads.POST("/image", h.uploadImage)
 }

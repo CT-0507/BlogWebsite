@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -24,7 +25,7 @@ func New(
 
 func (l *LocalStorage) Upload(file io.Reader, filename string, contentType string) (string, error) {
 	path := filepath.Join(l.BasePath, filename)
-
+	log.Println(path)
 	dst, err := os.Create(path)
 	if err != nil {
 		return "", err

@@ -7,18 +7,65 @@ import type {
   BlogReaction,
   BlogReactionType,
   CommentReaction,
+  RankingBlogData,
 } from "@/types/Blog";
+import { getQueryParam } from "@/utils/mapper";
+import type { BlogReport } from "@/types/types";
 
-const API_VERSION = "/api/v1";
+export const API_VERSION = "/api/v1";
 
-export async function publishBlogRequest(formData: PublishBlogFormValues) {
-  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formData);
+export async function publishBlogRequest(
+  formData: PublishBlogFormValues & {
+    files: Map<string, File>;
+  }
+): Promise<Blog> {
+  const formDataV = new FormData();
+  formDataV.append("title", formData.title);
+  formDataV.append("urlSlug", formData.urlSlug);
+  formDataV.append("contentText", formData.content.plainText);
+  formDataV.append("contentJson", formData.content.json);
+  formDataV.append("contentJson", formData.content.json);
+
+  formData.files.forEach((file, tempId) => {
+    formDataV.append(tempId, file);
+  });
+
+  if (formData.thumbnail) {
+    formDataV.append("thumbnail", formData.thumbnail);
+  }
+  if (formData.tags) {
+    formData.tags.forEach((item) => {
+      formDataV.append("tags", item);
+    });
+  }
+  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formDataV);
 
   return data;
 }
 
-export async function listBlogs(queryParams: string) {
-  const { data } = await api.get(`${API_VERSION}/blogs` + queryParams);
+interface QueryBlogsParams {
+  title?: string | null;
+  content?: string | null;
+  author?: string | null;
+  sortBy: string;
+  sortDir: string;
+  limit: number;
+}
+
+interface ListBlogsResponse {
+  total: number;
+  blogs: Blog[];
+}
+
+export async function listBlogs(
+  queryParams: QueryBlogsParams,
+  page: number
+): Promise<ListBlogsResponse> {
+  const params = getQueryParam(queryParams);
+
+  params.append("page", page.toString());
+
+  const { data } = await api.get(`${API_VERSION}/blogs?` + params.toString());
 
   return data;
 }
@@ -169,4 +216,58 @@ export async function deleteComment(commentId: string) {
   );
 
   return data;
+}
+
+interface GetTrendingBlogsParams {
+  limit?: number;
+  sortBy?: string;
+  sortDir?: string;
+}
+
+interface GetTrendingBlogsResponse {
+  total: number;
+  blogs: RankingBlogData[];
+}
+
+export async function getRankingBlogs(
+  queryParams: GetTrendingBlogsParams,
+  page: number,
+  type: "allTime" | "trending"
+): Promise<GetTrendingBlogsResponse> {
+  const params = getQueryParam(queryParams);
+
+  params.append("page", page.toString());
+
+  const { data } = await api.get(
+    `${API_VERSION}/blogs/ranking?type=${type}&` + params.toString()
+  );
+
+  return data;
+}
+
+export async function uploadByFile(file: File) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await axiosAuth.post(`${API_VERSION}/upload/image`, formData);
+
+  return res.data;
+}
+
+interface CreateBlogReportRequest {
+  blogID: number;
+  reason: string;
+}
+
+export async function createBlogReport(
+  report: CreateBlogReportRequest
+): Promise<BlogReport> {
+  const res = await axiosAuth.post(
+    `${API_VERSION}/blogs/${report.blogID}/reports`,
+    {
+      reason: report.reason,
+    }
+  );
+
+  return res.data;
 }

@@ -82,7 +82,7 @@ func main() {
 	authorModule := authors.NewAuthorsModule(pool, txManager, outboxRepo, storage)
 
 	// Blog CA
-	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo)
+	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo, storage)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
@@ -243,7 +243,9 @@ func main() {
 
 	go worker.Start(context.Background())
 
-	go blogModule.Woker.Start(context.Background())
+	go blogModule.Woker.StartUpdateRankingTable(context.Background())
+	// go blogModule.Woker.StartResetBlogDailyViewCount(context.Background())
+	// go blogModule.Woker.StartResetBlogWeeklyViewCount(context.Background())
 
 	if err := router.Run(PORT); err != nil {
 		fmt.Println("Failed to start server", err)

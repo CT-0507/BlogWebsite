@@ -87,3 +87,8 @@ FROM saga.saga_steps
 WHERE saga_id = $1 AND status = 'compensating'
 ORDER BY step_index DESC
 LIMIT 1;
+
+-- name: GetSagaState :one
+SELECT id, current_step, status
+FROM saga.sagas
+WHERE id = $1;
