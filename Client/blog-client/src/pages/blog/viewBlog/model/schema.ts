@@ -40,3 +40,10 @@ export const updateCommentContentSchema = z.object({
 export type UpdateCommentContentFormValues = z.infer<
   typeof updateCommentContentSchema
 >;
+
+export const reportSchema = z.object({
+  blogID: z.number(),
+  reason: z.string().trim().min(2).max(500),
+});
+
+export type BlogReportFormValues = z.infer<typeof reportSchema>;

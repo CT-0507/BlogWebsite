@@ -47,3 +47,13 @@ type GetBlogRankingFilter struct {
 	SortBy  *string `form:"sortBy" validate:"omitempty"`
 	SortDir *string `form:"sortDir" validate:"omitempty"`
 }
+
+type CreateBlogReportRequest struct {
+	Reason string `json:"reason" validate:"required,min=8,max=1000"`
+}
+
+type GetBlogReportsForAuthorResponse struct {
+	ReportID int64  `json:"reportID"`
+	BlogID   int64  `json:"blogID"`
+	Reason   string `json:"reason"`
+}

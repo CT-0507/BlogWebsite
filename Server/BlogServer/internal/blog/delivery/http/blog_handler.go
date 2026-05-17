@@ -68,6 +68,7 @@ type BlogMetricsUsecases interface {
 
 type BlogReportUsecases interface {
 	CreateBlogReport(ctx context.Context, report *domain.BlogReport) (*domain.BlogReport, error)
+	GetBlogReportsByBlogID(ctx context.Context, blogID int64, userID string) ([]domain.BlogReport, error)
 }
 
 type BlogHandler struct {
@@ -158,37 +159,6 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		}
 	}
 
-	// var contentFiles []storage.FileStorageParams = nil
-	// form, err := c.MultipartForm()
-	// if err != nil {
-	// 	c.String(http.StatusBadRequest, "get form err: %s", err.Error())
-	// 	return
-	// }
-	// files := form.File["files"]
-	// for _, fileHeader := range files {
-	// 	// 3. Save each file individually
-	// 	// log.Println(file.Filename)
-	// 	// dst := "./uploads/" + file.Filename
-	// 	// if err := c.SaveUploadedFile(file, dst); err != nil {
-	// 	//     c.String(http.StatusInternalServerError, "upload file err: %s", err.Error())
-	// 	//     return
-	// 	// }
-	// 	file, err := fileHeader.Open()
-	// 	if err != nil {
-	// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
-	// 		return
-	// 	}
-	// 	defer file.Close()
-	// 	contentType := fileHeader.Header.Get("Content-Type")
-
-	// 	fileParams := storage.FileStorageParams{
-	// 		File:        file,
-	// 		FileName:    fileHeader.Filename,
-	// 		ContentType: contentType,
-	// 	}
-	// 	contentFiles = append(contentFiles, fileParams)
-	// }
-
 	newBlog, err := h.createBlogUseCases.CreateBlog(ctx, &domain.Blog{
 		Title:       blog.Title,
 		URLSlug:     blog.URLSlug,
@@ -271,6 +241,10 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
+	for i, v := range blogs {
+		blogs[i].ContentJson = nil
+		blogs[i].ContentText = utils.Truncate(v.ContentText, 50, true)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"total": total,
 		"blogs": &blogs,
@@ -296,6 +270,10 @@ func (h *BlogHandler) getBlogsByAuthorSlug(c *gin.Context) {
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
+	}
+	for i, v := range blogs {
+		blogs[i].ContentJson = nil
+		blogs[i].ContentText = utils.Truncate(v.ContentText, 50, true)
 	}
 	c.JSON(http.StatusOK, blogs)
 }
@@ -1085,4 +1063,98 @@ func (h *BlogHandler) uploadImage(c *gin.Context) {
 			"url": url,
 		},
 	})
+}
+
+func (h *BlogHandler) CreateBlogReport(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 1*time.Second)
+	defer cancel()
+
+	blogID, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogID"),
+		})
+		return
+	}
+
+	var report CreateBlogReportRequest
+	if err := c.ShouldBind(&report); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, report); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userId not found",
+		})
+		return
+	}
+
+	username, err := utils.GetUsernameFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "username not found",
+		})
+		return
+	}
+
+	newReport, err := h.blogReportUsecases.CreateBlogReport(ctx, &domain.BlogReport{
+		BlogID:          blogID,
+		Reason:          report.Reason,
+		UserID:          userID,
+		UserDisplayName: username,
+	})
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusUnauthorized, newReport)
+}
+
+func (h *BlogHandler) getBlogReportsByBlogID(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	blogID, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogID"),
+		})
+		return
+	}
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userId not found",
+		})
+		return
+	}
+
+	reports, err := h.blogReportUsecases.GetBlogReportsByBlogID(ctx, blogID, userID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	var authorBlogReport = []GetBlogReportsForAuthorResponse{}
+	for _, value := range reports {
+		v := value
+		authorBlogReport = append(authorBlogReport, GetBlogReportsForAuthorResponse{
+			ReportID: value.ReportID,
+			BlogID:   v.BlogID,
+			Reason:   v.Reason,
+		})
+	}
+
+	c.JSON(http.StatusOK, authorBlogReport)
 }

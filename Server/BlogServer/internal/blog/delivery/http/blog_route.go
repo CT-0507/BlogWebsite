@@ -37,6 +37,10 @@ func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 	blog.DELETE("", h.deleteBlogByID)
 	blog.POST("/reaction", h.CreateBlogReaction)
 
+	reports := blog.Group("/reports")
+	reports.GET("", h.getBlogReportsByBlogID)
+	reports.POST("", h.CreateBlogReport)
+
 	comments := blog.Group("/comments")
 	comments.POST("", h.createComment)
 

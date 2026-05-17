@@ -10,6 +10,7 @@ import type {
   RankingBlogData,
 } from "@/types/Blog";
 import { getQueryParam } from "@/utils/mapper";
+import type { BlogReport } from "@/types/types";
 
 export const API_VERSION = "/api/v1";
 
@@ -248,7 +249,25 @@ export async function uploadByFile(file: File) {
   const formData = new FormData();
   formData.append("image", file);
 
-  const res = await axiosAuth.post(`${API_VERSION}/api/upload/image`, formData);
+  const res = await axiosAuth.post(`${API_VERSION}/upload/image`, formData);
+
+  return res.data;
+}
+
+interface CreateBlogReportRequest {
+  blogID: number;
+  reason: string;
+}
+
+export async function createBlogReport(
+  report: CreateBlogReportRequest
+): Promise<BlogReport> {
+  const res = await axiosAuth.post(
+    `${API_VERSION}/blogs/${report.blogID}/reports`,
+    {
+      reason: report.reason,
+    }
+  );
 
   return res.data;
 }

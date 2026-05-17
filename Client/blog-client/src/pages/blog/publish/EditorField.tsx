@@ -11,14 +11,12 @@ import Box from "@mui/material/Box";
 import EditorJS from "@editorjs/editorjs";
 import { uploadByFile } from "@/api/blogApi";
 import debounce from "lodash.debounce";
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-} from "@mui/material";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
 
 export interface EditorSavedData {
   content: OutputData | null;

@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
+	"errors"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/config"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 )
 
@@ -53,4 +55,20 @@ func (u *BlogReportUsecases) CreateBlogReport(ctx context.Context, report *domai
 	})
 
 	return inserted, err
+}
+
+func (u *BlogReportUsecases) GetBlogReportsByBlogID(ctx context.Context, blogID int64, userID string) ([]domain.BlogReport, error) {
+
+	// Confirm identity
+	if userID != config.ADMIN_ID && userID != config.SYSTEM_ID {
+		authorID, err := u.blogRepo.VerifyAuthorIDByUserID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if authorID == "" {
+			return nil, errors.New("Author ID not found")
+		}
+	}
+
+	return u.blogRepo.GetBlogReportsByBlogID(ctx, blogID)
 }

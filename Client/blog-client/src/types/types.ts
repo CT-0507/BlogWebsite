@@ -39,3 +39,9 @@ export const BLOG_RANKING_SORT_BY_VALUES = [
 ] as const;
 export type SortBlogRankingByValue =
   (typeof BLOG_RANKING_SORT_BY_VALUES)[number];
+
+export type BlogReport = {
+  reportID: number;
+  blogID: number;
+  reason: string;
+};
