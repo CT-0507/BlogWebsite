@@ -1,5 +1,9 @@
 import Box from "@mui/material/Box";
 import InputLabel from "@mui/material/InputLabel";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Snackbar from "@mui/material/Snackbar";
+import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -17,7 +21,6 @@ import { createAuthorRequest } from "@/api/authorApi";
 import { styled } from "@mui/material/styles";
 import Avatar from "@mui/material/Avatar";
 import { useEffect, useRef, useState } from "react";
-import { Divider, IconButton, Snackbar, Typography } from "@mui/material";
 import slugify from "slugify";
 
 const VisuallyHiddenInput = styled("input")({
@@ -85,7 +88,7 @@ export default function CreateAuthorForm() {
           lower: true,
           strict: true,
           trim: true,
-        })
+        }),
       );
     }
   }, [slug, setValue]);

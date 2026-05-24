@@ -82,6 +82,8 @@ CREATE TABLE blogs.idx_user_author_profile (
 CREATE INDEX ON blogs.blogs (title);
 CREATE INDEX ON blogs.blogs (url_slug);
 CREATE INDEX ON blogs.blog_tags (tag_id);
+CREATE INDEX idx_blogs_author_status
+ON blogs.blogs (author_id, status);
 
 -- Comment
 
@@ -157,6 +159,14 @@ CREATE INDEX idx_blogs_reaction
 ON blogs.blog_reactions(blog_id, type) WHERE status = 'active';
 CREATE INDEX idx_comments_reaction 
 ON blogs.comment_reactions(comment_id, type) WHERE status = 'active';
+
+CREATE INDEX idx_blog_reactions_active
+ON blogs.blog_reactions (
+    blog_id,
+    type,
+    created_at
+)
+WHERE status = 'active';
 
 -- Ranking table
 

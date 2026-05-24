@@ -112,3 +112,7 @@ func (m *MockAuthorProfileRepository) MarkAuthorFollowersDeletedByUserID(c conte
 func (m *MockAuthorProfileRepository) RestoreAuthorFollowersByUserID(c context.Context, userID string) error {
 	return nil
 }
+
+func (m *MockAuthorProfileRepository) GetAuthorByUserID(c context.Context, userID string) (*domain.AuthorProfile, error) {
+	return nil, nil
+}

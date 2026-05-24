@@ -1,4 +1,23 @@
 services:
+  # nginx:
+  #   image: nginx:latest
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+  #   depends_on:
+  #     - app
+
+  # app:
+  #   build: .
+  #   expose:
+  #     - "3000"
+  #   environment:
+  #     DATABASE_URL: postgres://postgres:password@postgres:5432/mydb
+  #     REDIS_URL: redis://redis:6379
+  #   depends_on:
+  #     - postgres
+  #     - redis
   db:
     image: postgres:latest # Use the latest official Postgres image from Docker Hub
     container_name: ${POSTGRES_CONTAINER_NAME}
@@ -10,5 +29,10 @@ services:
       - "${POSTGRES_PORT}:5432" # Maps port $ on the host to port 5432 in the container
     volumes:
       - pgdata:${POSTGRES_DATA_DIR} # Persistent storage for database data
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
 volumes:
   pgdata:

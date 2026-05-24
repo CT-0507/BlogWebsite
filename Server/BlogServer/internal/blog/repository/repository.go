@@ -42,4 +42,8 @@ type BlogRepository interface {
 	DeleteBlogReportByID(c context.Context, reportID int64) (int64, error)
 	GetBlogReportsByBlogID(c context.Context, blogID int64) ([]domain.BlogReport, error)
 	UpdateBlogStatus(c context.Context, blogID int64, status string) error
+
+	// Author Dashboard
+	GetAuthorDashboardViewMetrics(c context.Context, authorID string, userID *string) (*domain.AuthorDashboardViewMetrics, error)
+	GetAuthorDashboardReactionMetrics(c context.Context, authorID string, userID *string) (*domain.AuthorDashboardReactionMetrics, error)
 }

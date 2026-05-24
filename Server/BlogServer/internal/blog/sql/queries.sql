@@ -845,3 +845,107 @@ UPDATE blogs.blogs
 SET status = $1,
     updated_at = NOW()
 WHERE blog_id = $2;
+
+-- name: GetTodayViewAcrossAllContentByAuthorID :one
+SELECT
+    COALESCE(SUM(CASE WHEN m.date = CURRENT_DATE THEN m.views END), 0)::BIGINT AS today_views,
+    COALESCE(SUM(CASE WHEN m.date = CURRENT_DATE - INTERVAL '1 day' THEN m.views END), 0)::BIGINT  AS yesterday_views,
+    COALESCE(SUM(
+        CASE
+            WHEN m.date >= date_trunc('week', CURRENT_DATE)::date
+            AND m.date <= CURRENT_DATE
+            THEN m.views
+        END
+    ), 0)::BIGINT  AS this_week_views,
+
+    COALESCE(SUM(
+        CASE
+            WHEN m.date >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND m.date < date_trunc('week', CURRENT_DATE)::date
+            THEN m.views
+        END
+    ), 0)::BIGINT  AS last_week_views
+FROM blogs.blogs b
+LEFT JOIN blogs.blog_metrics m
+    ON b.blog_id = m.blog_id
+WHERE b.author_id = $1
+    AND b.status = 'active'
+    AND (
+        sqlc.arg('isAdmin')::BOOLEAN = TRUE
+        OR EXISTS (
+            SELECT 1
+            FROM blogs.idx_user_author_profile au
+            WHERE au.author_id = b.author_id
+                AND au.user_id = $2
+        )
+    );
+
+-- name: GetReactionCountByAuthorID :one
+SELECT
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE
+    ), 0)::BIGINT  AS today_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE
+    ), 0)::BIGINT  AS today_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE - 1
+    ), 0)::BIGINT  AS yesterday_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE - 1
+    ), 0)::BIGINT  AS yesterday_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at >= date_trunc('week', CURRENT_DATE)::date
+            AND r.created_at < CURRENT_DATE
+    ), 0)::BIGINT  AS this_week_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at >= date_trunc('week', CURRENT_DATE)::date
+            AND r.created_at < CURRENT_DATE
+    ), 0)::BIGINT  AS this_week_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND r.created_at < date_trunc('week', CURRENT_DATE)::date
+    ), 0)::BIGINT  AS last_week_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND r.created_at < date_trunc('week', CURRENT_DATE)::date
+    ), 0)::BIGINT  AS last_week_dislikes
+
+FROM blogs.blogs b
+LEFT JOIN blogs.blog_reactions r
+    ON b.blog_id = r.blog_id
+
+WHERE b.author_id = $1
+    AND b.status = 'active'
+    AND (
+        sqlc.arg('isAdmin')::BOOLEAN  = TRUE
+        OR EXISTS (
+            SELECT 1
+            FROM blogs.idx_user_author_profile au
+            WHERE au.author_id = b.author_id
+                AND au.user_id = $2
+        )
+    );

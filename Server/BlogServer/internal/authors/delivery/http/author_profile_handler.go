@@ -19,6 +19,7 @@ import (
 
 type AuthorDiscoveryUsecases interface {
 	SearchAuthor()
+	GetAuthorOwnProfileByUserID(ctx context.Context, userID string) (*domain.AuthorProfile, error)
 }
 
 type AuthorIdentityUsecases interface {
@@ -602,4 +603,29 @@ func (h *AuthorProfileHandler) getAuthorFeaturedBlogs(c *gin.Context) {
 	c.JSON(http.StatusOK, &gin.H{
 		"blogIds": blogIds,
 	})
+}
+
+func (h *AuthorProfileHandler) getMyAuthorProfile(c *gin.Context) {
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userID not found",
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	author, err := h.authorDiscoveryUseCases.GetAuthorOwnProfileByUserID(ctx, userID)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to get author profile",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, author)
 }

@@ -1,14 +1,12 @@
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-} from "@mui/material";
 import Grid from "@mui/material/Grid";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Divider from "@mui/material/Divider";
 import AuthorProfileColumn from "./AuthorProfileColumn";
 import { useParams } from "react-router-dom";
 import AuthorBlogsColumn from "./AuthorBlogsColumn";

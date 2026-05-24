@@ -11,7 +11,7 @@ import Popper from "@mui/material/Popper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import React, { useRef, useState, useMemo, useEffect } from "react";
+import { useRef, useState, useMemo, useEffect, Fragment } from "react";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MarkAsUnreadIcon from "@mui/icons-material/MarkAsUnread";
@@ -68,7 +68,7 @@ export default function NotificationMenu() {
 
   const handleDelete = (notificationId: string) => {
     queryClient.setQueryData(["notifications"], (old: Notification[]) =>
-      old.filter((item) => item.notificationId !== notificationId)
+      old.filter((item) => item.notificationId !== notificationId),
     );
   };
   const handleMarkAsUnRead = (notificationId: string) => {
@@ -142,10 +142,10 @@ export default function NotificationMenu() {
                     (data as Notification[])
                       .slice(
                         0,
-                        expand ? data.length : defaultShowNotificationNumber
+                        expand ? data.length : defaultShowNotificationNumber,
                       )
                       .map((item) => (
-                        <React.Fragment key={item.notificationId}>
+                        <Fragment key={item.notificationId}>
                           <Tooltip
                             title={item.content}
                             placement="bottom-start"
@@ -192,7 +192,7 @@ export default function NotificationMenu() {
                             variant="fullWidth"
                             sx={{ bgcolor: "gray" }}
                           />
-                        </React.Fragment>
+                        </Fragment>
                       ))}
                   <ListItem
                     disablePadding

@@ -10,6 +10,7 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/cache"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event_bus"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/notification"
@@ -53,6 +54,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Load Redis
+	redisClient := cache.NewRedisClient()
+	defer redisClient.Close()
+
 	// Create connection pool
 	pool, err := database.NewPostgresPool(dsn)
 	if err != nil {
@@ -82,7 +87,7 @@ func main() {
 	authorModule := authors.NewAuthorsModule(pool, txManager, outboxRepo, storage)
 
 	// Blog CA
-	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo, storage)
+	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo, storage, redisClient)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
@@ -136,7 +141,7 @@ func main() {
 	router.Use(gin.Logger())
 
 	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
-	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
+	routes.SetupProtectedRoutes(router, pool, redisClient, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
 
 	saga := saga.NewSagaModule(pool, txManager, outboxRepo)
 

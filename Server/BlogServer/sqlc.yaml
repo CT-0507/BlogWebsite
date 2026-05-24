@@ -2,9 +2,7 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "internal/blog/sql"
-    schema:
-      - "internal/blog/sql"
-      - "internal/user/sql"
+    schema: "internal/blog/sql"
     gen:
       go:
         package: "blogdb"

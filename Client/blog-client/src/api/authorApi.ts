@@ -1,4 +1,5 @@
-import type { CreateAuthorFormValues } from "./../pages/author/model/schema";
+import type { Author } from "@/types/types";
+import type { CreateAuthorFormValues } from "./../pages/author/create-author/model/schema";
 import { api, axiosAuth } from "./axiosConfig";
 
 const API_VERSION = "/api/v1";
@@ -17,7 +18,7 @@ export async function getAuthorBlogsRequest(slug: string) {
 
 export async function getFollowedAuthorsRequest() {
   const { data } = await axiosAuth.get(
-    `${API_VERSION}/authors/me/following/authors`
+    `${API_VERSION}/authors/me/following/authors`,
   );
 
   return data;
@@ -37,7 +38,7 @@ export async function createAuthorRequest(formData: CreateAuthorFormValues) {
 
 export async function followAuthorRequest(authorID: string) {
   const { data } = await axiosAuth.post(
-    `${API_VERSION}/authors/${authorID}/follow`
+    `${API_VERSION}/authors/${authorID}/follow`,
   );
 
   return data;
@@ -45,8 +46,41 @@ export async function followAuthorRequest(authorID: string) {
 
 export async function unfollowAuthorRequest(authorID: string) {
   const { data } = await axiosAuth.delete(
-    `${API_VERSION}/authors/${authorID}/follow`
+    `${API_VERSION}/authors/${authorID}/follow`,
   );
 
   return data;
+}
+
+export async function fetchAuthorMe(): Promise<Author> {
+  const { data } = await axiosAuth.get(`${API_VERSION}/me/authorProfile`);
+  return data || null;
+}
+
+type DashboardViewMetrics = {
+  todayViews: number;
+  yesterdayViews: number;
+  thisWeekViews: number;
+  lastWeekViews: number;
+};
+
+type DashboardReactionMetrics = {
+  todayLikes: number;
+  todayDislikes: number;
+  yesterdayLikes: number;
+  yesterdayDislikes: number;
+  thisWeekLikes: number;
+  thisWeekDislikes: number;
+  lastWeekLikes: number;
+  lastWeekDislikes: number;
+};
+
+export type AuthorDashboardMetrics = {
+  viewsMetrics: DashboardViewMetrics;
+  reactionMetrics: DashboardReactionMetrics;
+};
+
+export async function getAuthorDashboardMetrics(): Promise<AuthorDashboardMetrics> {
+  const { data } = await axiosAuth.get(`${API_VERSION}/dashboard/author`);
+  return data || null;
 }

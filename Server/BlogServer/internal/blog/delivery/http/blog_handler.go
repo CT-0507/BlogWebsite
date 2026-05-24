@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,12 +13,14 @@ import (
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/cache"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/oklog/ulid/v2"
+	"github.com/redis/go-redis/v9"
 )
 
 type CreateBlogUseCases interface {
@@ -38,6 +41,7 @@ type GetBlogUseCases interface {
 
 type ListBlogsUseCases interface {
 	ListBlogs(ctx context.Context, title, content, author, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error)
+	ListBlogsAuthor(ctx context.Context, title, content, sortBy, sortDir *string, page int32, limit int32, userID string) (int64, []domain.BlogWithAuthorData, error)
 	GetRankingBlogsByType(ctx context.Context, searchType string, page, limit int32, shouldGetAll bool, sortBy, sortDir string) (int64, []domain.RankingBlogData, error)
 	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
@@ -64,6 +68,7 @@ type BlogReactionUseCases interface {
 type BlogMetricsUsecases interface {
 	GetWeeksViews(ctx context.Context, blogID int64, numberOfDays int32) ([]domain.WeekViewData, error)
 	GetDateViews(ctx context.Context, blogID int64, numberOfDays int32) ([]domain.DateViewData, error)
+	GetAuthorDashboardMetrics(ctx context.Context, authorID *string, userID *string) (*domain.AuthorDashboardViewMetrics, *domain.AuthorDashboardReactionMetrics, error)
 }
 
 type BlogReportUsecases interface {
@@ -81,6 +86,7 @@ type BlogHandler struct {
 	blogReactionUsecases    BlogReactionUseCases
 	blogMetricsUsecases     BlogMetricsUsecases
 	blogReportUsecases      BlogReportUsecases
+	redisClient             *redis.Client
 }
 
 func NewBlogHandler(
@@ -93,6 +99,7 @@ func NewBlogHandler(
 	blogReactionUsecases BlogReactionUseCases,
 	blogMetricsUsecases BlogMetricsUsecases,
 	blogReportUsecases BlogReportUsecases,
+	redisClient *redis.Client,
 ) *BlogHandler {
 	return &BlogHandler{
 		createBlogUseCases:      createBlogUseCases,
@@ -104,6 +111,7 @@ func NewBlogHandler(
 		blogReactionUsecases:    blogReactionUsecases,
 		blogMetricsUsecases:     blogMetricsUsecases,
 		blogReportUsecases:      blogReportUsecases,
+		redisClient:             redisClient,
 	}
 }
 
@@ -163,7 +171,7 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		Title:       blog.Title,
 		URLSlug:     blog.URLSlug,
 		ContentText: blog.ContentText,
-		ContentJson: blog.ContentJson,
+		ContentJson: json.RawMessage(blog.ContentJson),
 		Tags:        blog.Tags,
 	}, userID, fileParams)
 	if err != nil {
@@ -194,49 +202,84 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 		return
 	}
 
-	const (
-		DEFAULT_LIMIT = 20
-		MIN_LIMIT     = 1
-		MAX_LIMIT     = 100
-	)
+	h.validateBlogsFilter(&filter)
+	key := cache.BuildCacheKey("blogs:list", map[string]interface{}{
+		"title":  filter.Title,
+		"author": filter.AuthorName,
+	}, map[string]interface{}{
+		"page":     filter.Page,
+		"limit":    filter.Limit,
+		"sort_by":  filter.SortBy,
+		"sort_dir": filter.SortDir,
+	})
 
-	if filter.Title != nil && *filter.Title == "" {
-		filter.Title = nil
-	}
-	if filter.Content != nil && *filter.Content == "" {
-		filter.Content = nil
-	}
-	if filter.AuthorName != nil && *filter.AuthorName == "" {
-		filter.AuthorName = nil
-	}
+	cached, err := h.redisClient.Get(ctx, key).Result()
+	log.Println("Key: ", key)
 
-	limitV := int32(DEFAULT_LIMIT)
-	if filter.Limit != nil && *filter.Limit >= MIN_LIMIT && *filter.Limit <= MAX_LIMIT {
-		limitV = *filter.Limit
-	}
+	if err == nil {
+		var response any
 
-	pageV := int32(1)
-	if filter.Page != nil && *filter.Page > 0 {
-		pageV = *filter.Page
-	}
-
-	sortByV := "createdAt"
-	if filter.SortBy != nil && *filter.SortBy != "" {
-		valid := []string{"title", "relevance", "createdAt"}
-		if slices.Contains(valid, *filter.SortBy) {
-			sortByV = *filter.SortBy
+		if json.Unmarshal([]byte(cached), &response) == nil {
+			cache.CacheHit.Add(1)
+			log.Println("Redis: Hit cache")
+			c.JSON(http.StatusOK, response)
+			return
 		}
+	} else {
+		cache.CacheMiss.Add(1)
+		log.Println("Redis: redis get failed", err)
 	}
 
-	sortDirV := "desc"
-	if filter.SortDir != nil && *filter.SortDir != "" {
-		valid := []string{"asc", "desc"}
-		if slices.Contains(valid, *filter.SortDir) {
-			sortDirV = *filter.SortDir
+	total, blogs, err := h.listBlogsUseCases.ListBlogs(ctx, filter.Title, filter.Content, filter.AuthorName, filter.SortBy, filter.SortDir, *filter.Page, *filter.Limit)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	for i, v := range blogs {
+		blogs[i].ContentJson = nil
+		blogs[i].ContentText = utils.Truncate(v.ContentText, 50, true)
+	}
+
+	response := gin.H{
+		"total": total,
+		"blogs": blogs,
+	}
+	if data, err := json.Marshal(response); err == nil {
+		if err := h.redisClient.Set(ctx, key, data, time.Hour).Err(); err != nil {
+			log.Println("Redis: Failed to set redis", err)
 		}
+
 	}
 
-	total, blogs, err := h.listBlogsUseCases.ListBlogs(ctx, filter.Title, filter.Content, filter.AuthorName, &sortByV, &sortDirV, pageV, limitV)
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *BlogHandler) getAllBlogsAuthor(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	var filter GetBlogFilter
+	// ShouldBindQuery binds specifically from query parameters
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, filter); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	h.validateBlogsFilter(&filter)
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusForbidden, err)
+		return
+	}
+
+	total, blogs, err := h.listBlogsUseCases.ListBlogsAuthor(ctx, filter.Title, filter.Content, filter.SortBy, filter.SortDir, *filter.Page, *filter.Limit, userID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -286,24 +329,15 @@ func (h *BlogHandler) getBlogByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	blogId, valid := c.Params.Get("id")
-	if !valid {
+	blogId, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogId"),
+			"message": err.Error(),
 		})
 		return
 	}
 
-	blogIdInt, parseErr := strconv.ParseInt(blogId, 10, 64)
-	if parseErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "blogId not valid",
-		})
-		log.Println(parseErr)
-		return
-	}
-
-	blog, err := h.getBlogUseCases.GetBlog(ctx, blogIdInt)
+	blog, err := h.getBlogUseCases.GetBlog(ctx, blogId)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -356,18 +390,10 @@ func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	blogId, valid := c.Params.Get("id")
-	if !valid {
+	blogId, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "blogId not found",
-		})
-		return
-	}
-
-	blogIdInt, parseErr := strconv.ParseInt(blogId, 10, 64)
-	if parseErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "blogId is required",
+			"message": err.Error(),
 		})
 		return
 	}
@@ -380,7 +406,7 @@ func (h *BlogHandler) deleteBlogByID(c *gin.Context) {
 		return
 	}
 
-	id, err := h.deleteBlogUseCases.DeleteBlog(ctx, blogIdInt, userID)
+	id, err := h.deleteBlogUseCases.DeleteBlog(ctx, blogId, userID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -393,18 +419,10 @@ func (h *BlogHandler) createComment(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
 
-	blogId, valid := c.Params.Get("id")
-	if !valid {
+	blogId, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogId"),
-		})
-		return
-	}
-
-	blogIdInt, parseErr := strconv.ParseInt(blogId, 10, 64)
-	if parseErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "blogId not valid",
+			"message": err.Error(),
 		})
 		return
 	}
@@ -420,7 +438,7 @@ func (h *BlogHandler) createComment(c *gin.Context) {
 		return
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)
 		return
@@ -454,7 +472,7 @@ func (h *BlogHandler) createComment(c *gin.Context) {
 	}
 
 	insertedComment, err := h.commentUsecases.CreateComment(ctx, &domain.CreateCommentModel{
-		BlogID:           blogIdInt,
+		BlogID:           blogId,
 		ActorType:        comment.ActorType,
 		Content:          comment.Content,
 		ParentCommentID:  parentCommentID,
@@ -462,7 +480,7 @@ func (h *BlogHandler) createComment(c *gin.Context) {
 		ActorDisplayName: username,
 		RootCommentID:    rootCommentID,
 		Depth:            comment.Depth,
-	}, userID.String())
+	}, userID)
 	if err != nil {
 		c.Error(err)
 		c.Abort()
@@ -477,20 +495,11 @@ func (h *BlogHandler) getBlogRootComments(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
 
-	blogId, valid := c.Params.Get("id")
-	if !valid {
+	blogId, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogId"),
+			"message": err.Error(),
 		})
-		return
-	}
-
-	blogIdInt, parseErr := strconv.ParseInt(blogId, 10, 64)
-	if parseErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "blogId not valid",
-		})
-		log.Println(parseErr)
 		return
 	}
 
@@ -507,7 +516,7 @@ func (h *BlogHandler) getBlogRootComments(c *gin.Context) {
 		userID = &claims.UserID
 	}
 
-	total, comments, err := h.commentUsecases.GetBlogRootComments(ctx, blogIdInt, userID)
+	total, comments, err := h.commentUsecases.GetBlogRootComments(ctx, blogId, userID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -616,13 +625,13 @@ func (h *BlogHandler) HideCommentByID(c *gin.Context) {
 		return
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)
 		return
 	}
 
-	_, err = h.commentUsecases.HideComment(ctx, uuid, userID.String())
+	_, err = h.commentUsecases.HideComment(ctx, uuid, userID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -653,13 +662,13 @@ func (h *BlogHandler) DeleteCommentByID(c *gin.Context) {
 		return
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)
 		return
 	}
 
-	_, err = h.commentUsecases.DeleteComment(ctx, uuid, userID.String())
+	_, err = h.commentUsecases.DeleteComment(ctx, uuid, userID)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -690,7 +699,7 @@ func (h *BlogHandler) UpdateCommentContentByID(c *gin.Context) {
 		return
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)
 		return
@@ -707,7 +716,7 @@ func (h *BlogHandler) UpdateCommentContentByID(c *gin.Context) {
 		return
 	}
 
-	_, err = h.commentUsecases.UpdateCommentContent(ctx, uuid, userID.String(), content.Content)
+	_, err = h.commentUsecases.UpdateCommentContent(ctx, uuid, userID, content.Content)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -723,20 +732,11 @@ func (h *BlogHandler) CreateBlogReaction(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
 
-	blogId, valid := c.Params.Get("id")
-	if !valid {
+	blogId, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": messages.MsgRequiredField.FormatLang(messages.ENGLISH, "blogId"),
+			"message": err.Error(),
 		})
-		return
-	}
-
-	blogIdInt, parseErr := strconv.ParseInt(blogId, 10, 64)
-	if parseErr != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "blogId not valid",
-		})
-		log.Println(parseErr)
 		return
 	}
 
@@ -757,7 +757,7 @@ func (h *BlogHandler) CreateBlogReaction(c *gin.Context) {
 		return
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)
 		return
@@ -765,8 +765,8 @@ func (h *BlogHandler) CreateBlogReaction(c *gin.Context) {
 
 	transitionType, err := h.blogReactionUsecases.CreateBlogReaction(ctx, &domain.CreateBlogReaction{
 		Type:   reaction.Type,
-		BlogID: blogIdInt,
-		UserID: userID.String(),
+		BlogID: blogId,
+		UserID: userID,
 	})
 
 	transtionMap := map[int]string{
@@ -782,7 +782,7 @@ func (h *BlogHandler) CreateBlogReaction(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"transitionType": transtionMap[transitionType],
-		"blogId":         blogIdInt,
+		"blogId":         blogId,
 		"type":           reaction.Type,
 	})
 }
@@ -826,7 +826,7 @@ func (h *BlogHandler) CreateCommentReaction(c *gin.Context) {
 		return
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusForbidden, err)
 		return
@@ -835,7 +835,7 @@ func (h *BlogHandler) CreateCommentReaction(c *gin.Context) {
 	transitionType, err := h.commentReactionUsecases.CreateCommentReaction(ctx, &domain.CreateCommentReaction{
 		Type:      reaction.Type,
 		CommentID: commentUUID,
-		UserID:    userID.String(),
+		UserID:    userID,
 	})
 
 	transtionMap := map[int]string{
@@ -913,15 +913,50 @@ func (h *BlogHandler) GetRankingBlogsByType(c *gin.Context) {
 		}
 	}
 
+	key := cache.BuildCacheKey("blogs:list", map[string]interface{}{
+		"searchType": searchType,
+	}, map[string]interface{}{
+		"page":     filter.Page,
+		"limit":    filter.Limit,
+		"sort_by":  filter.SortBy,
+		"sort_dir": filter.SortDir,
+	})
+
+	cached, err := h.redisClient.Get(ctx, key).Result()
+	log.Println("Key: ", key)
+
+	if err == nil {
+		var response any
+
+		if json.Unmarshal([]byte(cached), &response) == nil {
+			cache.CacheHit.Add(1)
+			log.Println("Redis: Hit cache")
+			c.JSON(http.StatusOK, response)
+			return
+		}
+	} else {
+		cache.CacheMiss.Add(1)
+		log.Println("Redis: redis get failed", err)
+	}
+
 	total, blogs, err := h.listBlogsUseCases.GetRankingBlogsByType(ctx, searchType, pageV, limitV, false, sortByV, sortDirV)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+
+	response := gin.H{
 		"total": total,
-		"blogs": &blogs,
-	})
+		"blogs": blogs,
+	}
+	if data, err := json.Marshal(response); err == nil {
+		if err := h.redisClient.Set(ctx, key, data, time.Hour).Err(); err != nil {
+			log.Println("Redis: Failed to set redis", err)
+		}
+
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *BlogHandler) getInt64ValueFromParams(c *gin.Context, key string, fieldName string) (int64, error) {
@@ -1157,4 +1192,101 @@ func (h *BlogHandler) getBlogReportsByBlogID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, authorBlogReport)
+}
+
+func (h *BlogHandler) validateBlogsFilter(filter *GetBlogFilter) {
+	const (
+		DEFAULT_LIMIT = 20
+		MIN_LIMIT     = 1
+		MAX_LIMIT     = 100
+	)
+
+	if filter.Title != nil && *filter.Title == "" {
+		filter.Title = nil
+	}
+	if filter.Content != nil && *filter.Content == "" {
+		filter.Content = nil
+	}
+	if filter.AuthorName != nil && *filter.AuthorName == "" {
+		filter.AuthorName = nil
+	}
+
+	if filter.Limit == nil {
+		v := int32(DEFAULT_LIMIT)
+		filter.Limit = &v
+	} else if *filter.Limit < MIN_LIMIT || *filter.Limit > MAX_LIMIT {
+		*filter.Limit = int32(DEFAULT_LIMIT)
+	}
+
+	if filter.Page == nil || *filter.Page <= 0 {
+		v := int32(1)
+		filter.Page = &v
+	}
+
+	sortByV := "createdAt"
+	if filter.SortBy != nil && *filter.SortBy != "" {
+		valid := []string{"title", "relevance", "createdAt"}
+		if slices.Contains(valid, *filter.SortBy) {
+			sortByV = *filter.SortBy
+		}
+	}
+	filter.SortBy = &sortByV
+
+	sortDirV := "desc"
+	if filter.SortDir != nil && *filter.SortDir != "" {
+		valid := []string{"asc", "desc"}
+		if slices.Contains(valid, *filter.SortDir) {
+			sortDirV = *filter.SortDir
+		}
+	}
+	filter.SortDir = &sortDirV
+}
+
+const ADMIN_ROLE = "admin"
+
+func (h *BlogHandler) getAuthorDashboardMetrics(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	var userID *string
+	role, err := utils.GetRoleFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userId not found",
+		})
+		return
+	}
+
+	var authorID *string
+	if role != ADMIN_ROLE {
+		userIDV, err := utils.GetUserIDStringFromContext(c)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, &gin.H{
+				"message": "userId not found",
+			})
+			return
+		}
+		userID = &userIDV
+	} else {
+		authorIDV := c.Query("authorID")
+		if authorIDV == "" {
+			c.JSON(http.StatusUnauthorized, &gin.H{
+				"message": "authorID not found",
+			})
+			return
+		}
+		authorID = &authorIDV
+	}
+
+	viewsMetrics, reactionMetrics, err := h.blogMetricsUsecases.GetAuthorDashboardMetrics(ctx, authorID, userID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"viewsMetrics":    viewsMetrics,
+		"reactionMetrics": reactionMetrics,
+	})
 }

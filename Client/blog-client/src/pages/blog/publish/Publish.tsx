@@ -29,7 +29,7 @@ import List from "@mui/material/List";
 import { getDirtyFieldNames } from "@/utils/mapper";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
-import { ClockBanner } from "@/components/banner/Clock";
+import ClockBanner from "@/components/banner/Clock";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { publishBlogRequest } from "@/api/blogApi";
 import slugify from "slugify";
@@ -191,7 +191,7 @@ export default function PublishPage() {
           lower: true,
           strict: true,
           trim: true,
-        })
+        }),
       );
     }
   }, [title, setValue]);
@@ -203,7 +203,7 @@ export default function PublishPage() {
       console.log(data);
       queryClient.setQueryData(
         ["author_blogs", data.author.slug],
-        (old: Blog[]) => [...old, data]
+        (old: Blog[]) => [...old, data],
       );
     },
     onError: (error) => {
@@ -303,7 +303,7 @@ export default function PublishPage() {
     setValue(
       "tags",
       tags!.filter((tag) => tag !== tagToDelete),
-      { shouldValidate: true }
+      { shouldValidate: true },
     );
   };
 

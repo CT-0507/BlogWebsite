@@ -3,6 +3,7 @@ import { Link as RouterLink } from "react-router-dom";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import type { Blog } from "@/types/Blog";
+import RenderArticle from "@/components/renderBlog/RenderBlog";
 
 interface BlogSectionProps {
   blog: Blog;
@@ -41,15 +42,16 @@ export default function BlogSection({ blog }: BlogSectionProps) {
       </Typography>
 
       {/* Content */}
-      <Typography
+      {/* <Typography
         variant="body1"
         sx={{
           lineHeight: 1.8,
           fontSize: "1.1rem",
         }}
       >
-        {blog.content}
-      </Typography>
+        {blog.contentText}
+      </Typography> */}
+      <RenderArticle content={blog.contentJson} />
     </>
   );
 }

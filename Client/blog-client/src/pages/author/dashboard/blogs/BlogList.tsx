@@ -29,14 +29,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { searchBlogsSchema, type SearchBlogsFormValues } from "./model/schema";
 import { getTypeValidValue } from "@/utils/mapper";
 import { BLOG_SORT_BY_VALUES, SORT_DIR } from "@/types/types";
-import { useQueryBlogs } from "@/hooks/useQueryBlogs";
-import RankingList from "./RankingList";
+import { useQueryBlogsAuthor } from "@/hooks/useQueryBlogs";
 
 export default function BlogList() {
   const getInitialForm = (): SearchBlogsFormValues => ({
     title: searchParams.get("title") || "",
     content: searchParams.get("content") || "",
-    author: searchParams.get("author") || "",
     sortBy: getTypeValidValue(
       searchParams.get("sortBy"),
       BLOG_SORT_BY_VALUES,
@@ -75,11 +73,10 @@ export default function BlogList() {
     setSearchForm(formValues);
   };
 
-  const { data, isLoading, refetch } = useQueryBlogs(
+  const { data, isLoading, refetch } = useQueryBlogsAuthor(
     {
       title: searchForm.title,
       content: searchForm.content,
-      author: searchForm.author,
       sortBy: searchForm.sortBy,
       sortDir: searchForm.sortDir,
       limit: searchForm.limit,
@@ -152,14 +149,6 @@ export default function BlogList() {
                         )}
                       />
 
-                      <Controller
-                        name="author"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField {...field} fullWidth label="Author" />
-                        )}
-                      />
-
                       {/* sort by */}
                       <Controller
                         name="sortBy"
@@ -220,7 +209,7 @@ export default function BlogList() {
               {isLoading ? (
                 <CircularProgress />
               ) : (
-                (data?.blogs as Blog[])?.map((blog) => (
+                (data!.blogs as Blog[])?.map((blog) => (
                   <Card key={blog.blogID} sx={{ display: "flex" }}>
                     {/* Thumbnail */}
                     <Link
@@ -341,9 +330,7 @@ export default function BlogList() {
           </Grid>
 
           {/* Right */}
-          <Grid size={{ xs: 12, md: 2 }} order={{ xs: 1, md: 3 }}>
-            <RankingList />
-          </Grid>
+          <Grid size={{ xs: 12, md: 2 }} order={{ xs: 1, md: 3 }}></Grid>
         </Grid>
       </Container>
 

@@ -7,10 +7,10 @@ type RequireAuthProps = {
 
 function RequireAuth({ allowedRoles }: RequireAuthProps) {
   const location = useLocation();
-  const { user, isAuthenticated, isLoading } = useAuth(); // replace with real logic
+  const { user, isAuthenticated, authLoading } = useAuth(); // replace with real logic
 
   // Still resolving auth
-  if (isLoading) return <div>Loading...</div>;
+  if (authLoading) return <div>Loading...</div>;
 
   // Not logged in
   if (!isAuthenticated) {
@@ -22,13 +22,13 @@ function RequireAuth({ allowedRoles }: RequireAuthProps) {
     const userRoles = Array.isArray(user?.roles)
       ? user.roles
       : user?.roles
-      ? [user.roles]
-      : [];
+        ? [user.roles]
+        : [];
 
     const hasAccess = allowedRoles.some((r) => userRoles.includes(r));
 
     if (!hasAccess) {
-      return <Navigate to="/403" replace />;
+      return <Navigate to="/401" replace />;
     }
   }
 

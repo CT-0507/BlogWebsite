@@ -1013,6 +1013,170 @@ func (q *Queries) GetListBlogsCount(ctx context.Context, arg GetListBlogsCountPa
 	return total_result, err
 }
 
+const getReactionCountByAuthorID = `-- name: GetReactionCountByAuthorID :one
+SELECT
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE
+    ), 0)::BIGINT  AS today_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE
+    ), 0)::BIGINT  AS today_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE - 1
+    ), 0)::BIGINT  AS yesterday_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE - 1
+    ), 0)::BIGINT  AS yesterday_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at >= date_trunc('week', CURRENT_DATE)::date
+            AND r.created_at < CURRENT_DATE
+    ), 0)::BIGINT  AS this_week_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at >= date_trunc('week', CURRENT_DATE)::date
+            AND r.created_at < CURRENT_DATE
+    ), 0)::BIGINT  AS this_week_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND r.created_at < date_trunc('week', CURRENT_DATE)::date
+    ), 0)::BIGINT  AS last_week_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND r.created_at < date_trunc('week', CURRENT_DATE)::date
+    ), 0)::BIGINT  AS last_week_dislikes
+
+FROM blogs.blogs b
+LEFT JOIN blogs.blog_reactions r
+    ON b.blog_id = r.blog_id
+
+WHERE b.author_id = $1
+    AND b.status = 'active'
+    AND (
+        $3::BOOLEAN  = TRUE
+        OR EXISTS (
+            SELECT 1
+            FROM blogs.idx_user_author_profile au
+            WHERE au.author_id = b.author_id
+                AND au.user_id = $2
+        )
+    )
+`
+
+type GetReactionCountByAuthorIDParams struct {
+	AuthorID string
+	UserID   string
+	IsAdmin  bool
+}
+
+type GetReactionCountByAuthorIDRow struct {
+	TodayLikes        int64
+	TodayDislikes     int64
+	YesterdayLikes    int64
+	YesterdayDislikes int64
+	ThisWeekLikes     int64
+	ThisWeekDislikes  int64
+	LastWeekLikes     int64
+	LastWeekDislikes  int64
+}
+
+func (q *Queries) GetReactionCountByAuthorID(ctx context.Context, arg GetReactionCountByAuthorIDParams) (GetReactionCountByAuthorIDRow, error) {
+	row := q.db.QueryRow(ctx, getReactionCountByAuthorID, arg.AuthorID, arg.UserID, arg.IsAdmin)
+	var i GetReactionCountByAuthorIDRow
+	err := row.Scan(
+		&i.TodayLikes,
+		&i.TodayDislikes,
+		&i.YesterdayLikes,
+		&i.YesterdayDislikes,
+		&i.ThisWeekLikes,
+		&i.ThisWeekDislikes,
+		&i.LastWeekLikes,
+		&i.LastWeekDislikes,
+	)
+	return i, err
+}
+
+const getTodayViewAcrossAllContentByAuthorID = `-- name: GetTodayViewAcrossAllContentByAuthorID :one
+SELECT
+    COALESCE(SUM(CASE WHEN m.date = CURRENT_DATE THEN m.views END), 0)::BIGINT AS today_views,
+    COALESCE(SUM(CASE WHEN m.date = CURRENT_DATE - INTERVAL '1 day' THEN m.views END), 0)::BIGINT  AS yesterday_views,
+    COALESCE(SUM(
+        CASE
+            WHEN m.date >= date_trunc('week', CURRENT_DATE)::date
+            AND m.date <= CURRENT_DATE
+            THEN m.views
+        END
+    ), 0)::BIGINT  AS this_week_views,
+
+    COALESCE(SUM(
+        CASE
+            WHEN m.date >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND m.date < date_trunc('week', CURRENT_DATE)::date
+            THEN m.views
+        END
+    ), 0)::BIGINT  AS last_week_views
+FROM blogs.blogs b
+LEFT JOIN blogs.blog_metrics m
+    ON b.blog_id = m.blog_id
+WHERE b.author_id = $1
+    AND b.status = 'active'
+    AND (
+        $3::BOOLEAN = TRUE
+        OR EXISTS (
+            SELECT 1
+            FROM blogs.idx_user_author_profile au
+            WHERE au.author_id = b.author_id
+                AND au.user_id = $2
+        )
+    )
+`
+
+type GetTodayViewAcrossAllContentByAuthorIDParams struct {
+	AuthorID string
+	UserID   string
+	IsAdmin  bool
+}
+
+type GetTodayViewAcrossAllContentByAuthorIDRow struct {
+	TodayViews     int64
+	YesterdayViews int64
+	ThisWeekViews  int64
+	LastWeekViews  int64
+}
+
+func (q *Queries) GetTodayViewAcrossAllContentByAuthorID(ctx context.Context, arg GetTodayViewAcrossAllContentByAuthorIDParams) (GetTodayViewAcrossAllContentByAuthorIDRow, error) {
+	row := q.db.QueryRow(ctx, getTodayViewAcrossAllContentByAuthorID, arg.AuthorID, arg.UserID, arg.IsAdmin)
+	var i GetTodayViewAcrossAllContentByAuthorIDRow
+	err := row.Scan(
+		&i.TodayViews,
+		&i.YesterdayViews,
+		&i.ThisWeekViews,
+		&i.LastWeekViews,
+	)
+	return i, err
+}
+
 const getWeeksViews = `-- name: GetWeeksViews :many
 WITH weeks AS (
     SELECT generate_series(

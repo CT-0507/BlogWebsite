@@ -23,13 +23,19 @@ func (h *BlogHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
 	comment.GET("/children", h.getChildrenComments)
 	comment.GET("", h.getCommentByID)
 
-	blog.GET("/metrics", h.GetViewsData)
 }
 
 func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 
 	api := r.Group("/api")
 	v1 := api.Group("/v1")
+
+	authorDashboard := v1.Group("/dashboard/author")
+	authorDashboard.GET("", h.getAuthorDashboardMetrics)
+	blogsDashbload := authorDashboard.Group("/blogs")
+	blogsDashbload.GET("", h.getAllBlogsAuthor)
+	blogDashbload := blogsDashbload.Group("/:id")
+	blogDashbload.GET("/metrics", h.GetViewsData)
 
 	blogs := v1.Group("/blogs")
 	blogs.POST("", h.createNewBlog)

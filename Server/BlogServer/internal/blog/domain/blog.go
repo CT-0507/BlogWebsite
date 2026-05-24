@@ -85,3 +85,21 @@ type BlogReport struct {
 	UserDisplayName string `json:"userDisplayName"`
 	Reason          string `json:"reason"`
 }
+
+type AuthorDashboardViewMetrics struct {
+	TodayViews     int64 `json:"todayViews"`
+	YesterdayViews int64 `json:"yesterdayViews"`
+	ThisWeekViews  int64 `json:"thisWeekViews"`
+	LastWeekViews  int64 `json:"lastWeekViews"`
+}
+
+type AuthorDashboardReactionMetrics struct {
+	TodayLikes        int64 `json:"todayLikes"`
+	TodayDislikes     int64 `json:"todayDislikes"`
+	YesterdayLikes    int64 `json:"yesterdayLikes"`
+	YesterdayDislikes int64 `json:"yesterdayDislikes"`
+	ThisWeekLikes     int64 `json:"thisWeekLikes"`
+	ThisWeekDislikes  int64 `json:"thisWeekDislikes"`
+	LastWeekLikes     int64 `json:"lastWeekLikes"`
+	LastWeekDislikes  int64 `json:"lastWeekDislikes"`
+}

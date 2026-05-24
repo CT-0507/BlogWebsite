@@ -2,7 +2,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { useEffect, useState } from "react";
 
-export function ClockBanner() {
+export default function ClockBanner() {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {

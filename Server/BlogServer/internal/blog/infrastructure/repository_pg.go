@@ -476,3 +476,53 @@ func (r *BlogRepository) UpdateBlogStatus(c context.Context, blogID int64, statu
 		Status: status,
 	})
 }
+
+func (r *BlogRepository) GetAuthorDashboardViewMetrics(c context.Context, authorID string, userID *string) (*domain.AuthorDashboardViewMetrics, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	row, err := q.GetTodayViewAcrossAllContentByAuthorID(c, blogdb.GetTodayViewAcrossAllContentByAuthorIDParams{
+		AuthorID: authorID,
+		IsAdmin:  userID == nil,
+		UserID:   utils.GetEmptyStringOnNullStringPtr(userID),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.AuthorDashboardViewMetrics{
+		TodayViews:     row.TodayViews,
+		YesterdayViews: row.YesterdayViews,
+		ThisWeekViews:  row.ThisWeekViews,
+		LastWeekViews:  row.LastWeekViews,
+	}, nil
+}
+
+func (r *BlogRepository) GetAuthorDashboardReactionMetrics(c context.Context, authorID string, userID *string) (*domain.AuthorDashboardReactionMetrics, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	row, err := q.GetReactionCountByAuthorID(c, blogdb.GetReactionCountByAuthorIDParams{
+		AuthorID: authorID,
+		IsAdmin:  userID == nil,
+		UserID:   utils.GetEmptyStringOnNullStringPtr(userID),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.AuthorDashboardReactionMetrics{
+		TodayLikes:        row.TodayLikes,
+		TodayDislikes:     row.TodayDislikes,
+		YesterdayLikes:    row.YesterdayLikes,
+		YesterdayDislikes: row.YesterdayDislikes,
+		ThisWeekLikes:     row.ThisWeekLikes,
+		ThisWeekDislikes:  row.ThisWeekDislikes,
+		LastWeekLikes:     row.LastWeekLikes,
+		LastWeekDislikes:  row.LastWeekDislikes,
+	}, nil
+}

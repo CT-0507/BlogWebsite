@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
@@ -27,11 +28,11 @@ const (
 	MAX_LIMIT = 100
 )
 
-func (s *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, author, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error) {
+func (u *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, author, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error) {
 
 	offset := (page - 1) * limit
 
-	total, err := s.repo.GetFindAllCount(ctx, title, content, author)
+	total, err := u.repo.GetFindAllCount(ctx, title, content, author)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -39,7 +40,7 @@ func (s *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, autho
 		return total, []domain.BlogWithAuthorData{}, err
 	}
 
-	result, err := s.repo.FindAll(ctx, title, content, author, sortBy, sortDir, offset, limit)
+	result, err := u.repo.FindAll(ctx, title, content, author, sortBy, sortDir, offset, limit)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -49,23 +50,36 @@ func (s *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, autho
 	return total, result, nil
 }
 
-func (s *ListBlogsUseCases) ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error) {
-	return s.repo.ListAuthorBlogsByAuthorID(ctx, authorID)
+func (u *ListBlogsUseCases) ListBlogsAuthor(ctx context.Context, title, content, sortBy, sortDir *string, page int32, limit int32, userID string) (int64, []domain.BlogWithAuthorData, error) {
+
+	authorName, err := u.repo.VerifyAuthorIDByUserID(ctx, userID)
+	if err != nil {
+		return 0, nil, err
+	}
+	if authorName == "" {
+		return 0, nil, errors.New("Author not found")
+	}
+
+	return u.ListBlogs(ctx, title, content, &authorName, sortBy, sortDir, page, limit)
 }
 
-func (s *ListBlogsUseCases) ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
-	return s.repo.ListAuthorBlogsBySlug(ctx, nickname)
+func (u *ListBlogsUseCases) ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error) {
+	return u.repo.ListAuthorBlogsByAuthorID(ctx, authorID)
 }
 
-func (s *ListBlogsUseCases) GetRankingBlogsByType(ctx context.Context, searchType string, page, limit int32, shouldGetAll bool, sortBy, sortDir string) (int64, []domain.RankingBlogData, error) {
+func (u *ListBlogsUseCases) ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error) {
+	return u.repo.ListAuthorBlogsBySlug(ctx, nickname)
+}
+
+func (u *ListBlogsUseCases) GetRankingBlogsByType(ctx context.Context, searchType string, page, limit int32, shouldGetAll bool, sortBy, sortDir string) (int64, []domain.RankingBlogData, error) {
 
 	offset := (page - 1) * limit
-	result, err := s.repo.GetRankingBlogsByType(ctx, searchType, offset, limit, shouldGetAll, sortBy, sortDir)
+	result, err := u.repo.GetRankingBlogsByType(ctx, searchType, offset, limit, shouldGetAll, sortBy, sortDir)
 
 	if err != nil {
 		return 0, nil, err
 	}
-	if result != nil && len(result) == 0 {
+	if len(result) == 0 {
 		return 0, []domain.RankingBlogData{}, nil
 	}
 	var total int64

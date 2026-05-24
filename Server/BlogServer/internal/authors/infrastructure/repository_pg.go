@@ -283,3 +283,13 @@ func (r *AuthorProfileRepository) RestoreAuthorFollowersByUserID(c context.Conte
 
 	return q.RestoreAuthorFollowersByUserID(c, userID)
 }
+
+func (r *AuthorProfileRepository) GetAuthorByUserID(c context.Context, userID string) (*domain.AuthorProfile, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := authordb.New(db)
+
+	author, err := q.GetAuthorByUserID(c, userID)
+
+	return MapAuthorsAuthorToAuthorProfile(&author), err
+}
