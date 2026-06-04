@@ -13,21 +13,25 @@ import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import SettingsIcon from "@mui/icons-material/Settings";
-import PeopleIcon from "@mui/icons-material/People";
+import ArticleIcon from "@mui/icons-material/Article";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
+import NavBreadcrumbs from "@/components/Navigation/NavBreadcrumbs";
+import BackButton from "@/components/Navigation/BackButton";
+import Stack from "@mui/material/Stack";
 
 const navItems = [
-  { label: "Dashboard", icon: <DashboardIcon /> },
-  { label: "Users", icon: <PeopleIcon /> },
-  { label: "Settings", icon: <SettingsIcon /> },
-  { label: "Logout", icon: <LogoutIcon /> },
+  { label: "Dashboard", icon: <DashboardIcon />, to: "dashboard" },
+  { label: "My Blogs", icon: <ArticleIcon />, to: "my-blogs" },
+  { label: "Settings", icon: <SettingsIcon />, to: "dashboard" },
+  { label: "Logout", icon: <LogoutIcon />, to: "dashboard" },
 ];
 
 export default function ResponsiveSidebarLayout() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const navigate = useNavigate();
 
   const [open, setOpen] = useState(!isMobile);
 
@@ -40,7 +44,10 @@ export default function ResponsiveSidebarLayout() {
   const collapsedWidth = "72px";
 
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box
+      id="dashboard-layout"
+      sx={{ display: "flex", flex: 1, height: "100%" }}
+    >
       {/* MOBILE FLOAT BUTTON */}
       {isMobile && (
         <IconButton
@@ -69,17 +76,15 @@ export default function ResponsiveSidebarLayout() {
               ? expandedWidth
               : collapsedWidth,
           transition: "width 0.3s ease",
-          flexShrink: 0,
           position: "relative",
         }}
       >
         <Paper
-          elevation={2}
+          elevation={0}
           sx={{
             position: "sticky",
             top: 0, // sticks INSIDE parent container only
             height: "100%",
-            mt: -1,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
@@ -124,6 +129,7 @@ export default function ResponsiveSidebarLayout() {
                   justifyContent: open ? "initial" : "center",
                   px: 2.5,
                 }}
+                onClick={() => navigate(item.to)}
               >
                 <ListItemIcon
                   sx={{
@@ -141,7 +147,15 @@ export default function ResponsiveSidebarLayout() {
           </List>
         </Paper>
       </Box>
-      <Box sx={{ p: 1 }}>
+      <Box id="content" sx={{ p: 1, flex: 1 }}>
+        <Stack
+          direction="row"
+          sx={{ display: "flex", alignItems: "center" }}
+          spacing={1}
+        >
+          <BackButton />
+          <NavBreadcrumbs hiddenSegments={["view", "edit"]} />
+        </Stack>
         <Outlet />
       </Box>
     </Box>

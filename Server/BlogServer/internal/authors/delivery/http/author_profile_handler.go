@@ -126,7 +126,6 @@ func (h *AuthorProfileHandler) createAuthorProfile(c *gin.Context) {
 	if err := h.authorIdentityUsecases.CreateAuthor(ctx, fileParams, &domain.AuthorProfile{
 		DisplayName: author.DisplayName,
 		Bio:         &author.Bio,
-		Avatar:      &author.Avatar,
 		Slug:        author.Slug,
 		SocialLink:  &author.SocialLink,
 		Email:       &author.Email,

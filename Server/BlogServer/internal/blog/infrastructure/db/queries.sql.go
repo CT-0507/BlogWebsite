@@ -1374,34 +1374,36 @@ WHERE
         ($1::TEXT IS NULL OR b.title_vector @@ p.title_q)
         AND ($2::TEXT IS NULL OR b.content_vector @@ p.content_q)
         AND ($3::TEXT IS NULL OR a.display_name ILIKE '%' || $3::TEXT || '%')
+        AND ($4::TEXT IS NULL OR a.author_id = $4::TEXT)
     )
 
 ORDER BY
-    CASE WHEN $4::TEXT = 'title' AND $5::TEXT = 'asc'  THEN b.title END ASC,
-    CASE WHEN $4::TEXT = 'title' AND $5::TEXT = 'desc' THEN b.title END DESC,
+    CASE WHEN $5::TEXT = 'title' AND $6::TEXT = 'asc'  THEN b.title END ASC,
+    CASE WHEN $5::TEXT = 'title' AND $6::TEXT = 'desc' THEN b.title END DESC,
 
-    CASE WHEN $4::TEXT = 'created_at' AND $5::TEXT = 'asc'  THEN b.created_at END ASC,
-    CASE WHEN $4::TEXT = 'created_at' AND $5::TEXT = 'desc' THEN b.created_at END DESC,
+    CASE WHEN $5::TEXT = 'created_at' AND $6::TEXT = 'asc'  THEN b.created_at END ASC,
+    CASE WHEN $5::TEXT = 'created_at' AND $6::TEXT = 'desc' THEN b.created_at END DESC,
 
     CASE
-        WHEN $4::TEXT = 'relevance' AND $5::TEXT = 'asc' THEN
+        WHEN $5::TEXT = 'relevance' AND $6::TEXT = 'asc' THEN
             (COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
              COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)) END ASC,
     CASE
-        WHEN $4::TEXT = 'relevance' AND $5::TEXT = 'desc' THEN
+        WHEN $5::TEXT = 'relevance' AND $6::TEXT = 'desc' THEN
             (COALESCE(ts_rank(b.title_vector, p.title_q)::BIGINT, 0) * 2 +
              COALESCE(ts_rank(b.content_vector, p.content_q)::BIGINT, 0)) END DESC,
 
     -- default sort (created_at DESC)
     b.created_at DESC
 
-LIMIT $7 OFFSET $6
+LIMIT $8 OFFSET $7
 `
 
 type ListBlogsParams struct {
 	Title             pgtype.Text
 	Content           pgtype.Text
 	AuthorDisplayName pgtype.Text
+	AuthorID          pgtype.Text
 	SortBy            pgtype.Text
 	SortDir           pgtype.Text
 	Offset            int32
@@ -1429,32 +1431,12 @@ type ListBlogsRow struct {
 	Rank         int32
 }
 
-// SELECT
-//
-//	b.blog_id,
-//	b.author_id,
-//	b.title,
-//	b.url_slug,
-//	b.content_json,
-//	b.content_text,
-//	b.like_count,
-//	b.dislike_count,
-//	b.status,
-//	b.created_at,
-//	b.created_by,
-//	b.updated_at,
-//	b.updated_by,
-//	i.slug,
-//	i.display_name
-//
-// FROM blogs.blogs b
-// JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
-// WHERE b.deleted_at IS NULL;
 func (q *Queries) ListBlogs(ctx context.Context, arg ListBlogsParams) ([]ListBlogsRow, error) {
 	rows, err := q.db.Query(ctx, listBlogs,
 		arg.Title,
 		arg.Content,
 		arg.AuthorDisplayName,
+		arg.AuthorID,
 		arg.SortBy,
 		arg.SortDir,
 		arg.Offset,
@@ -1870,31 +1852,56 @@ func (q *Queries) TruncateBlogRankingTable(ctx context.Context) error {
 }
 
 const updateBlog = `-- name: UpdateBlog :one
-UPDATE blogs.blogs
-    SET title = $1,
-    content_json = $2,
-    content_text = $3
-WHERE blog_id = $4
-RETURNING blog_id
+WITH old_row AS (
+    SELECT blog_id, author_id, url_slug, title, content_json, content_text, thumbnail_url, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, access_count, is_approved, report_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+    FROM blogs.blogs o
+    WHERE o.url_slug = $1
+),
+updated AS (
+    UPDATE blogs.blogs
+    SET
+        title = $2,
+        content_json = $3,
+        content_text = $4,
+        thumbnail_url = $5,
+        updated_by = $6,
+        updated_at = NOW()
+    WHERE url_slug = $1
+    RETURNING blog_id, author_id, url_slug, title, content_json, content_text, thumbnail_url, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, access_count, is_approved, report_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
+)
+SELECT
+    to_jsonb(old_row)  AS before,
+    to_jsonb(updated)  AS after
+FROM old_row
+CROSS JOIN updated
 `
 
 type UpdateBlogParams struct {
-	Title       string
-	ContentJson []byte
-	ContentText string
-	BlogID      int64
+	UrlSlug      string
+	Title        string
+	ContentJson  []byte
+	ContentText  string
+	ThumbnailUrl pgtype.Text
+	UpdatedBy    string
 }
 
-func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (int64, error) {
+type UpdateBlogRow struct {
+	Before []byte
+	After  []byte
+}
+
+func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (UpdateBlogRow, error) {
 	row := q.db.QueryRow(ctx, updateBlog,
+		arg.UrlSlug,
 		arg.Title,
 		arg.ContentJson,
 		arg.ContentText,
-		arg.BlogID,
+		arg.ThumbnailUrl,
+		arg.UpdatedBy,
 	)
-	var blog_id int64
-	err := row.Scan(&blog_id)
-	return blog_id, err
+	var i UpdateBlogRow
+	err := row.Scan(&i.Before, &i.After)
+	return i, err
 }
 
 const updateBlogRankingResult = `-- name: UpdateBlogRankingResult :exec
@@ -2313,16 +2320,22 @@ func (q *Queries) UpsertCommentReaction(ctx context.Context, arg UpsertCommentRe
 
 const upsertTags = `-- name: UpsertTags :exec
 WITH input_tags AS (
-  SELECT DISTINCT LOWER(TRIM(UNNEST($2::text[]))) AS name
-),
-inserted AS (
-  INSERT INTO blogs.tags (name)
-  SELECT name FROM input_tags
-  ON CONFLICT (name) DO NOTHING
+    SELECT DISTINCT LOWER(TRIM(UNNEST($2::text[]))) AS name
 ),
 all_tags AS (
-  SELECT id, name FROM blogs.tags
-  WHERE name IN (SELECT name FROM input_tags)
+    INSERT INTO blogs.tags (name)
+    SELECT name FROM input_tags
+    ON CONFLICT (name)
+    DO UPDATE SET name = EXCLUDED.name
+    RETURNING id, name
+),
+deleted_tags AS (
+    DELETE FROM blogs.blog_tags bt
+    WHERE bt.blog_id = $1
+        AND bt.tag_id NOT IN (
+            SELECT id
+            FROM all_tags
+        )
 )
 INSERT INTO blogs.blog_tags (blog_id, tag_id)
 SELECT $1, id FROM all_tags

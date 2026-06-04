@@ -15,6 +15,7 @@ export interface Blog {
     slug: string;
     displayName: string;
   };
+  thumbnailUrl?: string;
   title: string;
   likeCount: number;
   dislikeCount: number;

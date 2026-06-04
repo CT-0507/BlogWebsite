@@ -31,7 +31,14 @@ export async function getAuthorFollowersRequest(slug: string) {
 }
 
 export async function createAuthorRequest(formData: CreateAuthorFormValues) {
-  const { data } = await axiosAuth.post(`${API_VERSION}/authors`, formData);
+  const formDataV = new FormData();
+  formDataV.append("displayName", formData.displayName);
+  if (formData.bio) formDataV.append("bio", formData.bio);
+  formDataV.append("slug", formData.slug);
+  if (formData.socialLink) formDataV.append("socialLink", formData.socialLink);
+  if (formData.email) formDataV.append("email", formData.email);
+  if (formData.avatar) formDataV.append("avatar", formData.avatar);
+  const { data } = await axiosAuth.post(`${API_VERSION}/authors`, formDataV);
 
   return data;
 }

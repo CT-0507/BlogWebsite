@@ -32,16 +32,17 @@ func (h *BlogHandler) RegisterProtectedRoutes(r *gin.Engine) {
 
 	authorDashboard := v1.Group("/dashboard/author")
 	authorDashboard.GET("", h.getAuthorDashboardMetrics)
-	blogsDashbload := authorDashboard.Group("/blogs")
-	blogsDashbload.GET("", h.getAllBlogsAuthor)
-	blogDashbload := blogsDashbload.Group("/:id")
-	blogDashbload.GET("/metrics", h.GetViewsData)
+	blogsDashboard := authorDashboard.Group("/blogs")
+	blogsDashboard.GET("", h.getAllBlogsAuthor)
+	blogDashboard := blogsDashboard.Group("/:id")
+	blogDashboard.GET("/metrics", h.getViewsData)
 
 	blogs := v1.Group("/blogs")
 	blogs.POST("", h.createNewBlog)
 	blog := blogs.Group("/:id")
 	blog.DELETE("", h.deleteBlogByID)
 	blog.POST("/reaction", h.CreateBlogReaction)
+	blog.PATCH("", h.updateNewBlog)
 
 	reports := blog.Group("/reports")
 	reports.GET("", h.getBlogReportsByBlogID)

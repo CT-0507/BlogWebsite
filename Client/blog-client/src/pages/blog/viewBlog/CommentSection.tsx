@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import CommentItem from "./components/CommentItem";
 import NewComment from "./components/NewComment";
 import Paper from "@mui/material/Paper";
-import { CircularProgress } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useCommentByBlogID } from "@/hooks/useCommentByBlogID";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -18,7 +18,7 @@ export default function CommentSection({ blogID, slug }: CommentSectionProps) {
   const { isAuthenticated } = useAuth();
   const { data: comments, isLoading } = useCommentByBlogID(
     blogID,
-    isAuthenticated
+    isAuthenticated,
   );
 
   return (

@@ -8,8 +8,9 @@ import (
 
 type BlogRepository interface {
 	Create(c context.Context, blog *domain.Blog) (*domain.Blog, error)
+	UpdateBlog(c context.Context, blog *domain.Blog, updatedBy string) (*domain.Blog, *domain.Blog, error)
 	GetFindAllCount(c context.Context, title, content, author *string) (int64, error)
-	FindAll(c context.Context, title, content, author, sortBy, sortDir *string, offset, limit int32) ([]domain.BlogWithAuthorData, error)
+	FindAll(c context.Context, title, content, author, authorID, sortBy, sortDir *string, offset, limit int32) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsByAuthorID(c context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(c context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
 	FindByID(c context.Context, id int64) (*domain.BlogWithAuthorData, error)

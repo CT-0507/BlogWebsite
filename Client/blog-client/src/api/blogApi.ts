@@ -1,4 +1,4 @@
-import type { PublishBlogFormValues } from "@/pages/blog/publish/model/schema";
+import type { PublishBlogFormValues } from "@/pages/author/dashboard/blog/publish/model/schema";
 import { api, axiosAuth } from "./axiosConfig";
 import type { PostCommentFormValues } from "@/pages/blog/viewBlog/model/schema";
 import type {
@@ -42,6 +42,39 @@ export async function publishBlogRequest(
   return data;
 }
 
+export type UpdateBlogRequestParams = PublishBlogFormValues & {
+  files: Map<string, File>;
+  blogId: number;
+};
+export async function updateBlogRequest(
+  formData: UpdateBlogRequestParams,
+): Promise<Blog> {
+  const formDataV = new FormData();
+  formDataV.append("title", formData.title);
+  formDataV.append("urlSlug", formData.urlSlug);
+  formDataV.append("contentText", formData.content.plainText);
+  formDataV.append("contentJson", JSON.stringify(formData.content.json));
+
+  formData.files.forEach((file, tempId) => {
+    formDataV.append(tempId, file);
+  });
+
+  if (formData.thumbnail) {
+    formDataV.append("thumbnail", formData.thumbnail);
+  }
+  if (formData.tags) {
+    formData.tags.forEach((item) => {
+      formDataV.append("tags", item);
+    });
+  }
+  const { data } = await axiosAuth.patch(
+    `${API_VERSION}/blogs/${formData.blogId}`,
+    formDataV,
+  );
+
+  return data;
+}
+
 interface QueryBlogsParams {
   title?: string | null;
   content?: string | null;
@@ -65,6 +98,21 @@ export async function listBlogs(
   params.append("page", page.toString());
 
   const { data } = await api.get(`${API_VERSION}/blogs?` + params.toString());
+
+  return data;
+}
+
+export async function listMyBlogs(
+  queryParams: Omit<QueryBlogsParams, "author">,
+  page: number,
+): Promise<ListBlogsResponse> {
+  const params = getQueryParam(queryParams);
+
+  params.append("page", page.toString());
+
+  const { data } = await axiosAuth.get(
+    `${API_VERSION}/dashboard/author/blogs?` + params.toString(),
+  );
 
   return data;
 }
@@ -263,7 +311,7 @@ export async function uploadByFile(file: File) {
   const formData = new FormData();
   formData.append("image", file);
 
-  const res = await axiosAuth.post(`${API_VERSION}/upload/image`, formData);
+  const res = await axiosAuth.post(`${API_VERSION}/uploads/image`, formData);
 
   return res.data;
 }
@@ -281,6 +329,26 @@ export async function createBlogReport(
     {
       reason: report.reason,
     },
+  );
+
+  return res.data;
+}
+
+interface GetBlogMetricsRequest {
+  resultLength?: number;
+  viewType: string;
+  blogID: number;
+}
+
+export async function getBlogMetrics({
+  blogID,
+  viewType,
+  resultLength = 4,
+}: GetBlogMetricsRequest) {
+  const params = getQueryParam({ viewType, resultLength });
+  const res = await axiosAuth.get(
+    `${API_VERSION}/dashboard/author/blogs/${blogID}/metrics?` +
+      params.toString(),
   );
 
   return res.data;

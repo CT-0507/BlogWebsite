@@ -112,25 +112,6 @@ WHERE
     );
 
 -- name: ListBlogs :many
--- SELECT 
---     b.blog_id,
---     b.author_id,
---     b.title, 
---     b.url_slug,
---     b.content_json,
---     b.content_text,
---     b.like_count,
---     b.dislike_count, 
---     b.status,
---     b.created_at, 
---     b.created_by, 
---     b.updated_at, 
---     b.updated_by,
---     i.slug,
---     i.display_name
--- FROM blogs.blogs b
--- JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
--- WHERE b.deleted_at IS NULL;
 WITH params AS (
     SELECT
         websearch_to_tsquery('english', COALESCE(sqlc.narg('title')::TEXT, '')) AS title_q,
@@ -180,6 +161,7 @@ WHERE
         (sqlc.narg('title')::TEXT IS NULL OR b.title_vector @@ p.title_q)
         AND (sqlc.narg('content')::TEXT IS NULL OR b.content_vector @@ p.content_q)
         AND (sqlc.narg('author_display_name')::TEXT IS NULL OR a.display_name ILIKE '%' || sqlc.narg('author_display_name')::TEXT || '%')
+        AND (sqlc.narg('author_id')::TEXT IS NULL OR a.author_id = sqlc.narg('author_id')::TEXT)
     )
 
 ORDER BY
@@ -219,12 +201,29 @@ INSERT INTO blogs.blogs(
 RETURNING *;
 
 -- name: UpdateBlog :one
-UPDATE blogs.blogs
-    SET title = $1,
-    content_json = $2,
-    content_text = $3
-WHERE blog_id = $4
-RETURNING blog_id;
+WITH old_row AS (
+    SELECT *
+    FROM blogs.blogs o
+    WHERE o.url_slug = $1
+),
+updated AS (
+    UPDATE blogs.blogs
+    SET
+        title = $2,
+        content_json = $3,
+        content_text = $4,
+        thumbnail_url = $5,
+        updated_by = $6,
+        updated_at = NOW()
+    WHERE url_slug = $1
+    RETURNING *
+)
+SELECT
+    to_jsonb(old_row)  AS before,
+    to_jsonb(updated)  AS after
+FROM old_row
+CROSS JOIN updated;
+
 
 -- name: HardDeleteBlog :one
 DELETE FROM blogs.blogs
@@ -751,16 +750,22 @@ WHERE rank_all_time <= 20
 
 -- name: UpsertTags :exec
 WITH input_tags AS (
-  SELECT DISTINCT LOWER(TRIM(UNNEST(sqlc.arg('name')::text[]))) AS name
-),
-inserted AS (
-  INSERT INTO blogs.tags (name)
-  SELECT name FROM input_tags
-  ON CONFLICT (name) DO NOTHING
+    SELECT DISTINCT LOWER(TRIM(UNNEST(sqlc.arg('name')::text[]))) AS name
 ),
 all_tags AS (
-  SELECT id, name FROM blogs.tags
-  WHERE name IN (SELECT name FROM input_tags)
+    INSERT INTO blogs.tags (name)
+    SELECT name FROM input_tags
+    ON CONFLICT (name)
+    DO UPDATE SET name = EXCLUDED.name
+    RETURNING id, name
+),
+deleted_tags AS (
+    DELETE FROM blogs.blog_tags bt
+    WHERE bt.blog_id = $1
+        AND bt.tag_id NOT IN (
+            SELECT id
+            FROM all_tags
+        )
 )
 INSERT INTO blogs.blog_tags (blog_id, tag_id)
 SELECT $1, id FROM all_tags

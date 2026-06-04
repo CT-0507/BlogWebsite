@@ -66,7 +66,7 @@ func main() {
 	defer pool.Close()
 
 	// Storage
-	storage := storage.New(path, "")
+	storage := storage.New(path, "http://localhost:8080")
 
 	//
 	txManager := database.NewTxManager(pool)

@@ -1,4 +1,4 @@
-import { listBlogs } from "@/api/blogApi";
+import { listBlogs, listMyBlogs } from "@/api/blogApi";
 import type { SortByValue, SortDir } from "@/types/types";
 import { useQuery } from "@tanstack/react-query";
 
@@ -35,7 +35,7 @@ export function useQueryBlogsAuthor(
 ) {
   return useQuery({
     queryKey: ["blogs", page, formData],
-    queryFn: () => listBlogs(formData, page),
+    queryFn: () => listMyBlogs(formData, page),
     staleTime: 1000 * 60 * 30,
     refetchInterval: 1000 * 60 * 30,
   });

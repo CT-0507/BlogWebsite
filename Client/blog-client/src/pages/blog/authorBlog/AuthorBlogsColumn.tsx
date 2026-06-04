@@ -33,7 +33,7 @@ export default function AuthorBlogsColumn({ slug }: AuthorBlogsColumnProps) {
                     </Typography>
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {truncate(blog.content, 100)}
+                    {truncate(blog.contentText, 100)}
                   </Typography>
                 </CardContent>
               </Card>

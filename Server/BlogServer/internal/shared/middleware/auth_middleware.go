@@ -69,7 +69,11 @@ func AuthMiddleWare(pool *pgxpool.Pool, redisClient *redis.Client) gin.HandlerFu
 		} else if err != redis.Nil {
 			log.Println("Redis: AuthMiddleware: cannot get: ", err)
 		}
-		if currentVer == -1 {
+
+		// Avoid invalid token spam
+		// if currentVer == -1 {
+		// Guarantee correctness
+		if currentVer == -1 || tokenVer != currentVer {
 			commonQueries := commondb.New(pool)
 			currentVerInt4, err := commonQueries.GetUserTokenVersionByID(ctx, userUUID)
 			if err != nil {
@@ -81,8 +85,6 @@ func AuthMiddleWare(pool *pgxpool.Pool, redisClient *redis.Client) gin.HandlerFu
 			_ = redisClient.Set(ctx, key, currentVer, time.Hour).Err()
 		}
 
-		log.Println("Token ver: ", tokenVer)
-		log.Println("currentVer: ", currentVer)
 		if tokenVer != currentVer {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token Compare"})
 			c.Abort()
@@ -93,6 +95,7 @@ func AuthMiddleWare(pool *pgxpool.Pool, redisClient *redis.Client) gin.HandlerFu
 		c.Set("username", claims.Username)
 		c.Set("userID", claims.UserID)
 		c.Set("roles", claims.Roles)
+		c.Set("role", claims.Roles[0])
 
 		c.Next()
 

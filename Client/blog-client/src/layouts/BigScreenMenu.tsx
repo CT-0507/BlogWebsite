@@ -25,6 +25,7 @@ export default function BigScreenMenu({
     onSuccess: () => {
       tokenStore.clear();
       queryClient.setQueryData(["me"], null);
+      queryClient.setQueryData(["me", "author"], null);
       handleMenuClose();
       localStorage.removeItem("hasSession");
       // navigate("/account");

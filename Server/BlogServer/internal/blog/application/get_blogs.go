@@ -28,7 +28,7 @@ const (
 	MAX_LIMIT = 100
 )
 
-func (u *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, author, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error) {
+func (u *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, author, authorID, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error) {
 
 	offset := (page - 1) * limit
 
@@ -40,7 +40,7 @@ func (u *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, autho
 		return total, []domain.BlogWithAuthorData{}, err
 	}
 
-	result, err := u.repo.FindAll(ctx, title, content, author, sortBy, sortDir, offset, limit)
+	result, err := u.repo.FindAll(ctx, title, content, author, authorID, sortBy, sortDir, offset, limit)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -52,15 +52,15 @@ func (u *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, autho
 
 func (u *ListBlogsUseCases) ListBlogsAuthor(ctx context.Context, title, content, sortBy, sortDir *string, page int32, limit int32, userID string) (int64, []domain.BlogWithAuthorData, error) {
 
-	authorName, err := u.repo.VerifyAuthorIDByUserID(ctx, userID)
+	authorID, err := u.repo.VerifyAuthorIDByUserID(ctx, userID)
 	if err != nil {
 		return 0, nil, err
 	}
-	if authorName == "" {
+	if authorID == "" {
 		return 0, nil, errors.New("Author not found")
 	}
 
-	return u.ListBlogs(ctx, title, content, &authorName, sortBy, sortDir, page, limit)
+	return u.ListBlogs(ctx, title, content, nil, &authorID, sortBy, sortDir, page, limit)
 }
 
 func (u *ListBlogsUseCases) ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error) {

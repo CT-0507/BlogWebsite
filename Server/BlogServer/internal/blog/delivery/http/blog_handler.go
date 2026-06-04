@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"path/filepath"
 	"slices"
@@ -28,6 +29,13 @@ type CreateBlogUseCases interface {
 	CreateBlog(c context.Context, blog *domain.Blog, userID string, fileParams *storage.FileStorageParams) (*domain.Blog, error)
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
 	SaveBlogImageToTempFolder(c context.Context, fileParams storage.FileStorageParams) (string, error)
+	EditBlog(
+		c context.Context,
+		blogID string,
+		payload *domain.Blog,
+		userID string,
+		fileParams *storage.FileStorageParams,
+	) (*domain.Blog, error)
 }
 
 type DeleteBlogUseCase interface {
@@ -40,7 +48,7 @@ type GetBlogUseCases interface {
 }
 
 type ListBlogsUseCases interface {
-	ListBlogs(ctx context.Context, title, content, author, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error)
+	ListBlogs(ctx context.Context, title, content, author, authorID, sortBy, sortDir *string, page int32, limit int32) (int64, []domain.BlogWithAuthorData, error)
 	ListBlogsAuthor(ctx context.Context, title, content, sortBy, sortDir *string, page int32, limit int32, userID string) (int64, []domain.BlogWithAuthorData, error)
 	GetRankingBlogsByType(ctx context.Context, searchType string, page, limit int32, shouldGetAll bool, sortBy, sortDir string) (int64, []domain.RankingBlogData, error)
 	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
@@ -115,6 +123,27 @@ func NewBlogHandler(
 	}
 }
 
+func (h *BlogHandler) createFileStorageParams(
+	fileHeader *multipart.FileHeader,
+) (*storage.FileStorageParams, io.Closer, error) {
+	if fileHeader == nil {
+		return nil, nil, nil
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ext := filepath.Ext(fileHeader.Filename)
+
+	return &storage.FileStorageParams{
+		File:        file,
+		FileName:    ulid.Make().String() + ext,
+		ContentType: fileHeader.Header.Get("Content-Type"),
+	}, file, nil
+}
+
 // Description: create new blog
 //   - @route POST /blogs
 //   - @access Private
@@ -142,29 +171,19 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
-	var fileParams *storage.FileStorageParams = nil
 	fileHeader, err := c.FormFile("thumbnail")
 	if err != nil && err != http.ErrMissingFile {
-		c.JSON(http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	fileParams, closer, err := h.createFileStorageParams(fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
 		return
 	}
 
-	if fileHeader != nil {
-		file, err := fileHeader.Open()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
-			return
-		}
-		defer file.Close()
-		ext := filepath.Ext(fileHeader.Filename)
-		fileName := ulid.Make().String() + ext
-		contentType := fileHeader.Header.Get("Content-Type")
-
-		fileParams = &storage.FileStorageParams{
-			File:        file,
-			FileName:    fileName,
-			ContentType: contentType,
-		}
+	if closer != nil {
+		defer closer.Close()
 	}
 
 	newBlog, err := h.createBlogUseCases.CreateBlog(ctx, &domain.Blog{
@@ -179,6 +198,62 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusCreated, newBlog)
+}
+
+func (h *BlogHandler) updateNewBlog(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, 2*time.Second)
+	defer cancel()
+
+	var blog CreateBlogRequest
+	if err := c.ShouldBind(&blog); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, blog); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	blogID := c.Query("id")
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userId not found",
+		})
+		return
+	}
+
+	fileHeader, err := c.FormFile("thumbnail")
+	if err != nil && err != http.ErrMissingFile {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	fileParams, closer, err := h.createFileStorageParams(fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
+		return
+	}
+
+	if closer != nil {
+		defer closer.Close()
+	}
+
+	newBlog, err := h.createBlogUseCases.EditBlog(ctx, blogID, &domain.Blog{
+		Title:       blog.Title,
+		URLSlug:     blog.URLSlug,
+		ContentText: blog.ContentText,
+		ContentJson: json.RawMessage(blog.ContentJson),
+		Tags:        blog.Tags,
+	}, userID, fileParams)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	log.Println("Here 4")
 	c.JSON(http.StatusCreated, newBlog)
 }
 
@@ -230,7 +305,7 @@ func (h *BlogHandler) getAllBlogs(c *gin.Context) {
 		log.Println("Redis: redis get failed", err)
 	}
 
-	total, blogs, err := h.listBlogsUseCases.ListBlogs(ctx, filter.Title, filter.Content, filter.AuthorName, filter.SortBy, filter.SortDir, *filter.Page, *filter.Limit)
+	total, blogs, err := h.listBlogsUseCases.ListBlogs(ctx, filter.Title, filter.Content, filter.AuthorName, nil, filter.SortBy, filter.SortDir, *filter.Page, *filter.Limit)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -985,7 +1060,7 @@ func (h *BlogHandler) getInt64ValueFromQuery(c *gin.Context, key string, fieldNa
 
 // params: queryParams: resultLength(number) number of requested rows, default 1
 // params: queryParams: viewType(string, valid: "days" and "weeks") type of request, default  "days"
-func (h *BlogHandler) GetViewsData(c *gin.Context) {
+func (h *BlogHandler) getViewsData(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
@@ -1086,16 +1161,10 @@ func (h *BlogHandler) uploadImage(c *gin.Context) {
 		return
 	}
 
-	// generate public URL
-	url := fmt.Sprintf(
-		"http://localhost:8080/uploads/%s",
-		savePath,
-	)
-
 	c.JSON(http.StatusOK, gin.H{
 		"success": 1,
 		"file": gin.H{
-			"url": url,
+			"url": savePath,
 		},
 	})
 }
@@ -1257,10 +1326,11 @@ func (h *BlogHandler) getAuthorDashboardMetrics(c *gin.Context) {
 		})
 		return
 	}
-
+	log.Println("role: ", role)
 	var authorID *string
 	if role != ADMIN_ROLE {
 		userIDV, err := utils.GetUserIDStringFromContext(c)
+		log.Println("userID: ", userIDV)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, &gin.H{
 				"message": "userId not found",

@@ -31,6 +31,9 @@ import { getTypeValidValue } from "@/utils/mapper";
 import { BLOG_SORT_BY_VALUES, SORT_DIR } from "@/types/types";
 import { useQueryBlogs } from "@/hooks/useQueryBlogs";
 import RankingList from "./RankingList";
+import LazyImage from "@/components/Image/LazyImage";
+
+import placeholder from "@/assets/160x120.svg";
 
 export default function BlogList() {
   const getInitialForm = (): SearchBlogsFormValues => ({
@@ -228,12 +231,13 @@ export default function BlogList() {
                       to={`/blogs/${blog.urlSlug}`}
                       underline="none"
                     >
-                      <CardMedia
-                        component="img"
-                        sx={{ width: 160 }}
-                        image={`https://placehold.co/160x120`}
-                        alt="thumbnail"
-                      />
+                      <CardMedia>
+                        <LazyImage
+                          sx={{ width: "160px", minWidth: "160px" }}
+                          src={blog.thumbnailUrl ?? placeholder}
+                          alt="thumbnail"
+                        />
+                      </CardMedia>
                     </Link>
 
                     {/* Content */}

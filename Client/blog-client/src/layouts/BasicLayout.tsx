@@ -53,7 +53,7 @@ export default function BasicLayout() {
         queryFn: () => getFollowedAuthorsRequest(),
         staleTime: 1000 * 60 * 5,
       })
-      .then((data) => console.log(data));
+      .then();
   }, [isAuthenticated, queryClient]);
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -238,8 +238,9 @@ export default function BasicLayout() {
         component="main"
         sx={{
           flex: 1, // pushes footer down
-          py: 1,
           justifyContent: "center",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <Outlet />

@@ -50,6 +50,39 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 	return r.mapper.BlogDTOToBlog(&newBlog), nil
 }
 
+func (r *BlogRepository) UpdateBlog(c context.Context, blog *domain.Blog, updatedBy string) (*domain.Blog, *domain.Blog, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	marshalledContent, _ := json.Marshal(blog.ContentJson)
+	returnData, err := q.UpdateBlog(c, blogdb.UpdateBlogParams{
+		Title:        blog.Title,
+		UrlSlug:      blog.URLSlug,
+		ContentJson:  marshalledContent,
+		ContentText:  blog.ContentText,
+		ThumbnailUrl: utils.GetTextTypeFromNullableString(blog.ThumbnailUrl),
+		UpdatedBy:    updatedBy,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var before *DbBlog
+	var after *DbBlog
+	err = json.Unmarshal(returnData.Before, &before)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = json.Unmarshal(returnData.After, &after)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return before.toDomainBlog(), after.toDomainBlog(), nil
+}
+
 func (r *BlogRepository) GetFindAllCount(c context.Context, title, content, author *string) (int64, error) {
 	db := utils.GetExecutor(c, r.pool)
 
@@ -62,7 +95,7 @@ func (r *BlogRepository) GetFindAllCount(c context.Context, title, content, auth
 	})
 }
 
-func (r *BlogRepository) FindAll(c context.Context, title, content, author, sortBy, sortDir *string, offset, limit int32) ([]domain.BlogWithAuthorData, error) {
+func (r *BlogRepository) FindAll(c context.Context, title, content, author, authorID, sortBy, sortDir *string, offset, limit int32) ([]domain.BlogWithAuthorData, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
@@ -72,6 +105,7 @@ func (r *BlogRepository) FindAll(c context.Context, title, content, author, sort
 		Title:             utils.GetTextTypeFromNullableString(title),
 		Content:           utils.GetTextTypeFromNullableString(content),
 		AuthorDisplayName: utils.GetTextTypeFromNullableString(author),
+		AuthorID:          utils.GetTextTypeFromNullableString(authorID),
 		SortBy:            utils.GetTextTypeFromNullableString(sortBy),
 		SortDir:           utils.GetTextTypeFromNullableString(sortDir),
 		Offset:            offset,
