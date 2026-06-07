@@ -42,7 +42,7 @@ func (e *EventHandler) OnCreateNotifications(ctx context.Context, evt *messaging
 
 	// Process in chunk of 5
 	// Ignore error
-	followerIds := payload.FollowerIDs
+	followerIds := payload.FollowerIds
 	notificationContent := map[string]interface{}{
 		"UrlSlug":    payload.UrlSlug,
 		"AuthorID":   payload.AuthorID,
@@ -63,10 +63,10 @@ func (e *EventHandler) OnCreateNotifications(ctx context.Context, evt *messaging
 		Content:    payload.TruncatedContent,
 	}
 
-	for i := 0; i < len(payload.FollowerIDs); i += 10 {
+	for i := 0; i < len(payload.FollowerIds); i += 10 {
 		var insertItems []domain.DBNotification
 		j := 0
-		for ; j < 10 && i+j < len(payload.FollowerIDs); j++ {
+		for ; j < 10 && i+j < len(payload.FollowerIds); j++ {
 			insertItems = append(insertItems, domain.DBNotification{
 				UserID:  followerIds[i+j],
 				Content: contentMarshal,
@@ -77,7 +77,7 @@ func (e *EventHandler) OnCreateNotifications(ctx context.Context, evt *messaging
 			log.Println(err)
 			continue
 		}
-		notificationEventPayload.UserIds = payload.FollowerIDs[i:(i + j)]
+		notificationEventPayload.UserIds = payload.FollowerIds[i:(i + j)]
 		payloadMarshal, _ := json.Marshal(notificationEventPayload)
 		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			EventType: "notification.subscription.created",

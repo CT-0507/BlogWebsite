@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { relativeTime } from "@/utils/timeUtils";
 import { truncate } from "@/utils/textUtils";
 import type { Blog } from "@/types/Blog";
+import { Link as RouterLink } from "react-router-dom";
+import Link from "@mui/material/Link";
 
 interface AuthorBlogsColumnProps {
   slug: string;
@@ -27,7 +29,13 @@ export default function AuthorBlogsColumn({ slug }: AuthorBlogsColumnProps) {
               <Card sx={{ borderRadius: 4 }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    {blog.title} |{" "}
+                    <Link
+                      component={RouterLink}
+                      to={`/blogs/${blog.urlSlug}`}
+                      underline="hover"
+                    >
+                      {blog.title} |{" "}
+                    </Link>
                     <Typography sx={{ fontSize: "0.75rem" }} component="span">
                       {relativeTime(blog.createdAt)}
                     </Typography>

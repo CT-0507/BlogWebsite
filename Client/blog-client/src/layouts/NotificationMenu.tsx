@@ -16,11 +16,24 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MarkAsUnreadIcon from "@mui/icons-material/MarkAsUnread";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Stack from "@mui/material/Stack";
+import Link from "@mui/material/Link";
+import { Link as RouterLink } from "react-router-dom";
+
+interface NotificationContent {
+  AuthorID: string;
+  AuthorName: string;
+  AuthorSlug: string;
+  Content: string;
+  Title: string;
+  UrlSlug: string;
+}
 
 interface Notification {
   notificationId: string;
-  content: any;
+  content: NotificationContent;
   isRead?: boolean;
+  createdAt: string;
 }
 
 export default function NotificationMenu() {
@@ -147,7 +160,7 @@ export default function NotificationMenu() {
                       .map((item) => (
                         <Fragment key={item.notificationId}>
                           <Tooltip
-                            title={item.content}
+                            title={`${item.content.AuthorName} has created a new blog`}
                             placement="bottom-start"
                           >
                             <ListItem
@@ -156,16 +169,43 @@ export default function NotificationMenu() {
                                 px: 1,
                               }}
                             >
-                              <Typography
-                                variant="h6"
-                                sx={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {item.content}
-                              </Typography>
+                              <Stack>
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  <Link
+                                    component={RouterLink}
+                                    to={
+                                      "/blogs/author/" + item.content.AuthorSlug
+                                    }
+                                    underline="hover"
+                                  >
+                                    {item.content.AuthorName}
+                                  </Link>{" "}
+                                  has created a new blog
+                                </Typography>
+                                <Typography
+                                  sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  Title:{" "}
+                                  <Link
+                                    component={RouterLink}
+                                    to={`/blogs/${item.content.UrlSlug}`}
+                                  >
+                                    {item.content.Title}
+                                  </Link>
+                                </Typography>
+                                <Typography>{item.content.Content}</Typography>
+                              </Stack>
                               <Tooltip title="Marked as read">
                                 <IconButton
                                   color="info"

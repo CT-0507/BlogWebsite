@@ -43,14 +43,38 @@ func (s *NotificationService) PublishNotification(c context.Context, evt *messag
 	return nil
 }
 
+type SubscriptionNotificationContent struct {
+	AuthorID   string `json:"authorID"`
+	AuthorName string `json:"authorName"`
+	AuthorSlug string `json:"authorSlug"`
+	UrlSlug    string `json:"urlSlug"`
+	Title      string `json:"title"`
+	Content    string `json:"content"`
+}
+
+type SubscriptionNotification struct {
+	NotificationId string `json:"notificationId"`
+	IsRead         bool   `json:"isRead"`
+	Content        SubscriptionNotificationContent
+}
+
 func (s *NotificationService) PublishSubscriptionNotifications(c context.Context, evt *messaging.OutboxEvent) error {
 
 	var event contracts.SubscriptionNotificationEvent
 	if err := json.Unmarshal(evt.Payload, &event); err != nil {
 		return err
 	}
-	publishEventData := event
-	publishEventData.UserIds = nil
+	publishEventData := &SubscriptionNotification{
+		IsRead: false,
+		Content: SubscriptionNotificationContent{
+			AuthorID:   event.AuthorID,
+			AuthorName: event.AuthorName,
+			AuthorSlug: event.AuthorSlug,
+			UrlSlug:    event.UrlSlug,
+			Title:      event.Title,
+			Content:    event.Content,
+		},
+	}
 	for _, v := range event.UserIds {
 		topic := fmt.Sprintf("user:%s", v)
 		s.publisher.PublishCache(topic, "blog", &sse.Cache{

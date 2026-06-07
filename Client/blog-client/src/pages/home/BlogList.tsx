@@ -267,7 +267,8 @@ export default function BlogList() {
                         >
                           By{" "}
                           <Link
-                            href={
+                            component={RouterLink}
+                            to={
                               "/blogs/author/" +
                               (blog.author.slug
                                 ? blog.author.slug

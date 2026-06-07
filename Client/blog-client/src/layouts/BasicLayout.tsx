@@ -40,7 +40,7 @@ export default function BasicLayout() {
   useAuthSSE(
     isAuthenticated ? tokenStore.get() : null,
     [],
-    ["blog_created_admin", `user:${user?.userID}`],
+    [`user:${user?.userID}`],
     setSnackbarOpen,
   );
 

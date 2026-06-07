@@ -38,7 +38,10 @@ interface RecoverDialogProps {
   handleRecover: () => Promise<void>;
   handleDiscard: () => void;
 }
-function RecoverDialog({ handleRecover, handleDiscard }: RecoverDialogProps) {
+export function RecoverDialog({
+  handleRecover,
+  handleDiscard,
+}: RecoverDialogProps) {
   const [open, setOpen] = useState(true);
   const [openDiscardConfirm, setOpenDiscardConfirm] = useState(false);
   const handleDiscardClick = () => {
@@ -110,7 +113,7 @@ function RecoverDialog({ handleRecover, handleDiscard }: RecoverDialogProps) {
 
 const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
   // Recovery
-  let recovery = localStorage.getItem(RECOVERY_KEY);
+  // let recovery = localStorage.getItem(RECOVERY_KEY);
 
   const holderRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<EditorJS | null>(null);
@@ -207,17 +210,17 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
     };
   }, [initialData, editorRef, saveRecovery]);
 
-  const handleRecoverContent = async () => {
-    if (editorRef && editorRef.current && recovery) {
-      const parsed = JSON.parse(recovery);
-      editorRef.current.render(parsed);
-    }
-  };
+  // const handleRecoverContent = async () => {
+  //   if (editorRef && editorRef.current && recovery) {
+  //     const parsed = JSON.parse(recovery);
+  //     editorRef.current.render(parsed);
+  //   }
+  // };
 
-  const handleDiscard = async () => {
-    recovery = null;
-    localStorage.removeItem(RECOVERY_KEY);
-  };
+  // const handleDiscard = async () => {
+  //   recovery = null;
+  //   localStorage.removeItem(RECOVERY_KEY);
+  // };
 
   return (
     <Box sx={{ p: 0, m: 0, width: "100%" }}>
@@ -226,12 +229,12 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
           Recovery last content
         </Button>
       </Box> */}
-      {!!recovery && (
+      {/* {!!recovery && (
         <RecoverDialog
           handleDiscard={handleDiscard}
           handleRecover={handleRecoverContent}
         />
-      )}
+      )} */}
       <Box
         sx={{ border: "2px solid gray", borderRadius: 2, p: 0 }}
         ref={holderRef}

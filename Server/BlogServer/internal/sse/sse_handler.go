@@ -70,7 +70,6 @@ func (h *SSEHandler) StreamAuth(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 
 	topics := strings.SplitSeq(c.Query("topics"), ",")
-
 	for topic := range topics {
 		if topic == "" {
 			continue

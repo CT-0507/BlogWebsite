@@ -34,11 +34,11 @@ type UpdateUserAuthorIDSuccessContext struct {
 }
 
 type SubscriptionNotificationEvent struct {
-	UserIds    []string
-	AuthorID   string
-	AuthorName string
-	AuthorSlug string
-	UrlSlug    string
-	Title      string
-	Content    string
+	UserIds    []string `json:"userIds"`
+	AuthorID   string   `json:"authorID"`
+	AuthorName string   `json:"authorName"`
+	AuthorSlug string   `json:"authorSlug"`
+	UrlSlug    string   `json:"urlSlug"`
+	Title      string   `json:"title"`
+	Content    string   `json:"content"`
 }
