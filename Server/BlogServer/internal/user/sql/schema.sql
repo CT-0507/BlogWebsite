@@ -6,7 +6,7 @@ CREATE TABLE users.users (
     username TEXT NOT NULL UNIQUE,
     email VARCHAR(50) UNIQUE,
     password TEXT NOT NULL,
-    nickname VARCHAR(50) NOT NULL UNIQUE,
+    nickname VARCHAR(50) UNIQUE,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     avatar TEXT,

@@ -44,6 +44,7 @@ import Editor, { type EditorHandle } from "./EditorField";
 import type { OutputData } from "@editorjs/editorjs";
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
+import axios from "axios";
 
 function getFieldName(fieldName: string) {
   switch (fieldName) {
@@ -167,6 +168,7 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
   const [tagInput, setTagInput] = useState("");
 
   const editorRef = useRef<EditorHandle>(null);
+  const keyRef = useRef(crypto.randomUUID());
 
   const {
     register,
@@ -183,7 +185,7 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
         json: blog?.contentJson ?? { blocks: [] },
         plainText: blog?.contentText ?? "",
       },
-      tags: blog?.tags,
+      tags: blog?.tags || [],
       thumbnail: null,
     },
     mode: "all",
@@ -219,8 +221,18 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
       navigate("/author/my-blogs");
     },
     onError: (error) => {
-      if (error.message.includes("500")) {
-        alert("blog url is already existed");
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+
+        // Generate new key only when server definitely responded
+        // and the request is not still processing.
+        if (status && status !== 409) {
+          keyRef.current = crypto.randomUUID();
+        }
+
+        if (status === 500) {
+          alert("Blog URL already exists");
+        }
       }
     },
   });
@@ -277,10 +289,21 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
         },
         files: editorData.files,
         blogId: blog?.blogID ?? 0,
+        idempotencyKey: keyRef.current,
       };
 
       console.log(saveData);
-      mutate(saveData);
+      mutate(saveData, {
+        onSuccess: () => {
+          navigate("/author/my-blogs");
+        },
+        onError: (error) => {
+          keyRef.current = crypto.randomUUID();
+          if (error.message.includes("500")) {
+            alert("blog url is already existed");
+          }
+        },
+      });
     } catch (err) {
       console.log(err);
     }

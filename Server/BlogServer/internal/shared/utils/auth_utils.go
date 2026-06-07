@@ -7,16 +7,15 @@ import (
 
 func CanSubscribe(userID string, roles []string, topic string) bool {
 
-	switch {
+	switch topic {
 
-	case topic == "prices":
+	case "prices":
 		return true
 
-	case topic == fmt.Sprintf("user:%s", userID):
+	case fmt.Sprintf("user:%s", userID):
 		return true
 
-	case topic == "admin":
-	case topic == "blog_created_admin":
+	case "admin", "blog_created_admin":
 		return hasRole(roles, "admin")
 
 	}

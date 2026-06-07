@@ -16,6 +16,7 @@ export function AuthProviderContainer({
     queryFn: fetchMe,
     retry: false,
     enabled: hasSession,
+    staleTime: 1000 * 60 * 60 * 1,
   });
 
   const { data: author, isLoading: isLoadingAuthor } = useQuery({
@@ -23,6 +24,7 @@ export function AuthProviderContainer({
     queryFn: fetchAuthorMe,
     retry: false,
     enabled: !!user,
+    refetchOnWindowFocus: false,
   });
 
   if (isLoading || isLoadingAuthor) {

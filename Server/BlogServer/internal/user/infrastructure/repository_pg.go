@@ -164,7 +164,7 @@ func (r *UserRepository) CreateNotification(c context.Context, content []byte, u
 	return NotificationDTOToNotification(&notification), err
 }
 
-func (r *UserRepository) CreateNotifications(c context.Context, nots []domain.Notification) error {
+func (r *UserRepository) CreateNotifications(c context.Context, nots []domain.DBNotification) error {
 
 	db := utils.GetExecutor(c, r.pool)
 

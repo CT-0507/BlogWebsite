@@ -8,10 +8,19 @@ import (
 type ProfileData struct {
 }
 
-type Notification struct {
+type DBNotification struct {
 	NotificationID int64  `json:"notificationId"`
 	UserID         string `json:"userId"`
 	Content        []byte `json:"content"`
+	IsRead         bool   `json:"isRead"`
+
+	model.Audit
+}
+
+type Notification struct {
+	NotificationID int64  `json:"notificationId"`
+	UserID         string `json:"userId"`
+	Content        any    `json:"content"`
 	IsRead         bool   `json:"isRead"`
 
 	model.Audit

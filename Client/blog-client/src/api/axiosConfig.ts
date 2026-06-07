@@ -36,7 +36,7 @@ const processQueue = (error: Error | null, response = null) => {
 //   return data; // { accessToken }
 // }
 export const axiosAuth = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: BASE_URL,
   withCredentials: true,
 });
 
@@ -51,7 +51,7 @@ axiosAuth.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 axiosAuth.interceptors.response.use(
@@ -122,5 +122,5 @@ axiosAuth.interceptors.response.use(
     // }
 
     return Promise.reject(error);
-  }
+  },
 );

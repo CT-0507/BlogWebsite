@@ -173,15 +173,7 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 			BlogThumbnail:    blog.ThumbnailUrl,
 			TruncatedContent: utils.Truncate(blog.ContentText, 50, true),
 			TruncatedTitle:   utils.Truncate(blog.Title, 20, true),
-		}
-
-		payloadMarshal, _ := json.Marshal(payload)
-		err = u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			EventType: "evt.OnBlogCreated",
-			Payload:   payloadMarshal,
-		})
-		if err != nil {
-			return err
+			UrlSlug:          insertedBlog.URLSlug,
 		}
 
 		newBlog = insertedBlog
@@ -190,6 +182,17 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 		newBlog.Tags = blog.Tags
 
 		newBlog.AuthorID = authorID
+
+		payloadMarshal, _ := json.Marshal(payload)
+
+		// Proceed next step
+		err = u.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType: flows.InceaseAuthorBlogCount,
+			Payload:   payloadMarshal,
+		})
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})

@@ -14,9 +14,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    volumes:
-      - .:/app
+      dockerfile: Dockerfile
     container_name: go-app
     restart: unless-stopped
     expose:
@@ -28,8 +26,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis:6379
-      UPLOAD_PATH: ${UPLOAD_PATH}
+      REDIS_URL: redis://redis:6379
     depends_on:
       - postgres
       - redis

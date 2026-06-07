@@ -11,7 +11,7 @@ export async function getAuthorProfileRequest(slug: string) {
 }
 
 export async function getAuthorBlogsRequest(slug: string) {
-  const { data } = await api.get("/blogs/author/" + slug);
+  const { data } = await api.get(`${API_VERSION}/blogs/author/slug/` + slug);
 
   return data;
 }

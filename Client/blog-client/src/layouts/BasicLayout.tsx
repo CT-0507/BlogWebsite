@@ -24,7 +24,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 export default function BasicLayout() {
   const queryClient = useQueryClient();
-  const { isAuthenticated, isLoadingAuthor, author } = useAuth();
+  const { isAuthenticated, isLoadingAuthor, author, user } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] =
@@ -40,7 +40,7 @@ export default function BasicLayout() {
   useAuthSSE(
     isAuthenticated ? tokenStore.get() : null,
     [],
-    ["blog_created_admin"],
+    ["blog_created_admin", `user:${user?.userID}`],
     setSnackbarOpen,
   );
 

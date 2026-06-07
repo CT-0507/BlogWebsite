@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"mime/multipart"
@@ -171,13 +172,63 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		return
 	}
 
+	idempotencyKey := c.Request.Header.Get("Idempotency-Key")
+	if idempotencyKey == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Idempotency Key not found"})
+		return
+	}
+	_, err = uuid.Parse(idempotencyKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Idempotency Key must be a valid UUID"})
+		return
+	}
+	processingData, _ := json.Marshal(CreateBLogCacheData{
+		CacheResult: nil,
+		Status:      "processing",
+	})
+	redisKey := fmt.Sprintf("idempotency:createBlog:%s", idempotencyKey)
+	success, err := h.redisClient.SetNX(
+		ctx,
+		redisKey,
+		processingData,
+		time.Hour,
+	).Result()
+
+	if err != nil {
+		// redis error
+		// Ignore error
+		log.Println("Redis unavailable:", err)
+		log.Println(err)
+	} else if !success {
+		// key already exists
+		cached, err := h.redisClient.Get(ctx, redisKey).Result()
+		if err != nil {
+			log.Println(err)
+		}
+		var response CreateBLogCacheData
+		if json.Unmarshal([]byte(cached), &response) == nil {
+			cache.CacheHit.Add(1)
+			if response.Status == "processing" {
+				c.JSON(http.StatusConflict, gin.H{
+					"message": "Form is processing",
+				})
+				return
+			}
+			log.Println("Redis: Hit cache")
+			c.JSON(response.StatusCode, response.CacheResult)
+			return
+		}
+	}
+
 	fileHeader, err := c.FormFile("thumbnail")
 	if err != nil && err != http.ErrMissingFile {
+		h.redisClient.Del(ctx, redisKey)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	fileParams, closer, err := h.createFileStorageParams(fileHeader)
 	if err != nil {
+		h.redisClient.Del(ctx, redisKey)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
 		return
 	}
@@ -194,8 +245,21 @@ func (h *BlogHandler) createNewBlog(c *gin.Context) {
 		Tags:        blog.Tags,
 	}, userID, fileParams)
 	if err != nil {
+		h.redisClient.Del(ctx, redisKey)
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
+	}
+
+	cacheData := &CreateBLogCacheData{
+		CacheResult: newBlog,
+		Status:      "completed",
+		StatusCode:  http.StatusCreated,
+	}
+	if data, err := json.Marshal(cacheData); err == nil {
+		if err := h.redisClient.Set(ctx, redisKey, data, time.Hour).Err(); err != nil {
+			log.Println("Redis: Failed to set redis", err)
+		}
+
 	}
 
 	c.JSON(http.StatusCreated, newBlog)

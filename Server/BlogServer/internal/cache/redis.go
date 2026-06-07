@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -22,8 +23,9 @@ var (
 func NewRedisClient() *redis.Client {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	addr := os.Getenv("REDIS_URL")
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     addr,
 		Password: "", // no password
 		DB:       0,
 	})

@@ -17,6 +17,7 @@ export const API_VERSION = "/api/v1";
 export async function publishBlogRequest(
   formData: PublishBlogFormValues & {
     files: Map<string, File>;
+    idempotencyKey: string;
   },
 ): Promise<Blog> {
   const formDataV = new FormData();
@@ -37,7 +38,11 @@ export async function publishBlogRequest(
       formDataV.append("tags", item);
     });
   }
-  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formDataV);
+  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formDataV, {
+    headers: {
+      "Idempotency-Key": formData.idempotencyKey,
+    },
+  });
 
   return data;
 }
@@ -45,6 +50,7 @@ export async function publishBlogRequest(
 export type UpdateBlogRequestParams = PublishBlogFormValues & {
   files: Map<string, File>;
   blogId: number;
+  idempotencyKey: string;
 };
 export async function updateBlogRequest(
   formData: UpdateBlogRequestParams,

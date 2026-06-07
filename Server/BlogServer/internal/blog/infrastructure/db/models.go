@@ -66,11 +66,6 @@ type BlogsBlogReaction struct {
 	DeletedAt pgtype.Timestamptz
 }
 
-type BlogsBlogRequestTracking struct {
-	BlogID    int64
-	RequestID string
-}
-
 type BlogsBlogTag struct {
 	TagID     int64
 	BlogID    int64

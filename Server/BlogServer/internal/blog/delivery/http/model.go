@@ -1,5 +1,7 @@
 package http
 
+import "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+
 type CreateBlogRequest struct {
 	Title       string   `form:"title" validate:"required"`
 	URLSlug     string   `form:"urlSlug" validate:"required,max=500"`
@@ -54,4 +56,10 @@ type GetBlogReportsForAuthorResponse struct {
 	ReportID int64  `json:"reportID"`
 	BlogID   int64  `json:"blogID"`
 	Reason   string `json:"reason"`
+}
+
+type CreateBLogCacheData struct {
+	CacheResult *domain.Blog
+	Status      string
+	StatusCode  int
 }

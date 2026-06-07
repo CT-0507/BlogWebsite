@@ -49,7 +49,7 @@ CREATE TABLE blogs.tags (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
 
-    UNIQUE(tag_id),
+    UNIQUE(id),
     UNIQUE(name)
 );
 
@@ -206,15 +206,15 @@ CREATE TABLE blogs.blog_metrics (
 
 );
 
-CREATE TABLE blogs.blog_request_tracking (
+-- CREATE TABLE blogs.blog_request_tracking (
     
-    blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
-    request_id TEXT NOT NULL,
-    -- rankings
+--     blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
+--     request_id TEXT NOT NULL,
+--     -- rankings
 
-    UNIQUE(blog_id, request_id)
+--     UNIQUE(blog_id, request_id)
 
-);
+-- );
 
 CREATE TABLE blogs.reports (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

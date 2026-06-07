@@ -65,6 +65,10 @@ func (b *Broker) RemoveClient(id string) {
 
 	for topic := range client.Topics {
 		delete(b.topics[topic], id)
+
+		if len(b.topics[topic]) == 0 {
+			delete(b.topics, topic)
+		}
 	}
 
 	close(client.Channel)

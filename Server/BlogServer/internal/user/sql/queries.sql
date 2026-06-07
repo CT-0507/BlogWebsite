@@ -48,10 +48,9 @@ INSERT INTO users.users(
     password, 
     first_name, 
     last_name,
-    active,
     role
 ) VALUES (
-    $1, $2, $3, $4, 'normal', $5
+    $1, $2, $3, $4, $5
 )
 RETURNING *;
 
@@ -60,7 +59,7 @@ SELECT *
 FROM users.users u
 WHERE
     u.username = $1
-    AND u.active <> 'banned' 
+    AND u.status <> 'banned' 
     AND u.deleted_at IS NULL;
 
 -- name: UpdateLastLogout :exec
@@ -103,8 +102,8 @@ RETURNING user_id;
 
 -- name: GetUserNotiticationsByID :many
 SELECT n.*
-FROM users.users u
-JOIN users.notifications n ON n.user_id = u.user_id
+FROM users.notifications n
+JOIN users.users u ON n.user_id = u.user_id
 WHERE n.deleted_at IS NULL;
 
 -- name: CreateNotification :one

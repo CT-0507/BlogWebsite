@@ -1,6 +1,8 @@
 package infrastructure
 
 import (
+	"encoding/json"
+
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/model"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user/domain"
@@ -28,10 +30,12 @@ func UserDTOToUser(userDTO *userdb.UsersUser) *domain.User {
 }
 
 func NotificationDTOToNotification(notDTO *userdb.UsersNotification) *domain.Notification {
+	var content any
+	_ = json.Unmarshal(notDTO.Content, &content)
 	return &domain.Notification{
 		NotificationID: notDTO.NotificationID,
 		UserID:         "",
-		Content:        notDTO.Content,
+		Content:        content,
 		IsRead:         notDTO.IsRead,
 
 		Audit: model.Audit{

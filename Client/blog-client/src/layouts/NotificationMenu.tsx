@@ -19,7 +19,7 @@ import ClickAwayListener from "@mui/material/ClickAwayListener";
 
 interface Notification {
   notificationId: string;
-  content: string;
+  content: any;
   isRead?: boolean;
 }
 

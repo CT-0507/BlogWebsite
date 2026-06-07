@@ -3,7 +3,9 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/messaging"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 )
@@ -37,6 +39,26 @@ func (s *NotificationService) PublishNotification(c context.Context, evt *messag
 		Op:       "append",
 		Data:     event,
 	})
+
+	return nil
+}
+
+func (s *NotificationService) PublishSubscriptionNotifications(c context.Context, evt *messaging.OutboxEvent) error {
+
+	var event contracts.SubscriptionNotificationEvent
+	if err := json.Unmarshal(evt.Payload, &event); err != nil {
+		return err
+	}
+	publishEventData := event
+	publishEventData.UserIds = nil
+	for _, v := range event.UserIds {
+		topic := fmt.Sprintf("user:%s", v)
+		s.publisher.PublishCache(topic, "blog", &sse.Cache{
+			QueryKey: []string{"notifications"},
+			Op:       "append",
+			Data:     publishEventData,
+		})
+	}
 
 	return nil
 }

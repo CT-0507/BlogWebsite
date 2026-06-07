@@ -78,7 +78,7 @@ func (h *UserHandler) RegisterUser(c *gin.Context) {
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Password:  user.Password,
-		Roles:     []string{"admin"},
+		Roles:     []string{"user"},
 	})
 	if err != nil {
 		switch {
@@ -110,16 +110,15 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
-
 	if isValidPassword := utils.IsValidPassword(user.Password); !isValidPassword {
 		c.JSON(http.StatusBadRequest, &gin.H{"message": "Password is not valid"})
 		return
 	}
-
 	foundUser, loginErr := h.authUsecases.LoginUser(ctx, user.Username, user.Password)
 	if loginErr != nil {
 		switch {
 		case errors.Is(loginErr, &domain.ErrNotFound{}):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Not found"})
 		case errors.Is(loginErr, &domain.ErrPasswordNotMatched{}):
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Username or password is invalid"})
 		default:
@@ -127,7 +126,6 @@ func (h *UserHandler) LoginUser(c *gin.Context) {
 		}
 		return
 	}
-
 	token, refreshToken, err := utils.GenerateAllTokens(
 		foundUser.Username, foundUser.FirstName, foundUser.LastName, foundUser.UserID.String(), foundUser.Avatar, foundUser.Roles, foundUser.TokenVersion,
 	)

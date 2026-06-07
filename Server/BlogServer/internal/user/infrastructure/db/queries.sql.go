@@ -72,10 +72,9 @@ INSERT INTO users.users(
     password, 
     first_name, 
     last_name,
-    active,
     role
 ) VALUES (
-    $1, $2, $3, $4, 'normal', $5
+    $1, $2, $3, $4, $5
 )
 RETURNING user_id, username, email, password, nickname, first_name, last_name, avatar, role, status, points, token_version, last_logout, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 `
@@ -223,7 +222,7 @@ SELECT user_id, username, email, password, nickname, first_name, last_name, avat
 FROM users.users u
 WHERE
     u.username = $1
-    AND u.active <> 'banned' 
+    AND u.status <> 'banned' 
     AND u.deleted_at IS NULL
 `
 
@@ -256,8 +255,8 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (Users
 
 const getUserNotiticationsByID = `-- name: GetUserNotiticationsByID :many
 SELECT n.notification_id, n.user_id, n.content, n.is_read, n.created_at, n.created_by, n.updated_at, n.updated_by, n.deleted_at, n.deleted_by
-FROM users.users u
-JOIN users.notifications n ON n.user_id = u.user_id
+FROM users.notifications n
+JOIN users.users u ON n.user_id = u.user_id
 WHERE n.deleted_at IS NULL
 `
 

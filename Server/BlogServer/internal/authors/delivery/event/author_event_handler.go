@@ -500,10 +500,6 @@ func (e *EventHandler) OnBlogCreated(ctx context.Context, evt *messaging.OutboxE
 			return err
 		}
 
-		context := &map[string]interface{}{
-			"AuthorID": payload.AuthorID,
-		}
-
 		newPayload, err := utils.StructToMap(payload)
 		if err != nil {
 			return err
@@ -519,7 +515,6 @@ func (e *EventHandler) OnBlogCreated(ctx context.Context, evt *messaging.OutboxE
 		newPayload["AuthorSlug"] = author.Slug
 
 		payloadMarshal, _ := json.Marshal(newPayload)
-		contextMarshal, _ := json.Marshal(context)
 
 		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
 			EventType: "CreateNotifications",
@@ -529,29 +524,15 @@ func (e *EventHandler) OnBlogCreated(ctx context.Context, evt *messaging.OutboxE
 			return err
 		}
 
-		return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			SagaID:    evt.SagaID,
-			EventType: flows.InceaseAuthorBlogCountSuccess,
-			Payload:   evt.Payload,
-			Context:   &contextMarshal,
-		})
-	})
-
-	if err != nil {
-		ctx = context.WithValue(ctx, database.TxKey{}, nil)
-		// Fail to create blog
-		m := map[string]any{}
-		b, _ := json.Marshal(m)
-		err1 := e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
-			SagaID:    evt.SagaID,
-			EventType: flows.InceaseAuthorBlogCountFailed,
-			Payload:   b,
-			Error:     utils.StringPtr(err.Error()),
-		})
-		if err1 != nil {
-			return err1
-		}
 		return nil
+
+		// return e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+		// 	EventType: flows.InceaseAuthorBlogCountSuccess,
+		// 	Payload:   evt.Payload,
+		// })
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }

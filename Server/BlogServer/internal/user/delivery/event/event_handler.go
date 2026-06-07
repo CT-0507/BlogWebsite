@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
@@ -31,7 +32,7 @@ func New(txManager database.TxManager, repo domain.UserRepository, outboxRepo ou
 }
 
 func (e *EventHandler) OnCreateNotifications(ctx context.Context, evt *messaging.OutboxEvent) error {
-	timeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	timeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	var payload CreateNotificationsEventPayload
 	err := json.Unmarshal(evt.Payload, &payload)
@@ -53,15 +54,38 @@ func (e *EventHandler) OnCreateNotifications(ctx context.Context, evt *messaging
 
 	contentMarshal, _ := json.Marshal(notificationContent)
 
-	for i := 0; i < len(payload.FollowerIDs); i += 5 {
-		var insertItems []domain.Notification
-		for j := 0; j < 5 && i+j < len(payload.FollowerIDs); j++ {
-			insertItems = append(insertItems, domain.Notification{
+	notificationEventPayload := &contracts.SubscriptionNotificationEvent{
+		AuthorID:   payload.AuthorID,
+		AuthorName: payload.AuthorName,
+		AuthorSlug: payload.AuthorSlug,
+		UrlSlug:    payload.UrlSlug,
+		Title:      payload.TruncatedTitle,
+		Content:    payload.TruncatedContent,
+	}
+
+	for i := 0; i < len(payload.FollowerIDs); i += 10 {
+		var insertItems []domain.DBNotification
+		j := 0
+		for ; j < 10 && i+j < len(payload.FollowerIDs); j++ {
+			insertItems = append(insertItems, domain.DBNotification{
 				UserID:  followerIds[i+j],
 				Content: contentMarshal,
 			})
 		}
-		e.repo.CreateNotifications(timeCtx, insertItems)
+		err := e.repo.CreateNotifications(timeCtx, insertItems)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		notificationEventPayload.UserIds = payload.FollowerIDs[i:(i + j)]
+		payloadMarshal, _ := json.Marshal(notificationEventPayload)
+		err = e.outboxRepo.Insert(ctx, &messaging.OutboxEvent{
+			EventType: "notification.subscription.created",
+			Payload:   payloadMarshal,
+		})
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	return nil
