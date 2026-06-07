@@ -1,8 +1,10 @@
 import Link from "@mui/material/Link";
 import { Link as RouterLink } from "react-router-dom";
 import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
 import type { Blog } from "@/types/Blog";
+import RenderArticle from "@/components/renderBlog/RenderBlog";
+import LazyImage from "@/components/Image/LazyImage";
+import placeholder from "@/assets/160x120.svg";
 
 interface BlogSectionProps {
   blog: Blog;
@@ -11,9 +13,8 @@ interface BlogSectionProps {
 export default function BlogSection({ blog }: BlogSectionProps) {
   return (
     <>
-      <Box
-        component="img"
-        src="https://placehold.co/800x400"
+      <LazyImage
+        src={blog.thumbnailUrl ?? placeholder}
         alt="thumbnail"
         sx={{
           width: "100%",
@@ -41,15 +42,16 @@ export default function BlogSection({ blog }: BlogSectionProps) {
       </Typography>
 
       {/* Content */}
-      <Typography
+      {/* <Typography
         variant="body1"
         sx={{
           lineHeight: 1.8,
           fontSize: "1.1rem",
         }}
       >
-        {blog.content}
-      </Typography>
+        {blog.contentText}
+      </Typography> */}
+      <RenderArticle content={blog.contentJson} />
     </>
   );
 }

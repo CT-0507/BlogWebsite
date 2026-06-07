@@ -71,6 +71,7 @@ type BlogCreatedEventPayload struct {
 	AuthorID         string
 	TruncatedContent string
 	TruncatedTitle   string
+	UrlSlug          string
 	BlogThumbnail    *string
 }
 

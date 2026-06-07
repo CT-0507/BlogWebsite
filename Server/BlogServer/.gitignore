@@ -23,10 +23,12 @@ go.work
 go.work.sum
 
 # env file
+# Ignore all env files
 .env
-prod.env
-.env.prod
 .env.*
+
+# Except example file
+!.env.example
 
 # Editor/IDE
 # .idea/
@@ -35,11 +37,13 @@ prod.env
 #bash files
 *.sh
 
-# docker file
-*.prod.yaml
-
 # sql
 init_database.sql
 
 # public
 uploads
+
+# Build artifacts
+tmp/
+bin/
+dist/

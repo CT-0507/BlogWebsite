@@ -66,11 +66,6 @@ type BlogsBlogReaction struct {
 	DeletedAt pgtype.Timestamptz
 }
 
-type BlogsBlogRequestTracking struct {
-	BlogID    int64
-	RequestID string
-}
-
 type BlogsBlogTag struct {
 	TagID     int64
 	BlogID    int64
@@ -132,48 +127,4 @@ type BlogsTag struct {
 	Name      string
 	CreatedAt pgtype.Timestamptz
 	DeletedAt pgtype.Timestamptz
-}
-
-type UsersNotification struct {
-	NotificationID int64
-	UserID         *uuid.UUID
-	Content        []byte
-	IsRead         bool
-	CreatedAt      pgtype.Timestamptz
-	CreatedBy      *uuid.UUID
-	UpdatedAt      pgtype.Timestamptz
-	UpdatedBy      *uuid.UUID
-	DeletedAt      pgtype.Timestamptz
-	DeletedBy      *uuid.UUID
-}
-
-type UsersRefreshToken struct {
-	TokenID          uuid.UUID
-	UserID           uuid.UUID
-	RefreshTokenHash string
-	ExpiresAt        pgtype.Timestamptz
-	CreatedAt        pgtype.Timestamptz
-	RevokedAt        pgtype.Timestamptz
-}
-
-type UsersUser struct {
-	UserID       uuid.UUID
-	Username     string
-	Email        pgtype.Text
-	Password     string
-	Nickname     string
-	FirstName    string
-	LastName     string
-	Avatar       pgtype.Text
-	Role         string
-	Status       pgtype.Text
-	Points       int32
-	TokenVersion pgtype.Int4
-	LastLogout   pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	CreatedBy    *uuid.UUID
-	UpdatedAt    pgtype.Timestamptz
-	UpdatedBy    *uuid.UUID
-	DeletedAt    pgtype.Timestamptz
-	DeletedBy    *uuid.UUID
 }

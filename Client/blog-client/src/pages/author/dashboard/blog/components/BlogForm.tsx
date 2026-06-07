@@ -13,7 +13,7 @@ import {
   editorContentSchema,
   publishBlogSchema,
   type PublishBlogFormValues,
-} from "./model/schema";
+} from "../publish/model/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Divider from "@mui/material/Divider";
 import Button from "@mui/material/Button";
@@ -29,9 +29,13 @@ import List from "@mui/material/List";
 import { getDirtyFieldNames } from "@/utils/mapper";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
-import { ClockBanner } from "@/components/banner/Clock";
+import ClockBanner from "@/components/banner/Clock";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { publishBlogRequest } from "@/api/blogApi";
+import {
+  publishBlogRequest,
+  updateBlogRequest,
+  type UpdateBlogRequestParams,
+} from "@/api/blogApi";
 import slugify from "slugify";
 import type { Blog } from "@/types/Blog";
 import Stack from "@mui/material/Stack";
@@ -40,6 +44,7 @@ import Editor, { type EditorHandle } from "./EditorField";
 import type { OutputData } from "@editorjs/editorjs";
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
+import axios from "axios";
 
 function getFieldName(fieldName: string) {
   switch (fieldName) {
@@ -149,13 +154,22 @@ function ImageField({ field }: ImageFieldProps) {
   );
 }
 
-export default function PublishPage() {
+export const RECOVERY_KEY = "blog-recovery";
+
+interface BlogFormProps {
+  blog?: Blog;
+  mode: "create" | "edit";
+}
+
+export default function PublishPage({ blog, mode }: BlogFormProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [tagInput, setTagInput] = useState("");
 
   const editorRef = useRef<EditorHandle>(null);
+  const keyRef = useRef(crypto.randomUUID());
+
   const {
     register,
     handleSubmit,
@@ -165,15 +179,13 @@ export default function PublishPage() {
   } = useForm<PublishBlogFormValues>({
     resolver: zodResolver(publishBlogSchema),
     defaultValues: {
-      title: "",
-      urlSlug: "",
+      title: blog?.title ?? "",
+      urlSlug: blog?.urlSlug ?? "",
       content: {
-        json: {
-          blocks: [],
-        },
-        plainText: "",
+        json: blog?.contentJson ?? { blocks: [] },
+        plainText: blog?.contentText ?? "",
       },
-      tags: [],
+      tags: blog?.tags || [],
       thumbnail: null,
     },
     mode: "all",
@@ -191,24 +203,36 @@ export default function PublishPage() {
           lower: true,
           strict: true,
           trim: true,
-        })
+        }),
       );
     }
   }, [title, setValue]);
 
   const { mutate, isPending } = useMutation({
-    mutationFn: publishBlogRequest,
+    mutationFn: mode === "create" ? publishBlogRequest : updateBlogRequest,
     retry: false,
     onSuccess: (data) => {
       console.log(data);
       queryClient.setQueryData(
         ["author_blogs", data.author.slug],
-        (old: Blog[]) => [...old, data]
+        (old: Blog[]) => [...old, data],
       );
+      localStorage.remove(RECOVERY_KEY);
+      navigate("/author/my-blogs");
     },
     onError: (error) => {
-      if (error.message.includes("500")) {
-        alert("blog url is already existed");
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+
+        // Generate new key only when server definitely responded
+        // and the request is not still processing.
+        if (status && status !== 409) {
+          keyRef.current = crypto.randomUUID();
+        }
+
+        if (status === 500) {
+          alert("Blog URL already exists");
+        }
       }
     },
   });
@@ -236,9 +260,7 @@ export default function PublishPage() {
 
   const onSubmit = async (data: PublishBlogFormValues) => {
     console.log("Form Data:", data);
-    let saveData: PublishBlogFormValues & {
-      files: Map<string, File>;
-    };
+    let saveData: UpdateBlogRequestParams;
     try {
       const editorData = await editorRef.current?.save();
       if (
@@ -266,10 +288,22 @@ export default function PublishPage() {
           plainText: plainText,
         },
         files: editorData.files,
+        blogId: blog?.blogID ?? 0,
+        idempotencyKey: keyRef.current,
       };
 
       console.log(saveData);
-      mutate(saveData);
+      mutate(saveData, {
+        onSuccess: () => {
+          navigate("/author/my-blogs");
+        },
+        onError: (error) => {
+          keyRef.current = crypto.randomUUID();
+          if (error.message.includes("500")) {
+            alert("blog url is already existed");
+          }
+        },
+      });
     } catch (err) {
       console.log(err);
     }
@@ -303,7 +337,7 @@ export default function PublishPage() {
     setValue(
       "tags",
       tags!.filter((tag) => tag !== tagToDelete),
-      { shouldValidate: true }
+      { shouldValidate: true },
     );
   };
 
@@ -355,7 +389,6 @@ export default function PublishPage() {
               placeholder="Title"
               {...register("title")}
               size="small"
-              focused
               fullWidth
               error={!!errors.title}
               helperText={errors.title?.message || " "}
@@ -407,12 +440,10 @@ export default function PublishPage() {
             onKeyDown={handleAddTag}
           />
         </Box>
-        <Box id="blog-content-section">
-          <Box sx={{ width: "100%", p: 1 }}>
+        <Box id="blog-content-section" sx={{ mt: 1 }}>
+          <InputLabel sx={{ mb: 1, display: "block" }}>Content</InputLabel>
+          <Box sx={{ width: "100%", p: 0 }}>
             <FormControl fullWidth>
-              <InputLabel htmlFor="blog-content" sx={{ mb: 1 }}>
-                Content
-              </InputLabel>
               {/* <TextField
               id="blog-content"
               placeholder="What are you going to write?"
@@ -424,7 +455,7 @@ export default function PublishPage() {
               error={!!errors.content}
               helperText={errors.content?.message || " "}
             /> */}
-              <Editor ref={editorRef} initialData={undefined} />
+              <Editor ref={editorRef} initialData={blog?.contentJson} />
               <FormHelperText error={editorError !== ""}>
                 {editorError || " "}
               </FormHelperText>

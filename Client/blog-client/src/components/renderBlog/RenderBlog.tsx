@@ -1,19 +1,10 @@
+import type { EditorContent } from "@/types/Blog";
 import Typography from "@mui/material/Typography";
 import DOMPurify from "dompurify";
 
-type Block = {
-  type: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any;
-};
-
-type EditorContent = {
-  blocks: Block[];
-};
-
 type HeaderVariant = "h1" | "h2" | "h3" | "h4";
 
-export function RenderArticle({ content }: { content: EditorContent }) {
+export default function RenderArticle({ content }: { content: EditorContent }) {
   return (
     <article className="article">
       {content.blocks.map((block, index) => {

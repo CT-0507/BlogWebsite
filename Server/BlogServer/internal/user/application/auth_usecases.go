@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
 	outboxrepo "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts/outboxRepo"
@@ -69,7 +70,7 @@ func (u *AuthUseCases) CheckExistedUsername(c context.Context, username string) 
 }
 
 func (u *AuthUseCases) LoginUser(c context.Context, username string, password string) (*domain.User, error) {
-
+	log.Println(username)
 	foundUser, err := u.repo.GetUserByUsername(c, username)
 	if err != nil {
 		return nil, &domain.ErrNotFound{}

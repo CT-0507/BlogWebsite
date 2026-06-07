@@ -43,7 +43,6 @@ export default function BlogVoteSection({
   dislikeCount,
   userReaction,
 }: BlogVoteSectionProps) {
-  console.log(userReaction);
   const [reactionType, setReactionType] = useState(userReaction);
   const [hasReport, setHasReport] = useState(false);
   const [showError, setShowError] = useState(false);

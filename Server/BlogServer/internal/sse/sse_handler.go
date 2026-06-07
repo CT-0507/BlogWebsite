@@ -3,6 +3,7 @@ package sse
 import (
 	"io"
 	"strings"
+	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/gin-gonic/gin"
@@ -69,7 +70,6 @@ func (h *SSEHandler) StreamAuth(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 
 	topics := strings.SplitSeq(c.Query("topics"), ",")
-
 	for topic := range topics {
 		if topic == "" {
 			continue
@@ -85,7 +85,7 @@ func (h *SSEHandler) StreamAuth(c *gin.Context) {
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
-
+	ticker := time.NewTicker(30 * time.Second)
 	c.Stream(func(w io.Writer) bool {
 		select {
 		case msg, ok := <-client.Channel:
@@ -99,6 +99,9 @@ func (h *SSEHandler) StreamAuth(c *gin.Context) {
 
 		case <-c.Request.Context().Done():
 			return false
+		case <-ticker.C:
+			c.SSEvent("ping", "")
+			return true
 		}
 
 	})

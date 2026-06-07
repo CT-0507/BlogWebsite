@@ -12,6 +12,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type BlogWorkerStarter interface {
@@ -27,7 +28,7 @@ type Module struct {
 }
 
 // Hide blog module wiring and expose handler, service for other module
-func NewBlogModule(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo outbox.OutboxRepository, storageService storage.Storage) *Module {
+func NewBlogModule(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo outbox.OutboxRepository, storageService storage.Storage, redisClient *redis.Client) *Module {
 
 	repoMapper := infrastructure.NewBlogMapper()
 	repo := infrastructure.NewBlogRepository(pool, repoMapper)
@@ -46,7 +47,7 @@ func NewBlogModule(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo 
 	blogMetricsUsecases := application.NewBlogMetricsUsecases(txManager, repo)
 	blogReportUsecases := application.NewBlogReportUsecases(txManager, repo)
 
-	handler := http.NewBlogHandler(createBlog, getBlog, listBlogs, deleteBlog, commentUsecase, commentReactionUsecases, blogReactionUsecases, blogMetricsUsecases, blogReportUsecases)
+	handler := http.NewBlogHandler(createBlog, getBlog, listBlogs, deleteBlog, commentUsecase, commentReactionUsecases, blogReactionUsecases, blogMetricsUsecases, blogReportUsecases, redisClient)
 
 	eventHandler := event.NewEventHandler(txManager, repo, outboxRepo)
 

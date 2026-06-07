@@ -11,7 +11,7 @@ type CreateNotificationsEventPayload struct {
 	AuthorName       string
 	AuthorSlug       string
 	UserID           string
-	FollowerIDs      []string
+	FollowerIds      []string
 	TruncatedTitle   string
 	TruncatedContent string
 }

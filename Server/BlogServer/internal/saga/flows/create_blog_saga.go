@@ -25,7 +25,7 @@ var CreateBlogSagaDefinition = &domain.SagaDefinition{
 		},
 		{
 			ActionType:     InceaseAuthorBlogCount,
-			CompensateType: CreateBlogCompensation,
+			CompensateType: "",
 			MaxRetries:     2,
 		},
 	},

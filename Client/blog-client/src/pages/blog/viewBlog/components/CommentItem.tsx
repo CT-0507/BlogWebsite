@@ -36,7 +36,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import MuiLink from "@mui/material/Link";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { usePostComment } from "@/hooks/usePostComment";
-import type { BlogComment, CommentReaction } from "@/types/Blog";
+import type { BlogComment, CommentReactionType } from "@/types/Blog";
 import { useVoteComment } from "@/hooks/useVoteComment";
 import { useRepliesByCommentID } from "@/hooks/useRepliesByCommentID";
 import {
@@ -76,7 +76,7 @@ export default function CommentItem({
   const { data: replies, isLoading } = useRepliesByCommentID(
     isAuthenticated,
     comment.commentId,
-    showReplies
+    showReplies,
   );
 
   const handleShowReplies = () => {
@@ -124,9 +124,9 @@ export default function CommentItem({
   };
 
   const { mutate: mutateVote, isPending: isPendingVoteComment } =
-    useVoteComment(level === 0, comment.commentId, comment.parentCommentId);
+    useVoteComment(level === 0, comment.blogId, comment.parentCommentId);
 
-  const handleVote = (next: "like" | "dislike") => {
+  const handleVote = (next: CommentReactionType) => {
     if (!isAuthenticated) {
       setShowError(true);
       return;
@@ -134,12 +134,11 @@ export default function CommentItem({
     if (comment.userReaction === next || isPendingVoteComment) {
       return;
     }
-    const reaction: CommentReaction = {
+    mutateVote({
       commentId: comment.commentId,
       userId: user!.userID,
       type: next,
-    };
-    mutateVote(reaction);
+    });
   };
 
   const handleShowEditMode = () => {
@@ -180,10 +179,10 @@ export default function CommentItem({
   };
 
   const { mutate: mutateHide } = useHideComment(
-    level === 0 ? comment.blogId : undefined
+    level === 0 ? comment.blogId : undefined,
   );
   const { mutate: mutateDelete } = useDeleteComment(
-    level === 0 ? comment.blogId : undefined
+    level === 0 ? comment.blogId : undefined,
   );
 
   const handleExecuteAction = () => {
@@ -205,7 +204,7 @@ export default function CommentItem({
         onError: () => {
           setShowSnackbar(true);
           setSnackbarMessage(
-            "Failed to delete comment. Please try again later."
+            "Failed to delete comment. Please try again later.",
           );
         },
       });

@@ -1,18 +1,35 @@
 import { Routes, Route } from "react-router-dom";
 import Home from "@/pages/home/Home";
-import Auth from "@/pages/auth/Auth";
 import BasicLayout from "@/layouts/BasicLayout";
 import RequireAuth from "./RequireAuth";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import { ROLES } from "@/config/roles";
 import UserHome from "@/pages/user/UserHome";
 import Profile from "@/pages/user/profile/Profile";
-import PublishPage from "@/pages/blog/publish/Publish";
+import PublishPage from "@/pages/author/dashboard/blog/publish/Publish";
+// import EditPage from "@/pages/author/dashboard/blog/edit/EditBlog";
 import NotFound from "@/pages/NotFound/NotFound";
 import ErrorBoundary from "@/pages/error/ErrorBoundary";
-import ViewBlog from "@/pages/blog/viewBlog/ViewBlog";
+import ViewBlog from "@/pages/blog/viewBlog/ViewBlogPage";
 import AuthorBlog from "@/pages/blog/authorBlog/AuthorBlog";
-import CreateAuthorPage from "@/pages/author/CreateAuthorPage";
+import CreateAuthorPage from "@/pages/author/create-author/CreateAuthorPage";
+import ResponsiveSidebarLayout from "@/pages/author/dashboard/layout";
+import SuspenseWrapper from "@/components/SuspenseWrapper/SuspenseWrapper";
+// import AuthorDashboard from "@/pages/author/dashboard/Dashboard";
+import { lazy } from "react";
+import Unauthorized from "@/pages/Unauthorized/Unauthorized";
+
+const AuthPage = lazy(() => import("@/pages/auth/Auth"));
+const AuthorDashboard = lazy(
+  () => import("@/pages/author/dashboard/Dashboard"),
+);
+const MyBlogs = lazy(() => import("@/pages/author/dashboard/blogs/MyBlogs"));
+const EditPage = lazy(
+  () => import("@/pages/author/dashboard/blog/edit/EditBlog"),
+);
+const ViewBlogDashboardPage = lazy(
+  () => import("@/pages/author/dashboard/blog/view/ViewBlog"),
+);
 
 export default function AppRoutes() {
   return (
@@ -20,7 +37,40 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/" element={<BasicLayout />}>
           <Route index element={<Home />} />
-          <Route path="account" element={<Auth />} />
+          <Route
+            path="account"
+            element={<SuspenseWrapper child={<AuthPage />} />}
+          />
+          <Route
+            path="author"
+            element={<RequireAuth allowedRoles={[ROLES.ADMIN, ROLES.USER]} />}
+          >
+            <Route path="" element={<ResponsiveSidebarLayout />}>
+              <Route
+                path="dashboard"
+                element={<SuspenseWrapper child={<AuthorDashboard />} />}
+              />
+              <Route
+                path="my-blogs"
+                element={<SuspenseWrapper child={<MyBlogs />} />}
+              />
+              <Route
+                path="my-blogs/:slug"
+                element={<SuspenseWrapper child={<ViewBlogDashboardPage />} />}
+              />
+              <Route
+                path="my-blogs/:slug/edit"
+                element={<SuspenseWrapper child={<EditPage />} />}
+              />
+              <Route
+                path="my-blogs/:slug/view"
+                element={<SuspenseWrapper child={<ViewBlogDashboardPage />} />}
+              />
+
+              <Route path="401" element={<Unauthorized />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Route>
           <Route
             path="dashboard"
             element={<RequireAuth allowedRoles={[ROLES.ADMIN]} />}
@@ -53,9 +103,10 @@ export default function AppRoutes() {
               <Route path=":slug" element={<AuthorBlog />} />
             </Route>
           </Route>
+          {/* Fallback */}
+          <Route path="/401" element={<Unauthorized />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
-        {/* Fallback */}
-        <Route path="*" element={<NotFound />} />
       </Routes>
     </ErrorBoundary>
   );

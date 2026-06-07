@@ -45,3 +45,42 @@ export type BlogReport = {
   blogID: number;
   reason: string;
 };
+
+interface CommentNotification {
+  notificationId: string;
+  type: "authorNewContent";
+  content: {
+    authorID: string;
+    authorName: string;
+    authorSlug: string;
+    urlSlug: string;
+    title: string;
+    content: string;
+  };
+  isRead?: boolean;
+}
+
+interface FollowNotification {
+  notificationId: string;
+  type: "follow";
+  content: {
+    followerId: string;
+    followerName: string;
+  };
+  isRead?: boolean;
+}
+
+interface LikeNotification {
+  notificationId: string;
+  type: "like";
+  content: {
+    postId: string;
+    likedBy: string;
+  };
+  isRead?: boolean;
+}
+
+export type Notification =
+  | CommentNotification
+  | FollowNotification
+  | LikeNotification;

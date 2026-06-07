@@ -36,6 +36,7 @@ type AuthorProfileRepository interface {
 
 	// Author discovery
 	// SearchAuthors(c context.Context, keyword string, pagination int) ([]*AuthorProfile, error)
+	GetAuthorByUserID(c context.Context, userID string) (*AuthorProfile, error)
 	// GetTrendingAuthors
 	UpdateAuthorBlogCount(c context.Context, authorID string, isIncrement bool) error
 	UpdateAuthorFollowerCount(c context.Context, authorID string, isIncrement bool) error

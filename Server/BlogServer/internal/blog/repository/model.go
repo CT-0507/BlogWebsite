@@ -1,5 +1,7 @@
 package repository
 
+import "github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
+
 type ReactionTransition int
 
 const (
@@ -8,3 +10,8 @@ const (
 	LikeToDislike
 	DislikeToLike
 )
+
+type BeforeAndAfterBlogUpdated struct {
+	Before domain.Blog
+	After  domain.Blog
+}

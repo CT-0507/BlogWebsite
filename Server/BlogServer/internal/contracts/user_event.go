@@ -32,3 +32,13 @@ type DeleteAuthorProfilePayload struct {
 type UpdateUserAuthorIDSuccessContext struct {
 	UserID uuid.UUID
 }
+
+type SubscriptionNotificationEvent struct {
+	UserIds    []string `json:"userIds"`
+	AuthorID   string   `json:"authorID"`
+	AuthorName string   `json:"authorName"`
+	AuthorSlug string   `json:"authorSlug"`
+	UrlSlug    string   `json:"urlSlug"`
+	Title      string   `json:"title"`
+	Content    string   `json:"content"`
+}

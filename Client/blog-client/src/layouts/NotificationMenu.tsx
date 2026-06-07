@@ -11,16 +11,29 @@ import Popper from "@mui/material/Popper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import React, { useRef, useState, useMemo, useEffect } from "react";
+import { useRef, useState, useMemo, useEffect, Fragment } from "react";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MarkAsUnreadIcon from "@mui/icons-material/MarkAsUnread";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Stack from "@mui/material/Stack";
+import Link from "@mui/material/Link";
+import { Link as RouterLink } from "react-router-dom";
+
+interface NotificationContent {
+  AuthorID: string;
+  AuthorName: string;
+  AuthorSlug: string;
+  Content: string;
+  Title: string;
+  UrlSlug: string;
+}
 
 interface Notification {
   notificationId: string;
-  content: string;
+  content: NotificationContent;
   isRead?: boolean;
+  createdAt: string;
 }
 
 export default function NotificationMenu() {
@@ -68,7 +81,7 @@ export default function NotificationMenu() {
 
   const handleDelete = (notificationId: string) => {
     queryClient.setQueryData(["notifications"], (old: Notification[]) =>
-      old.filter((item) => item.notificationId !== notificationId)
+      old.filter((item) => item.notificationId !== notificationId),
     );
   };
   const handleMarkAsUnRead = (notificationId: string) => {
@@ -142,12 +155,12 @@ export default function NotificationMenu() {
                     (data as Notification[])
                       .slice(
                         0,
-                        expand ? data.length : defaultShowNotificationNumber
+                        expand ? data.length : defaultShowNotificationNumber,
                       )
                       .map((item) => (
-                        <React.Fragment key={item.notificationId}>
+                        <Fragment key={item.notificationId}>
                           <Tooltip
-                            title={item.content}
+                            title={`${item.content.AuthorName} has created a new blog`}
                             placement="bottom-start"
                           >
                             <ListItem
@@ -156,16 +169,43 @@ export default function NotificationMenu() {
                                 px: 1,
                               }}
                             >
-                              <Typography
-                                variant="h6"
-                                sx={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {item.content}
-                              </Typography>
+                              <Stack>
+                                <Typography
+                                  variant="h6"
+                                  sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  <Link
+                                    component={RouterLink}
+                                    to={
+                                      "/blogs/author/" + item.content.AuthorSlug
+                                    }
+                                    underline="hover"
+                                  >
+                                    {item.content.AuthorName}
+                                  </Link>{" "}
+                                  has created a new blog
+                                </Typography>
+                                <Typography
+                                  sx={{
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  Title:{" "}
+                                  <Link
+                                    component={RouterLink}
+                                    to={`/blogs/${item.content.UrlSlug}`}
+                                  >
+                                    {item.content.Title}
+                                  </Link>
+                                </Typography>
+                                <Typography>{item.content.Content}</Typography>
+                              </Stack>
                               <Tooltip title="Marked as read">
                                 <IconButton
                                   color="info"
@@ -192,7 +232,7 @@ export default function NotificationMenu() {
                             variant="fullWidth"
                             sx={{ bgcolor: "gray" }}
                           />
-                        </React.Fragment>
+                        </Fragment>
                       ))}
                   <ListItem
                     disablePadding

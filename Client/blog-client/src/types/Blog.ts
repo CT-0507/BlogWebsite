@@ -1,3 +1,13 @@
+export type Block = {
+  type: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
+};
+
+export type EditorContent = {
+  blocks: Block[];
+};
+
 export interface Blog {
   blogID: number;
   author: {
@@ -5,11 +15,13 @@ export interface Blog {
     slug: string;
     displayName: string;
   };
+  thumbnailUrl?: string;
   title: string;
   likeCount: number;
   dislikeCount: number;
   urlSlug: string;
-  content: string;
+  contentText: string;
+  contentJson: EditorContent;
   tags: string[];
   userReaction?: string | null;
   createdAt: string;

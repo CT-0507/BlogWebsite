@@ -29,8 +29,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { searchBlogsSchema, type SearchBlogsFormValues } from "./model/schema";
 import { getTypeValidValue } from "@/utils/mapper";
 import { BLOG_SORT_BY_VALUES, SORT_DIR } from "@/types/types";
-import useQueryBlogs from "@/hooks/useQueryBlogs";
+import { useQueryBlogs } from "@/hooks/useQueryBlogs";
 import RankingList from "./RankingList";
+import LazyImage from "@/components/Image/LazyImage";
+
+import placeholder from "@/assets/160x120.svg";
 
 export default function BlogList() {
   const getInitialForm = (): SearchBlogsFormValues => ({
@@ -40,7 +43,7 @@ export default function BlogList() {
     sortBy: getTypeValidValue(
       searchParams.get("sortBy"),
       BLOG_SORT_BY_VALUES,
-      "created_at"
+      "created_at",
     ),
     sortDir: getTypeValidValue(searchParams.get("sortDir"), SORT_DIR, "asc"),
     limit: Number.isFinite(limitParam) && limitParam > 10 ? limitParam : 15,
@@ -51,7 +54,6 @@ export default function BlogList() {
   const limitParam = Number(searchParams.get("limit"));
   const initialForm = getInitialForm();
   const [searchForm, setSearchForm] = useState(initialForm);
-  console.log(initialForm);
   const {
     control,
     handleSubmit,
@@ -85,7 +87,7 @@ export default function BlogList() {
       sortDir: searchForm.sortDir,
       limit: searchForm.limit,
     },
-    page
+    page,
   );
   const handleRefesh = () => {
     refetch();
@@ -221,7 +223,7 @@ export default function BlogList() {
               {isLoading ? (
                 <CircularProgress />
               ) : (
-                (data!.blogs as Blog[])?.map((blog) => (
+                (data?.blogs as Blog[])?.map((blog) => (
                   <Card key={blog.blogID} sx={{ display: "flex" }}>
                     {/* Thumbnail */}
                     <Link
@@ -229,12 +231,13 @@ export default function BlogList() {
                       to={`/blogs/${blog.urlSlug}`}
                       underline="none"
                     >
-                      <CardMedia
-                        component="img"
-                        sx={{ width: 160 }}
-                        image={`https://placehold.co/160x120`}
-                        alt="thumbnail"
-                      />
+                      <CardMedia>
+                        <LazyImage
+                          sx={{ width: "160px", minWidth: "160px" }}
+                          src={blog.thumbnailUrl ?? placeholder}
+                          alt="thumbnail"
+                        />
+                      </CardMedia>
                     </Link>
 
                     {/* Content */}
@@ -264,7 +267,8 @@ export default function BlogList() {
                         >
                           By{" "}
                           <Link
-                            href={
+                            component={RouterLink}
+                            to={
                               "/blogs/author/" +
                               (blog.author.slug
                                 ? blog.author.slug
@@ -317,7 +321,7 @@ export default function BlogList() {
 
                         {/* Preview */}
                         <Typography variant="body1">
-                          {truncate(blog.content)}
+                          {truncate(blog.contentText)}
                         </Typography>
                       </CardContent>
                     </Box>

@@ -1,5 +1,9 @@
 import Box from "@mui/material/Box";
 import InputLabel from "@mui/material/InputLabel";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Snackbar from "@mui/material/Snackbar";
+import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -12,13 +16,13 @@ import {
 } from "./model/schema";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createAuthorRequest } from "@/api/authorApi";
 import { styled } from "@mui/material/styles";
 import Avatar from "@mui/material/Avatar";
 import { useEffect, useRef, useState } from "react";
-import { Divider, IconButton, Snackbar, Typography } from "@mui/material";
 import slugify from "slugify";
+import { useNavigate } from "react-router-dom";
 
 const VisuallyHiddenInput = styled("input")({
   clip: "rect(0 0 0 0)",
@@ -38,6 +42,8 @@ export default function CreateAuthorForm() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarContent, setSnackbarContent] = useState("");
   const [snackbarType, setSnackbarType] = useState(false);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -61,11 +67,13 @@ export default function CreateAuthorForm() {
   const { mutate, isPending } = useMutation({
     mutationFn: createAuthorRequest,
     retry: false,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log(data);
       setSnackbarOpen(true);
       setSnackbarContent("Successfully created profile");
       setSnackbarType(true);
+      await queryClient.invalidateQueries({ queryKey: ["me", "author"] });
+      navigate("/author/dashboard");
     },
     onError: (error) => {
       console.log(error);
@@ -85,7 +93,7 @@ export default function CreateAuthorForm() {
           lower: true,
           strict: true,
           trim: true,
-        })
+        }),
       );
     }
   }, [slug, setValue]);

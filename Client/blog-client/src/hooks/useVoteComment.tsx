@@ -1,5 +1,6 @@
 import {
   createCommentReaction,
+  type CreateCommentReactionResponse,
   type GetRootCommentsResponse,
 } from "@/api/blogApi";
 import type { BlogComment } from "@/types/Blog";
@@ -7,14 +8,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function useVoteComment(
   isRootcomment: boolean,
-  blogID: string,
-  parentId?: string | null
+  blogID: number,
+  parentId?: string | null,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: createCommentReaction,
-    onSuccess: (data) => {
+    onSuccess: (data: CreateCommentReactionResponse) => {
       if (isRootcomment) {
         queryClient.setQueryData(
           ["comments", blogID],
@@ -45,10 +46,10 @@ export function useVoteComment(
                       likeCount: comment.likeCount + likeDelta,
                       dislikeCount: comment.dislikeCount + dislikeDelta,
                     } as BlogComment)
-                  : comment
+                  : comment,
               ),
             };
-          }
+          },
         );
         return;
       }
@@ -67,7 +68,7 @@ export function useVoteComment(
               DislikeToLike: { delta: [1, -1], reaction: "like" },
             } as const;
 
-            const key = data.transitionType as keyof typeof transitions;
+            const key = data.type as keyof typeof transitions;
 
             const {
               delta: [likeDelta, dislikeDelta],
@@ -80,7 +81,7 @@ export function useVoteComment(
               dislikeCount: comment.dislikeCount + dislikeDelta,
             };
           });
-        }
+        },
       );
     },
     onError: (error) => {

@@ -36,7 +36,7 @@ type UsersUser struct {
 	Username     string
 	Email        pgtype.Text
 	Password     string
-	Nickname     string
+	Nickname     pgtype.Text
 	FirstName    string
 	LastName     string
 	Avatar       pgtype.Text

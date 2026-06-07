@@ -1,3 +1,4 @@
+import type { Author } from "@/types/types";
 import { createContext } from "react";
 
 export type User = {
@@ -13,6 +14,8 @@ type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   authLoading: boolean;
+  author: Author | null;
+  isLoadingAuthor: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

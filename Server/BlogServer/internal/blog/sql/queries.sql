@@ -112,25 +112,6 @@ WHERE
     );
 
 -- name: ListBlogs :many
--- SELECT 
---     b.blog_id,
---     b.author_id,
---     b.title, 
---     b.url_slug,
---     b.content_json,
---     b.content_text,
---     b.like_count,
---     b.dislike_count, 
---     b.status,
---     b.created_at, 
---     b.created_by, 
---     b.updated_at, 
---     b.updated_by,
---     i.slug,
---     i.display_name
--- FROM blogs.blogs b
--- JOIN blogs.idx_user_author_profile i ON i.author_id = b.author_id
--- WHERE b.deleted_at IS NULL;
 WITH params AS (
     SELECT
         websearch_to_tsquery('english', COALESCE(sqlc.narg('title')::TEXT, '')) AS title_q,
@@ -180,6 +161,7 @@ WHERE
         (sqlc.narg('title')::TEXT IS NULL OR b.title_vector @@ p.title_q)
         AND (sqlc.narg('content')::TEXT IS NULL OR b.content_vector @@ p.content_q)
         AND (sqlc.narg('author_display_name')::TEXT IS NULL OR a.display_name ILIKE '%' || sqlc.narg('author_display_name')::TEXT || '%')
+        AND (sqlc.narg('author_id')::TEXT IS NULL OR a.author_id = sqlc.narg('author_id')::TEXT)
     )
 
 ORDER BY
@@ -219,12 +201,29 @@ INSERT INTO blogs.blogs(
 RETURNING *;
 
 -- name: UpdateBlog :one
-UPDATE blogs.blogs
-    SET title = $1,
-    content_json = $2,
-    content_text = $3
-WHERE blog_id = $4
-RETURNING blog_id;
+WITH old_row AS (
+    SELECT *
+    FROM blogs.blogs o
+    WHERE o.url_slug = $1
+),
+updated AS (
+    UPDATE blogs.blogs
+    SET
+        title = $2,
+        content_json = $3,
+        content_text = $4,
+        thumbnail_url = $5,
+        updated_by = $6,
+        updated_at = NOW()
+    WHERE url_slug = $1
+    RETURNING *
+)
+SELECT
+    to_jsonb(old_row)  AS before,
+    to_jsonb(updated)  AS after
+FROM old_row
+CROSS JOIN updated;
+
 
 -- name: HardDeleteBlog :one
 DELETE FROM blogs.blogs
@@ -751,16 +750,22 @@ WHERE rank_all_time <= 20
 
 -- name: UpsertTags :exec
 WITH input_tags AS (
-  SELECT DISTINCT LOWER(TRIM(UNNEST(sqlc.arg('name')::text[]))) AS name
-),
-inserted AS (
-  INSERT INTO blogs.tags (name)
-  SELECT name FROM input_tags
-  ON CONFLICT (name) DO NOTHING
+    SELECT DISTINCT LOWER(TRIM(UNNEST(sqlc.arg('name')::text[]))) AS name
 ),
 all_tags AS (
-  SELECT id, name FROM blogs.tags
-  WHERE name IN (SELECT name FROM input_tags)
+    INSERT INTO blogs.tags (name)
+    SELECT name FROM input_tags
+    ON CONFLICT (name)
+    DO UPDATE SET name = EXCLUDED.name
+    RETURNING id, name
+),
+deleted_tags AS (
+    DELETE FROM blogs.blog_tags bt
+    WHERE bt.blog_id = $1
+        AND bt.tag_id NOT IN (
+            SELECT id
+            FROM all_tags
+        )
 )
 INSERT INTO blogs.blog_tags (blog_id, tag_id)
 SELECT $1, id FROM all_tags
@@ -845,3 +850,107 @@ UPDATE blogs.blogs
 SET status = $1,
     updated_at = NOW()
 WHERE blog_id = $2;
+
+-- name: GetTodayViewAcrossAllContentByAuthorID :one
+SELECT
+    COALESCE(SUM(CASE WHEN m.date = CURRENT_DATE THEN m.views END), 0)::BIGINT AS today_views,
+    COALESCE(SUM(CASE WHEN m.date = CURRENT_DATE - INTERVAL '1 day' THEN m.views END), 0)::BIGINT  AS yesterday_views,
+    COALESCE(SUM(
+        CASE
+            WHEN m.date >= date_trunc('week', CURRENT_DATE)::date
+            AND m.date <= CURRENT_DATE
+            THEN m.views
+        END
+    ), 0)::BIGINT  AS this_week_views,
+
+    COALESCE(SUM(
+        CASE
+            WHEN m.date >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND m.date < date_trunc('week', CURRENT_DATE)::date
+            THEN m.views
+        END
+    ), 0)::BIGINT  AS last_week_views
+FROM blogs.blogs b
+LEFT JOIN blogs.blog_metrics m
+    ON b.blog_id = m.blog_id
+WHERE b.author_id = $1
+    AND b.status = 'active'
+    AND (
+        sqlc.arg('isAdmin')::BOOLEAN = TRUE
+        OR EXISTS (
+            SELECT 1
+            FROM blogs.idx_user_author_profile au
+            WHERE au.author_id = b.author_id
+                AND au.user_id = $2
+        )
+    );
+
+-- name: GetReactionCountByAuthorID :one
+SELECT
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE
+    ), 0)::BIGINT  AS today_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE
+    ), 0)::BIGINT  AS today_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE - 1
+    ), 0)::BIGINT  AS yesterday_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at::date = CURRENT_DATE - 1
+    ), 0)::BIGINT  AS yesterday_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at >= date_trunc('week', CURRENT_DATE)::date
+            AND r.created_at < CURRENT_DATE
+    ), 0)::BIGINT  AS this_week_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at >= date_trunc('week', CURRENT_DATE)::date
+            AND r.created_at < CURRENT_DATE
+    ), 0)::BIGINT  AS this_week_dislikes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'like'
+            AND r.status = 'active'
+            AND r.created_at >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND r.created_at < date_trunc('week', CURRENT_DATE)::date
+    ), 0)::BIGINT  AS last_week_likes,
+
+    COALESCE(COUNT(*) FILTER (
+        WHERE r.type = 'dislike'
+            AND r.status = 'active'
+            AND r.created_at >= (date_trunc('week', CURRENT_DATE) - INTERVAL '7 day')::date
+            AND r.created_at < date_trunc('week', CURRENT_DATE)::date
+    ), 0)::BIGINT  AS last_week_dislikes
+
+FROM blogs.blogs b
+LEFT JOIN blogs.blog_reactions r
+    ON b.blog_id = r.blog_id
+
+WHERE b.author_id = $1
+    AND b.status = 'active'
+    AND (
+        sqlc.arg('isAdmin')::BOOLEAN  = TRUE
+        OR EXISTS (
+            SELECT 1
+            FROM blogs.idx_user_author_profile au
+            WHERE au.author_id = b.author_id
+                AND au.user_id = $2
+        )
+    );

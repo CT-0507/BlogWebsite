@@ -188,7 +188,9 @@ func (o *Orchestrator) HandleFailure(ctx context.Context, e *messaging.OutboxEve
 func (o *Orchestrator) StartCompensation(ctx context.Context, instance *domain.Saga) error {
 	return o.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
 
-		if instance.CurrentStep == 0 {
+		compensationEventName := o.registry.GetStepByIndex(instance.Type, instance.CurrentStep).CompensateType
+
+		if instance.CurrentStep == 0 || compensationEventName == "" {
 			// nothing to compensate
 			err := o.repo.UpdateSagaStatus(ctx, instance.ID, domain.SagaFailed)
 			if err != nil {
@@ -224,8 +226,6 @@ func (o *Orchestrator) StartCompensation(ctx context.Context, instance *domain.S
 		if err != nil {
 			return err
 		}
-
-		compensationEventName := o.registry.GetStepByIndex(instance.Type, instance.CurrentStep).CompensateType
 
 		// 3. enqueue compensation event
 		event := messaging.OutboxEvent{

@@ -20,10 +20,11 @@ import BigScreenMenu from "./BigScreenMenu";
 import GoToTopButton from "@/components/Goto/Goto";
 import { useQueryClient } from "@tanstack/react-query";
 import { getFollowedAuthorsRequest } from "@/api/authorApi";
+import CircularProgress from "@mui/material/CircularProgress";
 
 export default function BasicLayout() {
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoadingAuthor, author, user } = useAuth();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] =
@@ -39,8 +40,8 @@ export default function BasicLayout() {
   useAuthSSE(
     isAuthenticated ? tokenStore.get() : null,
     [],
-    ["blog_created_admin"],
-    setSnackbarOpen
+    [`user:${user?.userID}`],
+    setSnackbarOpen,
   );
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function BasicLayout() {
         queryFn: () => getFollowedAuthorsRequest(),
         staleTime: 1000 * 60 * 5,
       })
-      .then((data) => console.log(data));
+      .then();
   }, [isAuthenticated, queryClient]);
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -128,38 +129,61 @@ export default function BasicLayout() {
               {isAuthenticated ? (
                 <>
                   <NotificationMenu />
-                  <Button
-                    component={Link}
-                    to="/blogs/publish"
-                    size="large"
-                    aria-label="account of current user"
-                    aria-haspopup="true"
-                    color="info"
-                    title="Publish new blog"
-                    variant="contained"
-                    sx={{
-                      mx: 1,
-                    }}
-                  >
-                    <BorderColor />
-                    <Typography ml={2}>Publish new blog</Typography>
-                  </Button>
-                  <Button
-                    component={Link}
-                    to="/authors/new"
-                    size="large"
-                    aria-label="account of current user"
-                    aria-haspopup="true"
-                    color="info"
-                    title="Become an author"
-                    variant="contained"
-                    sx={{
-                      mx: 1,
-                    }}
-                  >
-                    <BorderColor />
-                    <Typography ml={2}>Become an author</Typography>
-                  </Button>
+                  {isLoadingAuthor ? (
+                    <CircularProgress />
+                  ) : author ? (
+                    <>
+                      <Button
+                        component={Link}
+                        to="/blogs/publish"
+                        size="large"
+                        aria-label="account of current user"
+                        aria-haspopup="true"
+                        color="info"
+                        title="Publish new blog"
+                        variant="contained"
+                        sx={{
+                          mx: 1,
+                        }}
+                      >
+                        <BorderColor />
+                        <Typography ml={2}>Publish new blog</Typography>
+                      </Button>
+                      <Button
+                        component={Link}
+                        to="/author/dashboard"
+                        size="large"
+                        aria-label="author-dashboard"
+                        aria-haspopup="true"
+                        color="info"
+                        title="Go to author dashboard"
+                        variant="contained"
+                        sx={{
+                          mx: 1,
+                        }}
+                      >
+                        <BorderColor />
+                        <Typography ml={2}>Author dashboard</Typography>
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      component={Link}
+                      to="/authors/new"
+                      size="large"
+                      aria-label="account of current user"
+                      aria-haspopup="true"
+                      color="info"
+                      title="Become an author"
+                      variant="contained"
+                      sx={{
+                        mx: 1,
+                      }}
+                    >
+                      <BorderColor />
+                      <Typography ml={2}>Become an author</Typography>
+                    </Button>
+                  )}
                   <IconButton
                     size="large"
                     edge="end"
@@ -214,8 +238,9 @@ export default function BasicLayout() {
         component="main"
         sx={{
           flex: 1, // pushes footer down
-          py: 1,
           justifyContent: "center",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <Outlet />

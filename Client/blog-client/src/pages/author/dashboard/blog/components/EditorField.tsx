@@ -8,7 +8,7 @@ import {
 } from "react";
 import { type OutputData } from "@editorjs/editorjs";
 import Box from "@mui/material/Box";
-import EditorJS from "@editorjs/editorjs";
+import type EditorJS from "@editorjs/editorjs";
 import { uploadByFile } from "@/api/blogApi";
 import debounce from "lodash.debounce";
 import Button from "@mui/material/Button";
@@ -17,6 +17,8 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
+import "./editor.css";
+import { RECOVERY_KEY } from "./BlogForm";
 
 export interface EditorSavedData {
   content: OutputData | null;
@@ -36,7 +38,10 @@ interface RecoverDialogProps {
   handleRecover: () => Promise<void>;
   handleDiscard: () => void;
 }
-function RecoverDialog({ handleRecover, handleDiscard }: RecoverDialogProps) {
+export function RecoverDialog({
+  handleRecover,
+  handleDiscard,
+}: RecoverDialogProps) {
   const [open, setOpen] = useState(true);
   const [openDiscardConfirm, setOpenDiscardConfirm] = useState(false);
   const handleDiscardClick = () => {
@@ -53,6 +58,9 @@ function RecoverDialog({ handleRecover, handleDiscard }: RecoverDialogProps) {
     handleDiscard();
     setOpenDiscardConfirm(false);
     setOpen(false);
+  };
+  const handleOpenConfirmDialog = () => {
+    setOpenDiscardConfirm(true);
   };
   return (
     <>
@@ -71,7 +79,7 @@ function RecoverDialog({ handleRecover, handleDiscard }: RecoverDialogProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleRecoverClick} color="error">
+          <Button onClick={handleOpenConfirmDialog} color="error">
             Discard
           </Button>
           <Button onClick={handleRecoverClick} autoFocus>
@@ -103,11 +111,9 @@ function RecoverDialog({ handleRecover, handleDiscard }: RecoverDialogProps) {
   );
 }
 
-const RECOVERY_KEY = "blog-recovery";
-
 const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
   // Recovery
-  let recovery = localStorage.getItem(RECOVERY_KEY);
+  // let recovery = localStorage.getItem(RECOVERY_KEY);
 
   const holderRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<EditorJS | null>(null);
@@ -142,20 +148,20 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
       JSON.stringify({
         content,
         updatedAt: Date.now(),
-      })
+      }),
     );
   }, 2000);
   useEffect(() => {
     let editor: EditorJS;
     if (!holderRef.current) return;
     const init = async () => {
-      //   const EditorJSB = (await import("@editorjs/editorjs")).default;
+      const EditorJSB = (await import("@editorjs/editorjs")).default;
       const ImageTool = (await import("@editorjs/image")).default;
-      const EditorjsList = (await import("@editorjs/list")).default;
+      const List = (await import("@editorjs/list")).default;
       const Header = (await import("@editorjs/header")).default;
       const LinkTool = (await import("@editorjs/link")).default;
       if (!editorRef.current) {
-        editor = new EditorJS({
+        editor = new EditorJSB({
           holder: holderRef.current!,
           async onChange() {
             saveRecovery();
@@ -164,7 +170,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
           data: initialData ?? { blocks: [] },
           tools: {
             list: {
-              class: EditorjsList,
+              class: List,
               inlineToolbar: true,
               config: {
                 defaultStyle: "unordered",
@@ -173,13 +179,14 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
             header: {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               class: Header as any,
-              shortcut: "CMD+SHIFT+H",
               inlineToolbar: true,
             },
             image: {
               class: ImageTool,
               config: {
-                uploader: uploadByFile,
+                uploader: {
+                  uploadByFile: uploadByFile,
+                },
               },
             },
             link: {
@@ -203,32 +210,35 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ initialData }, ref) => {
     };
   }, [initialData, editorRef, saveRecovery]);
 
-  const handleRecoverContent = async () => {
-    if (editorRef && editorRef.current && recovery) {
-      const parsed = JSON.parse(recovery);
-      editorRef.current.render(parsed);
-    }
-  };
+  // const handleRecoverContent = async () => {
+  //   if (editorRef && editorRef.current && recovery) {
+  //     const parsed = JSON.parse(recovery);
+  //     editorRef.current.render(parsed);
+  //   }
+  // };
 
-  const handleDiscard = async () => {
-    recovery = null;
-    localStorage.removeItem(RECOVERY_KEY);
-  };
+  // const handleDiscard = async () => {
+  //   recovery = null;
+  //   localStorage.removeItem(RECOVERY_KEY);
+  // };
 
   return (
-    <Box>
+    <Box sx={{ p: 0, m: 0, width: "100%" }}>
       {/* <Box>
         <Button onClick={handleRecoverContent} disabled={!recovery}>
           Recovery last content
         </Button>
       </Box> */}
-      {!!recovery && (
+      {/* {!!recovery && (
         <RecoverDialog
           handleDiscard={handleDiscard}
           handleRecover={handleRecoverContent}
         />
-      )}
-      <Box sx={{ border: "1px solid black" }} ref={holderRef} />
+      )} */}
+      <Box
+        sx={{ border: "2px solid gray", borderRadius: 2, p: 0 }}
+        ref={holderRef}
+      />
     </Box>
   );
 });

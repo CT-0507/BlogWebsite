@@ -1,0 +1,21 @@
+root = "."
+
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/server ./cmd"
+bin = "./tmp/server"
+
+include_ext = ["go"]
+
+exclude_dir = [
+  "tmp",
+  "vendor",
+  ".git"
+]
+
+delay = 1000
+stop_on_error = true
+
+[log]
+time = true

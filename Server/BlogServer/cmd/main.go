@@ -10,6 +10,7 @@ import (
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/cache"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/dashboard"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/event_bus"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/notification"
@@ -24,7 +25,6 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 // Application entry point
@@ -33,11 +33,12 @@ func main() {
 	const PORT = ":8080"
 
 	// Load env
-	err := godotenv.Load("../.env")
-	if err != nil {
-		log.Println("Error loading .env file")
-	}
-	dsn := os.Getenv("DATABASE_DSN")
+	// err := godotenv.Load("../.env")
+	// if err != nil {
+	// 	log.Println("Error loading .env file")
+	// }
+	// dsn := os.Getenv("DATABASE_DSN")
+	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		log.Fatal("DATABASE_DSN is not set")
 	}
@@ -48,10 +49,14 @@ func main() {
 	if dsn == "" {
 		path = "." + RELATIVE_PATH
 	}
-	err = os.MkdirAll(path, os.ModePerm)
+	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Load Redis
+	redisClient := cache.NewRedisClient()
+	defer redisClient.Close()
 
 	// Create connection pool
 	pool, err := database.NewPostgresPool(dsn)
@@ -61,7 +66,7 @@ func main() {
 	defer pool.Close()
 
 	// Storage
-	storage := storage.New(path, "")
+	storage := storage.New(path, "http://localhost")
 
 	//
 	txManager := database.NewTxManager(pool)
@@ -82,7 +87,7 @@ func main() {
 	authorModule := authors.NewAuthorsModule(pool, txManager, outboxRepo, storage)
 
 	// Blog CA
-	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo, storage)
+	blogModule := blog.NewBlogModule(pool, txManager, outboxRepo, storage, redisClient)
 
 	// DashBoard
 	dashboardHanlder := dashboard.NewDashboardHandler()
@@ -128,7 +133,7 @@ func main() {
 		},
 		AllowOrigins:     origins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Idempotency-Key"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
@@ -136,7 +141,7 @@ func main() {
 	router.Use(gin.Logger())
 
 	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
-	routes.SetupProtectedRoutes(router, pool, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
+	routes.SetupProtectedRoutes(router, pool, redisClient, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
 
 	saga := saga.NewSagaModule(pool, txManager, outboxRepo)
 
@@ -238,14 +243,13 @@ func main() {
 
 	// bus.Subscribe("blog.created", event_bus.HandlerFunc(authorModule.EventHandlers.OnBlogCreated))
 	bus.Subscribe("notification.created", notificationService.PublishNotification)
+	bus.Subscribe("notification.subscription.created", notificationService.PublishSubscriptionNotifications)
 
 	worker := outbox.NewOutboxWorker(txManager, bus, outboxRepo)
 
 	go worker.Start(context.Background())
 
 	go blogModule.Woker.StartUpdateRankingTable(context.Background())
-	// go blogModule.Woker.StartResetBlogDailyViewCount(context.Background())
-	// go blogModule.Woker.StartResetBlogWeeklyViewCount(context.Background())
 
 	if err := router.Run(PORT); err != nil {
 		fmt.Println("Failed to start server", err)

@@ -33,6 +33,10 @@ func (s *GetBlogUseCases) GetBlogByUrlSlug(ctx context.Context, slug string, use
 		return nil, err
 	}
 
+	if len(result.Tags) == 0 {
+		result.Tags = []string{}
+	}
+
 	go func(id int64) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
