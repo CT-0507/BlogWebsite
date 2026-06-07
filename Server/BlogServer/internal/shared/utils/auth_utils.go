@@ -2,14 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"slices"
 )
 
 func CanSubscribe(userID string, roles []string, topic string) bool {
-
-	log.Println("userID: ", userID)
-	log.Println("topic: ", topic)
 
 	switch topic {
 
