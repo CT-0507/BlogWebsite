@@ -30,6 +30,10 @@ const EditPage = lazy(
 const ViewBlogDashboardPage = lazy(
   () => import("@/pages/author/dashboard/blog/view/ViewBlog"),
 );
+const PortfolioPage = lazy(
+  () => import("@/pages/about/portfolio/PortfolioPage"),
+);
+const AboutPage = lazy(() => import("@/pages/about/AboutPage"));
 
 export default function AppRoutes() {
   return (
@@ -102,6 +106,13 @@ export default function AppRoutes() {
             <Route path="author">
               <Route path=":slug" element={<AuthorBlog />} />
             </Route>
+          </Route>
+          <Route path="about">
+            <Route index element={<SuspenseWrapper child={<AboutPage />} />} />
+            <Route
+              path="creator"
+              element={<SuspenseWrapper child={<PortfolioPage />} />}
+            />
           </Route>
           {/* Fallback */}
           <Route path="/401" element={<Unauthorized />} />

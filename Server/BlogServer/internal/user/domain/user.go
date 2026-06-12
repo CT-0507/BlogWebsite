@@ -42,6 +42,12 @@ type User struct {
 	model.Audit
 }
 
+type ContactForm struct {
+	ContactID int64  `json:"contact_id"`
+	Content   string `json:"content"`
+	Email     string `json:"email"`
+}
+
 type ErrUsernameAlreadyTaken struct{}
 
 func (e *ErrUsernameAlreadyTaken) Error() string {

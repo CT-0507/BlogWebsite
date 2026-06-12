@@ -743,7 +743,7 @@ func (h *BlogHandler) getCommentByID(c *gin.Context) {
 	c.JSON(http.StatusOK, comment)
 }
 
-func (h *BlogHandler) HideCommentByID(c *gin.Context) {
+func (h *BlogHandler) hideCommentByID(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
@@ -780,7 +780,7 @@ func (h *BlogHandler) HideCommentByID(c *gin.Context) {
 	})
 }
 
-func (h *BlogHandler) DeleteCommentByID(c *gin.Context) {
+func (h *BlogHandler) deleteCommentByID(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
@@ -817,7 +817,7 @@ func (h *BlogHandler) DeleteCommentByID(c *gin.Context) {
 	})
 }
 
-func (h *BlogHandler) UpdateCommentContentByID(c *gin.Context) {
+func (h *BlogHandler) updateCommentContentByID(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
@@ -926,7 +926,7 @@ func (h *BlogHandler) CreateBlogReaction(c *gin.Context) {
 	})
 }
 
-func (h *BlogHandler) CreateCommentReaction(c *gin.Context) {
+func (h *BlogHandler) createCommentReaction(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()
@@ -995,7 +995,7 @@ func (h *BlogHandler) CreateCommentReaction(c *gin.Context) {
 	})
 }
 
-func (h *BlogHandler) GetRankingBlogsByType(c *gin.Context) {
+func (h *BlogHandler) getRankingBlogsByType(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
@@ -1233,7 +1233,7 @@ func (h *BlogHandler) uploadImage(c *gin.Context) {
 	})
 }
 
-func (h *BlogHandler) CreateBlogReport(c *gin.Context) {
+func (h *BlogHandler) createBlogReport(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 1*time.Second)
 	defer cancel()

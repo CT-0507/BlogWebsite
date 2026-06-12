@@ -12,6 +12,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cleanUpOutbox = `-- name: CleanUpOutbox :exec
+DELETE FROM outbox.outbox_events
+WHERE (processed_at IS NOT NULL AND processed_at < NOW() - INTERVAL '2 week')
+`
+
+func (q *Queries) CleanUpOutbox(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, cleanUpOutbox)
+	return err
+}
+
 const getUnprocessedEvent = `-- name: GetUnprocessedEvent :many
 SELECT id, saga_id, event_type, context, payload, error, retry_count, created_at, processed_at
 FROM outbox.outbox_events

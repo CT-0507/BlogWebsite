@@ -54,6 +54,15 @@ type AuthorsAuthorProfile struct {
 	UpdatedAt  pgtype.Timestamptz
 }
 
+type UsersContact struct {
+	ContactID int64
+	UserID    uuid.UUID
+	Email     string
+	Content   string
+	IsRead    bool
+	CreatedAt pgtype.Timestamptz
+}
+
 type UsersNotification struct {
 	NotificationID int64
 	UserID         *uuid.UUID

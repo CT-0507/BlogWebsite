@@ -20,3 +20,7 @@ FOR UPDATE SKIP LOCKED;
 UPDATE outbox.outbox_events
 SET retry_count = retry_count + 1
 WHERE id = ANY($1::UUID[]);
+
+-- name: CleanUpOutbox :exec
+DELETE FROM outbox.outbox_events
+WHERE (processed_at IS NOT NULL AND processed_at < NOW() - INTERVAL '2 week');

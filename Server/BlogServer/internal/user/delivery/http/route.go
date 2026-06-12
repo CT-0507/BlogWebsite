@@ -3,25 +3,34 @@ package http
 import "github.com/gin-gonic/gin"
 
 func (h *UserHandler) RegisterUnprotectedRoutes(r *gin.Engine) {
-	r.POST("/register", h.RegisterUser)
-	r.POST("/login", h.LoginUser)
-	r.POST("/refresh", h.RefreshTokenHandler)
-	r.GET("/get-hashed-string", h.GetHashedString)
+
+	api := r.Group("/api")
+	v1 := api.Group("/v1")
+
+	v1.POST("/register", h.registerUser)
+	v1.POST("/login", h.loginUser)
+	v1.POST("/refresh", h.refreshToken)
+	v1.GET("/get-hashed-string", h.getHashedString)
 	users := r.Group("/users")
-	{
-		users.GET("/:user_id", h.getUserById)
-	}
+	users.GET("/:user_id", h.getUserById)
+
+	v1.POST("/contact/new", h.createContactForm)
 }
 
 func (h *UserHandler) RegisterProtectedRoutes(r *gin.Engine) {
-	r.GET("/me", h.getUserById)
-	r.POST("/logout", h.logout)
-	user := r.Group("/user")
-	{
-		user.GET("/notifications", h.GetNotifications)
-		user.POST("/change-email-code", h.GetChangeEmailCode)
-		user.POST("/change-email", h.UpdateUserEmail)
-		user.POST("/change-basic-info", h.UpdateUserBasicInfo)
-		user.POST("/change-password", h.ChangePassword)
-	}
+
+	api := r.Group("/api")
+	v1 := api.Group("/v1")
+
+	v1.DELETE("/contact/:id", h.deleteContactForm)
+
+	v1.GET("/me", h.getUserById)
+	v1.POST("/logout", h.logout)
+
+	user := v1.Group("/user")
+	user.GET("/notifications", h.getNotifications)
+	user.POST("/change-email-code", h.getChangeEmailCode)
+	user.POST("/change-email", h.updateUserEmail)
+	user.POST("/change-basic-info", h.updateUserBasicInfo)
+	user.POST("/change-password", h.changePassword)
 }

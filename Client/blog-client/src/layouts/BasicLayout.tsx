@@ -7,7 +7,7 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import MoreIcon from "@mui/icons-material/MoreVert";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link as RouterLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import BorderColor from "@mui/icons-material/BorderColor";
 import Button from "@mui/material/Button";
@@ -21,6 +21,9 @@ import GoToTopButton from "@/components/Goto/Goto";
 import { useQueryClient } from "@tanstack/react-query";
 import { getFollowedAuthorsRequest } from "@/api/authorApi";
 import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
+import Link from "@mui/material/Link";
+import Logo from "@/assets/blog_logo.svg";
 
 export default function BasicLayout() {
   const queryClient = useQueryClient();
@@ -74,7 +77,7 @@ export default function BasicLayout() {
   };
 
   const handleLogoClick = () => {
-    navigate("/dashboard");
+    navigate("/");
   };
 
   const handleCloseSnackBar = () => {
@@ -116,13 +119,13 @@ export default function BasicLayout() {
             {/* Logo placeholder */}
             <Box
               component="img"
-              src="/logo.png"
+              src={Logo}
               alt="Logo"
               sx={{ height: 40, mr: 2, cursor: "pointer" }}
               onClick={handleLogoClick}
             />
             <Typography variant="h6" component="div">
-              My App Name
+              KT BLOG
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Box sx={{ display: { xs: "none", md: "flex" } }}>
@@ -134,7 +137,7 @@ export default function BasicLayout() {
                   ) : author ? (
                     <>
                       <Button
-                        component={Link}
+                        component={RouterLink}
                         to="/blogs/publish"
                         size="large"
                         aria-label="account of current user"
@@ -150,7 +153,7 @@ export default function BasicLayout() {
                         <Typography ml={2}>Publish new blog</Typography>
                       </Button>
                       <Button
-                        component={Link}
+                        component={RouterLink}
                         to="/author/dashboard"
                         size="large"
                         aria-label="author-dashboard"
@@ -168,7 +171,7 @@ export default function BasicLayout() {
                     </>
                   ) : (
                     <Button
-                      component={Link}
+                      component={RouterLink}
                       to="/authors/new"
                       size="large"
                       aria-label="account of current user"
@@ -198,7 +201,7 @@ export default function BasicLayout() {
                 </>
               ) : (
                 <>
-                  <Button component={Link} to="/account" color="info">
+                  <Button component={RouterLink} to="/account" color="info">
                     Account
                   </Button>
                 </>
@@ -258,8 +261,19 @@ export default function BasicLayout() {
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          © {new Date().getFullYear()} My App. All rights reserved.
+          © {new Date().getFullYear()} KTBLOG. All rights reserved.
         </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Created by Cuong Tran
+        </Typography>
+        <Stack spacing={2} direction="row" justifyContent="center">
+          <Link component={RouterLink} to="/about" underline="hover">
+            About this website
+          </Link>
+          <Link component={RouterLink} to="/about/creator" underline="hover">
+            About the creator
+          </Link>
+        </Stack>
       </Box>
       <GoToTopButton />
     </Box>

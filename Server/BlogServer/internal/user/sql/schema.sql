@@ -48,4 +48,14 @@ CREATE TABLE users.notifications (
     deleted_by UUID REFERENCES users.users(user_id) ON DELETE CASCADE
 );
 
+CREATE TABLE users.contacts (
+    contact_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID REFERENCES users.users(user_id) NOT NULL,
+    email VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX ON users.users (user_id);

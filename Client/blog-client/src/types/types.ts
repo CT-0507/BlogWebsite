@@ -84,3 +84,9 @@ export type Notification =
   | CommentNotification
   | FollowNotification
   | LikeNotification;
+
+export interface Contact {
+  contactID: string;
+  email: string;
+  content: string;
+}

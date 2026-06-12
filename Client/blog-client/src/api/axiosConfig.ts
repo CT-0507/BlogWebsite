@@ -2,6 +2,8 @@ import axios from "axios";
 import { tokenStore } from "./store/tokenStore";
 import { isLocalMode } from ".";
 
+export const API_VERSION_V1 = "/api/v1";
+
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const api = axios.create({
@@ -85,7 +87,7 @@ axiosAuth.interceptors.response.use(
 
       return new Promise((resolve, reject) => {
         axiosAuth
-          .post("/refresh")
+          .post(`${API_VERSION_V1}/refresh`)
           .then((data) => {
             processQueue(null);
             tokenStore.set(data.data.accessToken);
