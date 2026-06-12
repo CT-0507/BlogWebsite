@@ -22,8 +22,9 @@ func New(pool *pgxpool.Pool, txManager database.TxManager, outboxRepo outbox.Out
 	authUsecases := application.NewAuthUseCases(txManager, repo, outboxRepo)
 	profileUsecases := application.NewProfileUseCases(txManager, repo, outboxRepo)
 	notificationUsecases := application.NewNotificationUseCases(txManager, repo, outboxRepo)
+	contactUsecases := application.NewContactUseCases(txManager, repo)
 
-	handler := http.New(authUsecases, profileUsecases, notificationUsecases)
+	handler := http.New(authUsecases, profileUsecases, notificationUsecases, contactUsecases)
 
 	eventHandler := event.New(txManager, repo, outboxRepo)
 

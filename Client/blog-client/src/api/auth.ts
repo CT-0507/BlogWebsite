@@ -2,20 +2,20 @@ import type {
   SignupFormValues,
   LoginFormValues,
 } from "@/pages/auth/model/schema";
-import { api, axiosAuth } from "./axiosConfig";
+import { api, API_VERSION_V1, axiosAuth } from "./axiosConfig";
 import { isLocalMode } from ".";
 import { loginResponse, me } from "./mockApi";
 
 export async function loginRequest(formData: LoginFormValues) {
   if (isLocalMode) return loginResponse;
-  const { data } = await api.post("/login", formData);
+  const { data } = await api.post(`${API_VERSION_V1}/login`, formData);
 
   return data;
 }
 
 export async function signupRequest(formData: SignupFormValues) {
   if (isLocalMode) return {};
-  const { data } = await api.post("/register", formData);
+  const { data } = await api.post(`${API_VERSION_V1}/register`, formData);
 
   return data;
 }
@@ -26,11 +26,11 @@ export async function logoutRequest() {
       "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     return { message: "Successfully logout" };
   }
-  await axiosAuth.post("/logout");
+  await axiosAuth.post(`${API_VERSION_V1}/logout`);
 }
 
 export async function fetchMe() {
   if (isLocalMode) return me;
-  const { data } = await axiosAuth.get("/me");
+  const { data } = await axiosAuth.get(`${API_VERSION_V1}/me`);
   return data || null; // user
 }

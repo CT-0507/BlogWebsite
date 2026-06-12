@@ -175,6 +175,7 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
     handleSubmit,
     control,
     setValue,
+    reset,
     formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<PublishBlogFormValues>({
     resolver: zodResolver(publishBlogSchema),
@@ -213,11 +214,9 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
     retry: false,
     onSuccess: (data) => {
       console.log(data);
-      queryClient.setQueryData(
-        ["author_blogs", data.author.slug],
-        (old: Blog[]) => [...old, data],
-      );
-      localStorage.remove(RECOVERY_KEY);
+      reset();
+      queryClient.invalidateQueries({ queryKey: ["blogs"] });
+      localStorage.removeItem(RECOVERY_KEY);
       navigate("/author/my-blogs");
     },
     onError: (error) => {
@@ -294,9 +293,6 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
 
       console.log(saveData);
       mutate(saveData, {
-        onSuccess: () => {
-          navigate("/author/my-blogs");
-        },
         onError: (error) => {
           keyRef.current = crypto.randomUUID();
           if (error.message.includes("500")) {
@@ -313,7 +309,7 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
     if (isDirty) {
       setOpen(true);
     } else {
-      navigate("/dashboard");
+      navigate("/author/dashboard");
     }
   };
 

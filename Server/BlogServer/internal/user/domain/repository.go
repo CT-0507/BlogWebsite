@@ -21,4 +21,6 @@ type UserRepository interface {
 	UpdateNotificationByID(c context.Context, notificationID int64, status bool, updatedBy *uuid.UUID) error
 	MarkUserAsDeleted(c context.Context, userID uuid.UUID, updatedBy uuid.UUID) error
 	RestoreUserByID(c context.Context, userID uuid.UUID, updatedBy uuid.UUID) error
+	CreateContactForm(c context.Context, contactForm *ContactForm) (*ContactForm, error)
+	DeleteContactForm(c context.Context, contactID int64) (int64, error)
 }

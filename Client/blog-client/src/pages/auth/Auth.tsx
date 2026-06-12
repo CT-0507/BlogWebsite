@@ -65,7 +65,7 @@ export default function Login() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = location.state?.from?.pathname || "/";
 
   const action = useMemo(() => {
     const query = searchParams.get("action");

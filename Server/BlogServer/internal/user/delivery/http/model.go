@@ -51,3 +51,8 @@ type UpdateNotificationStatusRequest struct {
 	NotId  int64 `json:"notificationID"`
 	Status bool  `json:"status"`
 }
+
+type CreateContactForm struct {
+	Content string `json:"content" validate:"required,max=2000"`
+	Email   string `json:"email" validate:"required,email,max=50"`
+}

@@ -78,3 +78,10 @@ func (r *OutboxRepositoryImpl) GetUnprocessedEvent(ctx context.Context) ([]messa
 
 	return events, nil
 }
+
+func (r *OutboxRepositoryImpl) CleanUpProcessedEventAfter2Weeks(ctx context.Context) error {
+	db := utils.GetExecutor(ctx, r.pool)
+	q := outboxdb.New(db)
+
+	return q.CleanUpOutbox(ctx)
+}

@@ -101,9 +101,10 @@ export default function BlogList() {
     <Box>
       {/* Hero */}
       <Box sx={{ py: 8, background: "#f5f5f5" }}>
-        <Container>
+        {/* Banner placeholder */}
+        {/* <Container>
           <Box sx={{ height: 120, background: "#ddd", borderRadius: 2 }} />
-        </Container>
+        </Container> */}
       </Box>
 
       {/* Main Layout */}
@@ -116,11 +117,12 @@ export default function BlogList() {
             sx={{ display: { xs: "none", md: "block" } }}
             order={{ xs: 4, md: 1 }}
           >
-            <Stack spacing={1}>
+            {/* Banner placeholder */}
+            {/* <Stack spacing={1}>
               <Box sx={{ height: 40, background: "#eee" }} />
               <Box sx={{ height: 40, background: "#eee" }} />
               <Box sx={{ height: 40, background: "#eee" }} />
-            </Stack>
+            </Stack> */}
           </Grid>
 
           {/* Center */}
@@ -351,9 +353,6 @@ export default function BlogList() {
           </Grid>
         </Grid>
       </Container>
-
-      {/* Footer */}
-      <Box sx={{ py: 4, background: "#111" }} />
     </Box>
   );
 }

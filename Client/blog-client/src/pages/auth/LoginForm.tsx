@@ -22,7 +22,7 @@ import { tokenStore } from "@/api/store/tokenStore";
 export default function LoginForm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = location.state?.from?.pathname || "";
   const queryClient = useQueryClient();
 
   const {
@@ -44,14 +44,14 @@ export default function LoginForm() {
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
   const handleMouseDownPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowPassword(true);
   };
 
   const handleMouseUpPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowPassword(false);

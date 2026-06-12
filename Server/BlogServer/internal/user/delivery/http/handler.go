@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/messages"
@@ -20,6 +21,11 @@ type AuthUsecases interface {
 	LoginUser(c context.Context, username string, password string) (*domain.User, error)
 	LogoutUser(c context.Context, userID uuid.UUID) error
 	GetUserByID(c context.Context, userID uuid.UUID) (*domain.User, error)
+}
+
+type ContactUseCases interface {
+	CreateContactForm(c context.Context, contactForm *domain.ContactForm) (*domain.ContactForm, error)
+	DeleteContactForm(c context.Context, contactID int64) (int64, error)
 }
 
 type ProfileUsecases interface {
@@ -38,21 +44,24 @@ type UserHandler struct {
 	authUsecases         AuthUsecases
 	profileUsecases      ProfileUsecases
 	notificationUsecases NotificationUsecases
+	contactUseCases      ContactUseCases
 }
 
 func New(
 	authUsecases AuthUsecases,
 	profileUsecases ProfileUsecases,
 	notificationUsecases NotificationUsecases,
+	contactUseCases ContactUseCases,
 ) *UserHandler {
 	return &UserHandler{
 		authUsecases:         authUsecases,
 		profileUsecases:      profileUsecases,
 		notificationUsecases: notificationUsecases,
+		contactUseCases:      contactUseCases,
 	}
 }
 
-func (h *UserHandler) RegisterUser(c *gin.Context) {
+func (h *UserHandler) registerUser(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 2*time.Second)
 	defer cancel()
@@ -95,7 +104,7 @@ func (h *UserHandler) RegisterUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, newUserId)
 }
 
-func (h *UserHandler) LoginUser(c *gin.Context) {
+func (h *UserHandler) loginUser(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 10*time.Second)
 	defer cancel()
@@ -222,7 +231,7 @@ func (h *UserHandler) getUserById(c *gin.Context) {
 	})
 }
 
-func (h *UserHandler) RefreshTokenHandler(c *gin.Context) {
+func (h *UserHandler) refreshToken(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(c, 5*time.Second)
 	defer cancel()
@@ -265,7 +274,7 @@ func (h *UserHandler) RefreshTokenHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"accessToken": newToken})
 }
 
-func (h *UserHandler) UpdateUserBasicInfo(c *gin.Context) {
+func (h *UserHandler) updateUserBasicInfo(c *gin.Context) {
 
 	var userInfo UpdateUserBasicInfoRequest
 	if err := c.ShouldBindJSON(&userInfo); err != nil {
@@ -302,7 +311,7 @@ func (h *UserHandler) UpdateUserBasicInfo(c *gin.Context) {
 		"lastName":  userInfo.LastName})
 }
 
-func (h *UserHandler) UpdateUserEmail(c *gin.Context) {
+func (h *UserHandler) updateUserEmail(c *gin.Context) {
 
 	var userEmail UpdateUserEmailRequest
 	if err := c.ShouldBindJSON(&userEmail); err != nil {
@@ -341,7 +350,7 @@ func (h *UserHandler) UpdateUserEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, &gin.H{"email": userEmail.Email})
 }
 
-func (h *UserHandler) ChangePassword(c *gin.Context) {
+func (h *UserHandler) changePassword(c *gin.Context) {
 
 	var userPassword UpdatePasswordRequest
 	if err := c.ShouldBindJSON(&userPassword); err != nil {
@@ -383,11 +392,11 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, &gin.H{"message": "OK"})
 }
 
-func (h *UserHandler) GetChangeEmailCode(c *gin.Context) {
+func (h *UserHandler) getChangeEmailCode(c *gin.Context) {
 	c.JSON(http.StatusOK, &gin.H{"code": "123456"})
 }
 
-func (h *UserHandler) GetNotifications(c *gin.Context) {
+func (h *UserHandler) getNotifications(c *gin.Context) {
 
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -407,7 +416,7 @@ func (h *UserHandler) GetNotifications(c *gin.Context) {
 	c.JSON(http.StatusOK, notifications)
 }
 
-func (h *UserHandler) UpdateNotification(c *gin.Context) {
+func (h *UserHandler) updateNotification(c *gin.Context) {
 
 	userID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -435,7 +444,7 @@ func (h *UserHandler) UpdateNotification(c *gin.Context) {
 
 }
 
-func (h *UserHandler) GetHashedString(c *gin.Context) {
+func (h *UserHandler) getHashedString(c *gin.Context) {
 
 	str := c.Query("string")
 	if str == "" {
@@ -457,4 +466,64 @@ func (h *UserHandler) GetHashedString(c *gin.Context) {
 	c.JSON(http.StatusOK, &gin.H{
 		"hashed_string": hashedString,
 	})
+}
+
+func (h *UserHandler) createContactForm(c *gin.Context) {
+	var requestJson CreateContactForm
+	if err := c.ShouldBindBodyWithJSON(&requestJson); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := utils.ValidateStruct(messages.ENGLISH, requestJson); err != nil {
+		c.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, time.Second)
+	defer cancel()
+
+	newContact, err := h.contactUseCases.CreateContactForm(ctx, &domain.ContactForm{
+		Email:   requestJson.Email,
+		Content: requestJson.Content,
+	})
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, newContact)
+}
+
+func (h *UserHandler) deleteContactForm(c *gin.Context) {
+
+	id, err := h.getInt64ValueFromParams(c, "id", "contact id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c, time.Second)
+	defer cancel()
+
+	id, err = h.contactUseCases.DeleteContactForm(ctx, id)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, id)
+}
+
+func (h *UserHandler) getInt64ValueFromParams(c *gin.Context, key string, fieldName string) (int64, error) {
+	value, valid := c.Params.Get(key)
+	if !valid {
+		return 0, errors.New(messages.MsgRequiredField.FormatLang(messages.ENGLISH, fieldName))
+	}
+	valueInt64, parseErr := strconv.ParseInt(value, 10, 64)
+	if parseErr != nil {
+		return 0, errors.New("blogId not valid")
+	}
+	return valueInt64, nil
 }

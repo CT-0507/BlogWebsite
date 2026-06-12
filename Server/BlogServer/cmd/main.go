@@ -139,6 +139,8 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 	router.Use(gin.Logger())
+	router.Use(middleware.RequestQuotaMiddleWare(redisClient))
+	router.Use(middleware.UploadQuotaMiddleWare(redisClient))
 
 	routes.SetupUnprotectedRoutes(router, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
 	routes.SetupProtectedRoutes(router, pool, redisClient, blogModule.Handler, userModule.Handler, dashboardHanlder, sseHandler, authorModule.Handler)
@@ -248,6 +250,7 @@ func main() {
 	worker := outbox.NewOutboxWorker(txManager, bus, outboxRepo)
 
 	go worker.Start(context.Background())
+	go worker.StartCleanupWorker(context.Background())
 
 	go blogModule.Woker.StartUpdateRankingTable(context.Background())
 

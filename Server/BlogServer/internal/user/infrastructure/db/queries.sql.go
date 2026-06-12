@@ -25,6 +25,35 @@ func (q *Queries) CountUserWithEmail(ctx context.Context, username string) (int6
 	return count, err
 }
 
+const createContact = `-- name: CreateContact :one
+INSERT INTO users.contacts (
+    user_id, email, content
+) VALUES (
+    $1, $2, $3
+)
+RETURNING contact_id, user_id, email, content, is_read, created_at
+`
+
+type CreateContactParams struct {
+	UserID  uuid.UUID
+	Email   string
+	Content string
+}
+
+func (q *Queries) CreateContact(ctx context.Context, arg CreateContactParams) (UsersContact, error) {
+	row := q.db.QueryRow(ctx, createContact, arg.UserID, arg.Email, arg.Content)
+	var i UsersContact
+	err := row.Scan(
+		&i.ContactID,
+		&i.UserID,
+		&i.Email,
+		&i.Content,
+		&i.IsRead,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createNotification = `-- name: CreateNotification :one
 INSERT INTO users.notifications (
     user_id,
@@ -118,6 +147,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (UsersUs
 		&i.DeletedBy,
 	)
 	return i, err
+}
+
+const deleteContactForm = `-- name: DeleteContactForm :one
+DELETE FROM users.contacts WHERE contact_id = $1 RETURNING COUNT(contact_id)
+`
+
+func (q *Queries) DeleteContactForm(ctx context.Context, contactID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteContactForm, contactID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const deleteUser = `-- name: DeleteUser :one

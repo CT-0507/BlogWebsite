@@ -17,6 +17,7 @@ type OutboxRepository interface {
 	UpdateProcessedAt(ctx context.Context, outboxIDs []uuid.UUID) error
 	GetUnprocessedEvent(ctx context.Context) ([]messaging.OutboxEvent, error)
 	UpdateRetries(ctx context.Context, outboxIDs []uuid.UUID) error
+	CleanUpProcessedEventAfter2Weeks(ctx context.Context) error
 }
 
 type OutboxWorker struct {
@@ -35,7 +36,7 @@ func NewOutboxWorker(txManager database.TxManager, publisher messaging.EventPubl
 
 func (w *OutboxWorker) Start(ctx context.Context) {
 
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -47,6 +48,29 @@ func (w *OutboxWorker) Start(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (w *OutboxWorker) StartCleanupWorker(ctx context.Context) {
+
+	ticker := time.NewTicker(3 * 24 * time.Hour)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			w.cleanUp(ctx)
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (w *OutboxWorker) cleanUp(ctx context.Context) error {
+	timeCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	return w.outboxRepo.CleanUpProcessedEventAfter2Weeks(timeCtx)
 }
 
 func (w *OutboxWorker) processBatch(ctx context.Context) {

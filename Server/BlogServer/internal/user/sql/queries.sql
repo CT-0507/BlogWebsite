@@ -156,3 +156,14 @@ SET status = $1,
     deleted_at = NULL,
     deleted_by = NULL
 WHERE users.user_id = $3;
+
+-- name: CreateContact :one
+INSERT INTO users.contacts (
+    user_id, email, content
+) VALUES (
+    $1, $2, $3
+)
+RETURNING *;
+
+-- name: DeleteContactForm :one
+DELETE FROM users.contacts WHERE contact_id = $1 RETURNING COUNT(contact_id);

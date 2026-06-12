@@ -222,3 +222,36 @@ func (r *UserRepository) RestoreUserByID(c context.Context, userID uuid.UUID, up
 		UpdatedBy: &updatedBy,
 	})
 }
+
+func (r *UserRepository) CreateContactForm(c context.Context, contactForm *domain.ContactForm) (*domain.ContactForm, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := userdb.New(db)
+
+	admindUUID := uuid.MustParse(config.ADMIN_ID)
+	result, err := q.CreateContact(c, userdb.CreateContactParams{
+		UserID:  admindUUID,
+		Email:   contactForm.Email,
+		Content: contactForm.Content,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.ContactForm{
+		ContactID: result.ContactID,
+		Email:     result.Email,
+		Content:   result.Content,
+	}, nil
+}
+
+func (r *UserRepository) DeleteContactForm(c context.Context, contactID int64) (int64, error) {
+
+	db := utils.GetExecutor(c, r.pool)
+
+	q := userdb.New(db)
+
+	return q.DeleteContactForm(c, contactID)
+
+}
