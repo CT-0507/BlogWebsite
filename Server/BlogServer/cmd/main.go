@@ -23,6 +23,8 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -66,7 +68,17 @@ func main() {
 	defer pool.Close()
 
 	// Storage
-	storage := storage.New(path, "http://localhost")
+	bucket := os.Getenv("BUCKET")
+	cloudFrontDomain := os.Getenv("CLOUDFRONT_DOMAIN")
+	ctx := context.Background()
+	sdkConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion("ap-northeast-1"))
+	if err != nil {
+		fmt.Println("Couldn't load default configuration. Have you set up your AWS account?")
+		fmt.Println(err)
+		return
+	}
+	s3Client := s3.NewFromConfig(sdkConfig)
+	storage := storage.NewS3Service(s3Client, bucket, cloudFrontDomain)
 
 	//
 	txManager := database.NewTxManager(pool)

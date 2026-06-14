@@ -2,7 +2,8 @@ services:
   nginx:
     image: nginx:latest
     container_name: nginx
-    restart: unless-stopped
+    restart: always
+    mem_limit: 64m
     ports:
       - "80:80"
       # - "443:443"
@@ -16,7 +17,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: go-app
-    restart: unless-stopped
+    restart: always
+    mem_limit: 256m
     expose:
       - "8080"
     environment:
@@ -33,6 +35,8 @@ services:
   postgres:
     image: postgres:latest # Use the latest official Postgres image from Docker Hub
     container_name: ${POSTGRES_CONTAINER_NAME}
+    restart: always
+    mem_limit: 384m
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -44,5 +48,6 @@ services:
   redis:
     image: redis:latest
     restart: always
+    mem_limit: 128m
 volumes:
   pgdata:

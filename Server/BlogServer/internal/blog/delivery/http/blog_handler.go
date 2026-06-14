@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
@@ -29,7 +30,7 @@ type CreateBlogUseCases interface {
 	CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error
 	CreateBlog(c context.Context, blog *domain.Blog, userID string, fileParams *storage.FileStorageParams) (*domain.Blog, error)
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
-	SaveBlogImageToTempFolder(c context.Context, fileParams storage.FileStorageParams) (string, error)
+	UploadTemporaryFile(c context.Context, fileParams storage.FileStorageParams) (string, error)
 	EditBlog(
 		c context.Context,
 		blogID string,
@@ -1183,40 +1184,34 @@ func (h *BlogHandler) uploadImage(c *gin.Context) {
 		return
 	}
 
-	var fileParams *storage.FileStorageParams = nil
-
-	if fileHeader != nil {
-		file, err := fileHeader.Open()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
-			return
-		}
-		defer file.Close()
-
-		// validate extension
-		ext := filepath.Ext(fileHeader.Filename)
-		switch ext {
-		case ".jpg", ".jpeg", ".png", ".webp":
-		default:
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": 0,
-				"message": "invalid image format",
-			})
-			return
-		}
-
-		fileName := ulid.Make().String() + ext
-		contentType := fileHeader.Header.Get("Content-Type")
-
-		fileParams = &storage.FileStorageParams{
-			File:        file,
-			FileName:    fileName,
-			ContentType: contentType,
-		}
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": 0,
+			"message": "cannot open file",
+		})
+		return
 	}
+	defer file.Close()
 
-	// savePath := filepath.Join("uploads", filename)
-	savePath, err := h.createBlogUseCases.SaveBlogImageToTempFolder(c, *fileParams)
+	// Validate extension
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".webp":
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": 0,
+			"message": "invalid image format",
+		})
+		return
+	}
+	contentType := fileHeader.Header.Get("Content-Type")
+
+	savePath, err := h.createBlogUseCases.UploadTemporaryFile(c, storage.FileStorageParams{
+		File:        file,
+		FileName:    fileHeader.Filename,
+		ContentType: contentType,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": 0,

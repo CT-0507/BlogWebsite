@@ -2,7 +2,8 @@ services:
   nginx:
     image: nginx:latest
     container_name: nginx
-    restart: unless-stopped
+    restart: always
+    mem_limit: 64m
     ports:
       - "80:80"
       # - "443:443"
@@ -18,24 +19,32 @@ services:
     volumes:
       - .:/app
     container_name: go-app
-    restart: unless-stopped
+    restart: always
+    mem_limit: 256m
     expose:
       - "8080"
     environment:
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: ${POSTGRES_PORT}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis:6379
       UPLOAD_PATH: ${UPLOAD_PATH}
+      CLOUD_FRONT_DOMAIN: ${CLOUD_FRONT_DOMAIN}
+      BUCKET: ${BUCKET}
+      SECRET_KEY: ${SECRET_KEY}
+      SECRET_REFRESH_KEY: ${SECRET_REFRESH_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
     depends_on:
       - postgres
       - redis
   postgres:
     image: postgres:latest # Use the latest official Postgres image from Docker Hub
     container_name: ${POSTGRES_CONTAINER_NAME}
+    restart: always
+    mem_limit: 384m
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -47,5 +56,6 @@ services:
   redis:
     image: redis:latest
     restart: always
+    mem_limit: 128m
 volumes:
   pgdata:
