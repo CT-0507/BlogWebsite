@@ -318,7 +318,6 @@ func (h *BlogHandler) updateNewBlog(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	log.Println("Here 4")
 	c.JSON(http.StatusCreated, newBlog)
 }
 
@@ -1223,7 +1222,7 @@ func (h *BlogHandler) uploadImage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": 1,
 		"file": gin.H{
-			"url": savePath,
+			"url": "https://" + savePath,
 		},
 	})
 }

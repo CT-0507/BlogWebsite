@@ -68,10 +68,15 @@ func main() {
 	defer pool.Close()
 
 	// Storage
-	bucket := os.Getenv("BUCKET")
-	cloudFrontDomain := os.Getenv("CLOUDFRONT_DOMAIN")
-	ctx := context.Background()
-	sdkConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion("ap-northeast-1"))
+	bucket := os.Getenv("BUCKET_NAME")
+	cloudFrontDomain := os.Getenv("CLOUD_FRONT_DOMAIN")
+	if bucket == "" || cloudFrontDomain == "" {
+		log.Fatal("Bucket or CloudfrontDomain not found")
+	}
+	log.Println("bucket: ", bucket)
+	log.Println("cloudFrontDomain: ", cloudFrontDomain)
+
+	sdkConfig, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
 		fmt.Println("Couldn't load default configuration. Have you set up your AWS account?")
 		fmt.Println(err)

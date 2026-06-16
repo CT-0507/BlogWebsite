@@ -97,7 +97,7 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 	success := false
 	if fileParams != nil {
 
-		key := storage.GenerateKey("/blog/thumbnail", fileParams.FileName)
+		key := storage.GenerateKey("thumbnails", fileParams.FileName)
 
 		uploadResult, err := u.storageService.Save(c, key, fileParams.File, fileParams.ContentType, false)
 		if err != nil {
@@ -110,7 +110,8 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 				_ = u.storageService.Delete(c, uploadResult.Key)
 			}
 		}()
-		blog.ThumbnailUrl = &uploadResult.URL
+		uploadedKey := storage.StripURL(uploadResult.URL)
+		blog.ThumbnailUrl = &uploadedKey
 	}
 
 	// Process content image src
@@ -222,7 +223,7 @@ func (u *CreateBlogUseCases) EditBlog(
 
 	if fileParams != nil {
 
-		key := storage.GenerateKey("blog/thumbnail", fileParams.FileName)
+		key := storage.GenerateKey("thumbnails", fileParams.FileName)
 
 		uploadResult, err := u.storageService.Save(c, key,
 			fileParams.File,
@@ -233,7 +234,9 @@ func (u *CreateBlogUseCases) EditBlog(
 			return nil, err
 		}
 
-		newThumbnailURL = &uploadResult.URL
+		uploadedKey := storage.StripURL(uploadResult.URL)
+
+		newThumbnailURL = &uploadedKey
 
 		// rollback uploaded thumbnail if failed
 		defer func() {
@@ -270,7 +273,6 @@ func (u *CreateBlogUseCases) EditBlog(
 	if err != nil {
 		return nil, err
 	}
-
 	var updatedBlog *domain.Blog
 	err = u.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
@@ -288,7 +290,6 @@ func (u *CreateBlogUseCases) EditBlog(
 		if err != nil {
 			return err
 		}
-
 		// tags
 		if len(payload.Tags) > 0 {
 			err = u.tagRepo.UpsertTags(
@@ -300,7 +301,6 @@ func (u *CreateBlogUseCases) EditBlog(
 				return err
 			}
 		}
-		updatedBlog.Tags = payload.Tags
 
 		// Thumbnail replacement
 		if newThumbnailURL != nil {
@@ -310,9 +310,8 @@ func (u *CreateBlogUseCases) EditBlog(
 			// old thumbnail cleanup
 			if before.ThumbnailUrl != nil &&
 				*before.ThumbnailUrl != *newThumbnailURL {
-
 				err = u.storageService.MarkDelete(
-					c,
+					ctx,
 					*before.ThumbnailUrl,
 				)
 				if err != nil {
@@ -335,7 +334,7 @@ func (u *CreateBlogUseCases) EditBlog(
 		var proccessedUrls []string
 		for _, oldURL := range removedImages {
 
-			err := u.storageService.MarkDelete(c, oldURL)
+			err := u.storageService.MarkDelete(ctx, oldURL)
 			if err != nil {
 				u.rollBackProcessedImages(c, proccessedUrls)
 				return err
@@ -349,6 +348,7 @@ func (u *CreateBlogUseCases) EditBlog(
 		}()
 
 		updatedBlog = after
+		updatedBlog.Tags = payload.Tags
 		updatedBlog.ContentJson = updatedJSON
 
 		return nil
@@ -370,7 +370,7 @@ func (u *CreateBlogUseCases) VerifyAuthorIDByUserID(c context.Context, userID st
 
 func (u *CreateBlogUseCases) UploadTemporaryFile(c context.Context, fileParams storage.FileStorageParams) (string, error) {
 
-	key := storage.GenerateKey("blog/images", fileParams.FileName)
+	key := storage.GenerateKey("blog_images", fileParams.FileName)
 
 	uploadResult, err := u.storageService.Save(c, key, fileParams.File, fileParams.ContentType, true)
 	if err != nil {

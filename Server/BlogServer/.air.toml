@@ -3,7 +3,7 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/server ./cmd"
+cmd = "GOGC=50 go build -p=1 -o ./tmp/server ./cmd"
 bin = "./tmp/server"
 
 include_ext = ["go"]

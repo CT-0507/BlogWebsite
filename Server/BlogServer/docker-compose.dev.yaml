@@ -20,7 +20,7 @@ services:
       - .:/app
     container_name: go-app
     restart: always
-    mem_limit: 256m
+    mem_limit: 1g
     expose:
       - "8080"
     environment:
@@ -30,13 +30,16 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis:6379
-      UPLOAD_PATH: ${UPLOAD_PATH}
-      CLOUD_FRONT_DOMAIN: ${CLOUD_FRONT_DOMAIN}
-      BUCKET: ${BUCKET}
       SECRET_KEY: ${SECRET_KEY}
       SECRET_REFRESH_KEY: ${SECRET_REFRESH_KEY}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      REDIS_URL: redis:6379
+      UPLOAD_PATH: ${UPLOAD_PATH}
+      CLOUD_FRONT_DOMAIN: ${CLOUD_FRONT_DOMAIN}
+      BUCKET_NAME: ${BUCKET_NAME}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
     depends_on:
       - postgres
       - redis

@@ -7,6 +7,7 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
+	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
 )
 
 // List blog related use cases like list all, list with filter, etc
@@ -44,6 +45,17 @@ func (u *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, autho
 	if err != nil {
 		return 0, nil, err
 	}
+
+	for i, value := range result {
+		if value.ThumbnailUrl != nil {
+			thumbnailWithDomain, err := storage.AddDomain(*value.ThumbnailUrl)
+			if err != nil {
+				return 0, nil, err
+			}
+			result[i].ThumbnailUrl = &thumbnailWithDomain
+		}
+	}
+
 	if result != nil && len(result) == 0 {
 		return 0, []domain.BlogWithAuthorData{}, nil
 	}

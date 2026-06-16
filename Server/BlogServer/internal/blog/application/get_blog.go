@@ -30,6 +30,14 @@ func (u *GetBlogUseCases) GetBlog(ctx context.Context, id int64) (*domain.BlogWi
 		return nil, err
 	}
 
+	if blog.ThumbnailUrl != nil {
+		thumbnailWithDomain, err := storage.AddDomain(*blog.ThumbnailUrl)
+		if err != nil {
+			return nil, err
+		}
+		blog.ThumbnailUrl = &thumbnailWithDomain
+	}
+
 	contentJson, err := u.proccessUrlToDomain(blog.ContentJson)
 	if err != nil {
 		return nil, err
@@ -90,6 +98,14 @@ func (u *GetBlogUseCases) GetBlogByUrlSlug(ctx context.Context, slug string, use
 
 	if len(result.Tags) == 0 {
 		result.Tags = []string{}
+	}
+
+	if result.ThumbnailUrl != nil {
+		thumbnailWithDomain, err := storage.AddDomain(*result.ThumbnailUrl)
+		if err != nil {
+			return nil, err
+		}
+		result.ThumbnailUrl = &thumbnailWithDomain
 	}
 
 	contentJson, err := u.proccessUrlToDomain(result.ContentJson)

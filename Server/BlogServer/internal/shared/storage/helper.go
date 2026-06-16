@@ -50,10 +50,10 @@ func StripURL(inputURL string) string {
 
 func AddDomain(inputURL string) (string, error) {
 
-	domain := os.Getenv("CLOUDFRONT_DOMAIN")
+	domain := os.Getenv("CLOUD_FRONT_DOMAIN")
 	if domain == "" {
 		return "", errors.New("Domain not found")
 	}
 
-	return fmt.Sprintf("%s%s", domain, inputURL), nil
+	return fmt.Sprintf("https://%s%s", domain, inputURL), nil
 }

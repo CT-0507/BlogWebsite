@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -65,12 +66,26 @@ func (s *S3Service) Save(
 	}, nil
 }
 
+func getS3Key(cloudfrontURL string) (string, error) {
+	u, err := url.Parse(cloudfrontURL)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimPrefix(u.Path, "/"), nil
+}
+
 func (s *S3Service) MarkPermanent(
 	ctx context.Context,
 	key string,
 ) error {
 
-	return s.changeFileTemporaryFlag(ctx, key, false)
+	s3Key, err := getS3Key(key)
+	if err != nil {
+		return err
+	}
+
+	return s.changeFileTemporaryFlag(ctx, s3Key, false)
 }
 
 func (s *S3Service) MarkDelete(
@@ -78,7 +93,12 @@ func (s *S3Service) MarkDelete(
 	key string,
 ) error {
 
-	return s.changeFileTemporaryFlag(ctx, key, true)
+	s3Key, err := getS3Key(key)
+	if err != nil {
+		return err
+	}
+
+	return s.changeFileTemporaryFlag(ctx, s3Key, true)
 }
 
 func (s *S3Service) changeFileTemporaryFlag(
