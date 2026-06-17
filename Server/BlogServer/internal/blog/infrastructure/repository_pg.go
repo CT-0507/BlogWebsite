@@ -50,7 +50,7 @@ func (r *BlogRepository) Create(c context.Context, blog *domain.Blog) (*domain.B
 	return r.mapper.BlogDTOToBlog(&newBlog), nil
 }
 
-func (r *BlogRepository) UpdateBlog(c context.Context, blog *domain.Blog, updatedBy string) (*domain.Blog, *domain.Blog, error) {
+func (r *BlogRepository) UpdateBlog(c context.Context, blog *domain.Blog, shouldUpdateThumbnail bool, updatedBy string) (*domain.Blog, *domain.Blog, error) {
 
 	db := utils.GetExecutor(c, r.pool)
 
@@ -58,12 +58,13 @@ func (r *BlogRepository) UpdateBlog(c context.Context, blog *domain.Blog, update
 
 	marshalledContent, _ := json.Marshal(blog.ContentJson)
 	returnData, err := q.UpdateBlog(c, blogdb.UpdateBlogParams{
-		Title:        blog.Title,
-		UrlSlug:      blog.URLSlug,
-		ContentJson:  marshalledContent,
-		ContentText:  blog.ContentText,
-		ThumbnailUrl: utils.GetTextTypeFromNullableString(blog.ThumbnailUrl),
-		UpdatedBy:    updatedBy,
+		Title:                 blog.Title,
+		BlogID:                blog.BlogID,
+		ContentJson:           marshalledContent,
+		ContentText:           blog.ContentText,
+		ShouldUpdateThumbnail: shouldUpdateThumbnail,
+		ThumbnailUrl:          utils.GetTextTypeFromNullableString(blog.ThumbnailUrl),
+		UpdatedBy:             updatedBy,
 	})
 	if err != nil {
 		return nil, nil, err

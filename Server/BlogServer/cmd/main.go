@@ -117,19 +117,6 @@ func main() {
 
 	router.Use(middleware.ErrorHandler())
 
-	// Require authentication
-	router.GET("/files/:filepath", func(c *gin.Context) {
-
-		filepath := c.Param("filepath") // /2026/04/03/file.jpg
-
-		fullPath := path + "private" + filepath
-
-		c.File(fullPath)
-	})
-
-	// Serve static files
-	router.Static(RELATIVE_PATH, path)
-
 	// CORS policy
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 	var origins []string

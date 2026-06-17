@@ -33,7 +33,7 @@ type CreateBlogUseCases interface {
 	UploadTemporaryFile(c context.Context, fileParams storage.FileStorageParams) (string, error)
 	EditBlog(
 		c context.Context,
-		blogID string,
+		blogID int64,
 		payload *domain.Blog,
 		userID string,
 		fileParams *storage.FileStorageParams,
@@ -282,7 +282,13 @@ func (h *BlogHandler) updateNewBlog(c *gin.Context) {
 		return
 	}
 
-	blogID := c.Query("id")
+	blogID, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
 
 	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
@@ -308,6 +314,7 @@ func (h *BlogHandler) updateNewBlog(c *gin.Context) {
 	}
 
 	newBlog, err := h.createBlogUseCases.EditBlog(ctx, blogID, &domain.Blog{
+		BlogID:      blogID,
 		Title:       blog.Title,
 		URLSlug:     blog.URLSlug,
 		ContentText: blog.ContentText,

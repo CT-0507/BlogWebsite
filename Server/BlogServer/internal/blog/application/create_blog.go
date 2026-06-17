@@ -203,7 +203,7 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 
 func (u *CreateBlogUseCases) EditBlog(
 	c context.Context,
-	blogID string,
+	blogID int64,
 	payload *domain.Blog,
 	userID string,
 	fileParams *storage.FileStorageParams,
@@ -273,12 +273,24 @@ func (u *CreateBlogUseCases) EditBlog(
 	if err != nil {
 		return nil, err
 	}
+
+	// Get updated object for handler
 	var updatedBlog *domain.Blog
+
+	// For moved image tracking and compensation
+	// TODO: Move this logic for background worker
+	var proccessedUrls []string
+	defer func() {
+		if !success && len(proccessedUrls) > 0 {
+			u.rollBackProcessedImages(c, proccessedUrls)
+		}
+	}()
 	err = u.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
 		// Edit blog first
 		// repo returns before + after
 		before, after, err := u.repo.UpdateBlog(ctx, &domain.Blog{
+			BlogID:       blogID,
 			AuthorID:     payload.AuthorID,
 			Title:        payload.Title,
 			ContentText:  payload.ContentText,
@@ -286,7 +298,7 @@ func (u *CreateBlogUseCases) EditBlog(
 			Status:       payload.Status,
 			URLSlug:      payload.URLSlug,
 			ThumbnailUrl: newThumbnailURL,
-		}, userID)
+		}, newThumbnailURL != nil, userID)
 		if err != nil {
 			return err
 		}
@@ -329,9 +341,8 @@ func (u *CreateBlogUseCases) EditBlog(
 		newImages := u.extractEditorImageURLs(&newEditorData)
 
 		removedImages := u.difference(oldImages, newImages)
-
 		// move removed images into temp folder
-		var proccessedUrls []string
+
 		for _, oldURL := range removedImages {
 
 			err := u.storageService.MarkDelete(ctx, oldURL)
@@ -341,11 +352,6 @@ func (u *CreateBlogUseCases) EditBlog(
 			}
 			proccessedUrls = append(proccessedUrls, oldURL)
 		}
-		defer func() {
-			if !success {
-				u.rollBackProcessedImages(c, proccessedUrls)
-			}
-		}()
 
 		updatedBlog = after
 		updatedBlog.Tags = payload.Tags
@@ -356,8 +362,7 @@ func (u *CreateBlogUseCases) EditBlog(
 
 	if err == nil {
 		success = true
-	}
-	if err != nil {
+	} else {
 		return nil, err
 	}
 

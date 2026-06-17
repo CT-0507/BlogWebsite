@@ -11,6 +11,8 @@ import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import Grid from "@mui/material/Grid";
+import { Divider } from "@mui/material";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -95,96 +97,116 @@ export default function Login() {
     return <Navigate to={from} replace />;
   }
   return (
-    <Box
-      sx={{
-        minWidth: "500px",
-        maxWidth: "600px",
-        width: "50%",
-        m: "auto",
-      }}
+    <Grid
+      container
+      direction="row"
+      justifyContent="space-between"
+      spacing={2}
+      sx={{}}
     >
-      <Box>
-        Test user:
-        <br />
-        username: user1
-        <br />
-        password: Abc!2345
-      </Box>
-      <Card
+      <Grid
+        size={{ md: 3 }}
         sx={{
-          width: "100%",
-          minHeight: "500px",
-          display: "flex",
+          display: { xs: "none", md: "flex" },
+          justifyContent: "center",
+          alignItems: "center",
           flexDirection: "column",
         }}
       >
-        <CardMedia
-          sx={{
-            height: "30px",
-            p: 1,
-          }}
-        >
-          <FormHeader />
-        </CardMedia>
-        <Box
-          sx={{
-            width: "100%",
-          }}
-        >
-          <Tabs
-            value={currentTab}
-            onChange={handleTabChange}
-            indicatorColor="secondary"
-            textColor="inherit"
-            variant="fullWidth"
-            aria-label="tabs"
-          >
-            {tabs.map((label, index) => (
-              <Tab
-                key={index}
-                sx={{ fontWeight: "bold", fontSize: 20 }}
-                label={label}
-                {...a11yProps(index)}
-              />
-            ))}
-          </Tabs>
+        <Box>
+          Test user:
+          <br />
+          Username: user1
+          <br />
+          Password: Abc!2345
         </Box>
-        <CardContent
+        <Divider />
+      </Grid>
+
+      <Grid
+        size={{ xs: 12, md: 6 }}
+        order={{ xs: 3, md: 2 }}
+        display="flex"
+        justifyContent="center"
+      >
+        <Card
           sx={{
             width: "100%",
-            flex: 1,
+            minHeight: "500px",
+            maxWidth: "600px",
             display: "flex",
+            flexDirection: "column",
           }}
         >
-          <TabPanel value={currentTab} index={0}>
-            <LoginForm />
-          </TabPanel>
-          <TabPanel value={currentTab} index={1}>
-            <SignupForm />
-          </TabPanel>
-        </CardContent>
-        <Box
-          sx={{
-            margin: "auto",
-          }}
-        >
-          {currentTab == 0 ? (
-            <Button
-              aria-labelledby="go-to-login"
-              onClick={(e) => handleTabChange(e, 1)}
+          <CardMedia
+            sx={{
+              height: "30px",
+              p: 1,
+            }}
+          >
+            <FormHeader />
+          </CardMedia>
+          <Box
+            sx={{
+              width: "100%",
+            }}
+          >
+            <Tabs
+              value={currentTab}
+              onChange={handleTabChange}
+              indicatorColor="secondary"
+              textColor="inherit"
+              variant="fullWidth"
+              aria-label="tabs"
             >
-              Don't have an account yet
-            </Button>
-          ) : (
-            <Button
-              aria-labelledby="go-to-signup"
-              onClick={(e) => handleTabChange(e, 0)}
-            >
-              Already have an account?
-            </Button>
-          )}
-        </Box>
-      </Card>
-    </Box>
+              {tabs.map((label, index) => (
+                <Tab
+                  key={index}
+                  sx={{ fontWeight: "bold", fontSize: 20 }}
+                  label={label}
+                  {...a11yProps(index)}
+                />
+              ))}
+            </Tabs>
+          </Box>
+          <CardContent
+            sx={{
+              width: "100%",
+              flex: 1,
+              display: "flex",
+            }}
+          >
+            <TabPanel value={currentTab} index={0}>
+              <LoginForm />
+            </TabPanel>
+            <TabPanel value={currentTab} index={1}>
+              <SignupForm />
+            </TabPanel>
+          </CardContent>
+          <Box
+            sx={{
+              margin: "auto",
+            }}
+          >
+            {currentTab == 0 ? (
+              <Button
+                aria-labelledby="go-to-login"
+                onClick={(e) => handleTabChange(e, 1)}
+              >
+                Don't have an account yet
+              </Button>
+            ) : (
+              <Button
+                aria-labelledby="go-to-signup"
+                onClick={(e) => handleTabChange(e, 0)}
+              >
+                Already have an account?
+              </Button>
+            )}
+          </Box>
+        </Card>
+      </Grid>
+      <Grid size={{ xs: 0, md: 3 }} order={{ xs: 1, md: 3 }}></Grid>
+    </Grid>
   );
 }

@@ -204,7 +204,7 @@ RETURNING *;
 WITH old_row AS (
     SELECT *
     FROM blogs.blogs o
-    WHERE o.url_slug = $1
+    WHERE o.blog_id = $1
 ),
 updated AS (
     UPDATE blogs.blogs
@@ -212,10 +212,13 @@ updated AS (
         title = $2,
         content_json = $3,
         content_text = $4,
-        thumbnail_url = $5,
+        thumbnail_url = CASE
+            WHEN sqlc.arg('should_update_thumbnail')::BOOLEAN THEN $5
+            ELSE thumbnail_url
+        END,
         updated_by = $6,
         updated_at = NOW()
-    WHERE url_slug = $1
+    WHERE blog_id = $1
     RETURNING *
 )
 SELECT
