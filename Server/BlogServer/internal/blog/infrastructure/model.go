@@ -15,10 +15,9 @@ type DbBlog struct {
 	ContentText  string          `json:"content_text"`
 	ContentJson  json.RawMessage `json:"content_json"`
 	Status       string          `json:"status"`
-	ThumbnailUrl *string         `json:"thumbnailUrl"`
-	LikeCount    int64           `json:"likeCount"`
-	DislikeCount int64           `json:"dislikeCount"`
-	UserReaction *string         `json:"userReaction"`
+	ThumbnailUrl *string         `json:"thumbnail_url"`
+	LikeCount    int64           `json:"like_count"`
+	DislikeCount int64           `json:"dislike_count"`
 	// Images  []string
 	model.Audit
 }

@@ -23,6 +23,8 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/sse"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/user"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/routes"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -66,7 +68,22 @@ func main() {
 	defer pool.Close()
 
 	// Storage
-	storage := storage.New(path, "http://localhost")
+	bucket := os.Getenv("BUCKET_NAME")
+	cloudFrontDomain := os.Getenv("CLOUD_FRONT_DOMAIN")
+	if bucket == "" || cloudFrontDomain == "" {
+		log.Fatal("Bucket or CloudfrontDomain not found")
+	}
+	log.Println("bucket: ", bucket)
+	log.Println("cloudFrontDomain: ", cloudFrontDomain)
+
+	sdkConfig, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		fmt.Println("Couldn't load default configuration. Have you set up your AWS account?")
+		fmt.Println(err)
+		return
+	}
+	s3Client := s3.NewFromConfig(sdkConfig)
+	storage := storage.NewS3Service(s3Client, bucket, cloudFrontDomain)
 
 	//
 	txManager := database.NewTxManager(pool)
@@ -99,19 +116,6 @@ func main() {
 	router := gin.Default()
 
 	router.Use(middleware.ErrorHandler())
-
-	// Require authentication
-	router.GET("/files/:filepath", func(c *gin.Context) {
-
-		filepath := c.Param("filepath") // /2026/04/03/file.jpg
-
-		fullPath := path + "private" + filepath
-
-		c.File(fullPath)
-	})
-
-	// Serve static files
-	router.Static(RELATIVE_PATH, path)
 
 	// CORS policy
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
@@ -29,10 +30,10 @@ type CreateBlogUseCases interface {
 	CreateBlogStartSaga(c context.Context, blog *domain.Blog, userID string) error
 	CreateBlog(c context.Context, blog *domain.Blog, userID string, fileParams *storage.FileStorageParams) (*domain.Blog, error)
 	VerifyAuthorIDByUserID(c context.Context, userID string) (string, error)
-	SaveBlogImageToTempFolder(c context.Context, fileParams storage.FileStorageParams) (string, error)
+	UploadTemporaryFile(c context.Context, fileParams storage.FileStorageParams) (string, error)
 	EditBlog(
 		c context.Context,
-		blogID string,
+		blogID int64,
 		payload *domain.Blog,
 		userID string,
 		fileParams *storage.FileStorageParams,
@@ -281,7 +282,13 @@ func (h *BlogHandler) updateNewBlog(c *gin.Context) {
 		return
 	}
 
-	blogID := c.Query("id")
+	blogID, err := h.getInt64ValueFromParams(c, "id", "blogID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
 
 	userID, err := utils.GetUserIDStringFromContext(c)
 	if err != nil {
@@ -307,6 +314,7 @@ func (h *BlogHandler) updateNewBlog(c *gin.Context) {
 	}
 
 	newBlog, err := h.createBlogUseCases.EditBlog(ctx, blogID, &domain.Blog{
+		BlogID:      blogID,
 		Title:       blog.Title,
 		URLSlug:     blog.URLSlug,
 		ContentText: blog.ContentText,
@@ -317,7 +325,6 @@ func (h *BlogHandler) updateNewBlog(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	log.Println("Here 4")
 	c.JSON(http.StatusCreated, newBlog)
 }
 
@@ -1183,40 +1190,34 @@ func (h *BlogHandler) uploadImage(c *gin.Context) {
 		return
 	}
 
-	var fileParams *storage.FileStorageParams = nil
-
-	if fileHeader != nil {
-		file, err := fileHeader.Open()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot open file"})
-			return
-		}
-		defer file.Close()
-
-		// validate extension
-		ext := filepath.Ext(fileHeader.Filename)
-		switch ext {
-		case ".jpg", ".jpeg", ".png", ".webp":
-		default:
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": 0,
-				"message": "invalid image format",
-			})
-			return
-		}
-
-		fileName := ulid.Make().String() + ext
-		contentType := fileHeader.Header.Get("Content-Type")
-
-		fileParams = &storage.FileStorageParams{
-			File:        file,
-			FileName:    fileName,
-			ContentType: contentType,
-		}
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": 0,
+			"message": "cannot open file",
+		})
+		return
 	}
+	defer file.Close()
 
-	// savePath := filepath.Join("uploads", filename)
-	savePath, err := h.createBlogUseCases.SaveBlogImageToTempFolder(c, *fileParams)
+	// Validate extension
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".webp":
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": 0,
+			"message": "invalid image format",
+		})
+		return
+	}
+	contentType := fileHeader.Header.Get("Content-Type")
+
+	savePath, err := h.createBlogUseCases.UploadTemporaryFile(c, storage.FileStorageParams{
+		File:        file,
+		FileName:    fileHeader.Filename,
+		ContentType: contentType,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": 0,
@@ -1228,7 +1229,7 @@ func (h *BlogHandler) uploadImage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": 1,
 		"file": gin.H{
-			"url": savePath,
+			"url": "https://" + savePath,
 		},
 	})
 }

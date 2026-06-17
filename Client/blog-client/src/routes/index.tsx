@@ -7,7 +7,6 @@ import { ROLES } from "@/config/roles";
 import UserHome from "@/pages/user/UserHome";
 import Profile from "@/pages/user/profile/Profile";
 import PublishPage from "@/pages/author/dashboard/blog/publish/Publish";
-// import EditPage from "@/pages/author/dashboard/blog/edit/EditBlog";
 import NotFound from "@/pages/NotFound/NotFound";
 import ErrorBoundary from "@/pages/error/ErrorBoundary";
 import ViewBlog from "@/pages/blog/viewBlog/ViewBlogPage";
@@ -15,7 +14,6 @@ import AuthorBlog from "@/pages/blog/authorBlog/AuthorBlog";
 import CreateAuthorPage from "@/pages/author/create-author/CreateAuthorPage";
 import ResponsiveSidebarLayout from "@/pages/author/dashboard/layout";
 import SuspenseWrapper from "@/components/SuspenseWrapper/SuspenseWrapper";
-// import AuthorDashboard from "@/pages/author/dashboard/Dashboard";
 import { lazy } from "react";
 import Unauthorized from "@/pages/Unauthorized/Unauthorized";
 

@@ -48,7 +48,7 @@ func (e *EventHandler) OnAuthorCreate(c context.Context, evt *messaging.OutboxEv
 
 		dst := strings.Replace(*author.Avatar, "/temp/", "/", 1)
 
-		err := e.storageService.MoveFile(*author.Avatar, dst)
+		err := e.storageService.MarkPermanent(c, *author.Avatar)
 		if err != nil {
 			return err
 		}
@@ -122,13 +122,10 @@ func (e *EventHandler) OnCreateAuthorCompensation(c context.Context, evt *messag
 
 	if output.Avatar != nil {
 
-		dst := utils.SwapTemp(*output.Avatar, true)
-
-		err := e.storageService.MoveFile(*output.Avatar, dst)
+		err := e.storageService.MarkDelete(c, *output.Avatar)
 		if err != nil {
 			return err
 		}
-		output.Avatar = &dst
 	}
 
 	err := e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
@@ -210,13 +207,10 @@ func (e *EventHandler) OnUserDeleted(c context.Context, evt *messaging.OutboxEve
 
 			if foundAuthor.Avatar != nil {
 
-				dst := utils.SwapTemp(*foundAuthor.Avatar, true)
-
-				err := e.storageService.MoveFile(*foundAuthor.Avatar, dst)
+				err := e.storageService.MarkDelete(c, *foundAuthor.Avatar)
 				if err != nil {
 					return err
 				}
-				foundAuthor.Avatar = &dst
 			}
 
 			err = e.repo.UpdateAuthorStatus(ctx, foundAuthor.AuthorID, "deleted", outboxPayload.UpdatedBy.String())
@@ -290,9 +284,7 @@ func (e *EventHandler) OnUserDeletedCompensation(c context.Context, evt *messagi
 		if outboxPayload.AuthorID != "" {
 			if outboxPayload.Avatar != nil {
 
-				dst := utils.SwapTemp(*outboxPayload.Avatar, false)
-
-				err := e.storageService.MoveFile(*outboxPayload.Avatar, dst)
+				err := e.storageService.MarkPermanent(c, *outboxPayload.Avatar)
 				if err != nil {
 					return err
 				}
@@ -356,13 +348,10 @@ func (e *EventHandler) OnDeleteAuthor(c context.Context, evt *messaging.OutboxEv
 
 	if outboxPayload.Avatar != nil {
 
-		dst := utils.SwapTemp(*outboxPayload.Avatar, true)
-
-		err := e.storageService.MoveFile(*outboxPayload.Avatar, dst)
+		err := e.storageService.MarkDelete(c, *outboxPayload.Avatar)
 		if err != nil {
 			return err
 		}
-		outboxPayload.Avatar = &dst
 	}
 
 	err := e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {
@@ -429,13 +418,10 @@ func (e *EventHandler) OnDeleteAuthorCompensation(c context.Context, evt *messag
 
 	if output.Avatar != nil {
 
-		dst := utils.SwapTemp(*output.Avatar, false)
-
-		err := e.storageService.MoveFile(*output.Avatar, dst)
+		err := e.storageService.MarkPermanent(c, *output.Avatar)
 		if err != nil {
 			return err
 		}
-		output.Avatar = &dst
 	}
 
 	err := e.txManager.WithVoidTx(ctx, func(ctx context.Context) error {

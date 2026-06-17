@@ -33,8 +33,8 @@ export default function LoginForm() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
-      password: "",
+      username: "user1",
+      password: "Abc!2345",
     },
     mode: "all",
   });
@@ -81,8 +81,13 @@ export default function LoginForm() {
 
   return (
     <>
-      <Typography variant="h5" mb={3} textAlign="center">
-        This is login form
+      <Typography
+        variant="h5"
+        mb={3}
+        textAlign="center"
+        sx={{ fontWeight: 600 }}
+      >
+        KT BLOG
       </Typography>
 
       <Box

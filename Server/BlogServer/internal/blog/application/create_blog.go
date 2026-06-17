@@ -3,8 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
-	"strings"
+	"log"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/blog/repository"
@@ -97,26 +96,22 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 
 	success := false
 	if fileParams != nil {
-		// Ensure folder on current ymd
-		uploadDir, err := utils.EnsureUploadPath("../uploads")
-		if err != nil {
-			return nil, err
-		}
 
-		fileParams.FileName = filepath.Join(uploadDir, fileParams.FileName)
+		key := storage.GenerateKey("thumbnails", fileParams.FileName)
 
-		url, err := u.storageService.Upload(fileParams.File, fileParams.FileName, fileParams.ContentType)
+		uploadResult, err := u.storageService.Save(c, key, fileParams.File, fileParams.ContentType, false)
 		if err != nil {
 			return nil, err
 		}
 
 		// Ensure delete on failure to create user
 		defer func() {
-			if !success && url != "" {
-				_ = u.storageService.Delete(url)
+			if !success && uploadResult == nil {
+				_ = u.storageService.Delete(c, uploadResult.Key)
 			}
 		}()
-		blog.ThumbnailUrl = &url
+		uploadedKey := storage.StripURL(uploadResult.URL)
+		blog.ThumbnailUrl = &uploadedKey
 	}
 
 	// Process content image src
@@ -127,13 +122,14 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 		return nil, err
 	}
 
-	movedURL, err := u.processEditorImages(&editorData)
+	movedURL, err := u.processEditorImages(c, &editorData)
 	if err != nil {
+		u.rollBackProcessedImages(c, movedURL)
 		return nil, err
 	}
 	defer func() {
 		if !success {
-			u.RollbackMovedImageUrl(movedURL)
+			u.rollBackProcessedImages(c, movedURL)
 		}
 	}()
 
@@ -207,7 +203,7 @@ func (u *CreateBlogUseCases) CreateBlog(c context.Context, blog *domain.Blog, us
 
 func (u *CreateBlogUseCases) EditBlog(
 	c context.Context,
-	blogID string,
+	blogID int64,
 	payload *domain.Blog,
 	userID string,
 	fileParams *storage.FileStorageParams,
@@ -227,28 +223,25 @@ func (u *CreateBlogUseCases) EditBlog(
 
 	if fileParams != nil {
 
-		uploadDir, err := utils.EnsureUploadPath("../uploads")
-		if err != nil {
-			return nil, err
-		}
+		key := storage.GenerateKey("thumbnails", fileParams.FileName)
 
-		fileParams.FileName = filepath.Join(uploadDir, fileParams.FileName)
-
-		url, err := u.storageService.Upload(
+		uploadResult, err := u.storageService.Save(c, key,
 			fileParams.File,
-			fileParams.FileName,
 			fileParams.ContentType,
+			false,
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		newThumbnailURL = &url
+		uploadedKey := storage.StripURL(uploadResult.URL)
+
+		newThumbnailURL = &uploadedKey
 
 		// rollback uploaded thumbnail if failed
 		defer func() {
 			if !success {
-				_ = u.storageService.Delete(url)
+				_ = u.storageService.Delete(c, uploadResult.Key)
 			}
 		}()
 	}
@@ -261,16 +254,18 @@ func (u *CreateBlogUseCases) EditBlog(
 		return nil, err
 	}
 
-	// Move newly uploaded temp images
-	movedNewImages, err := u.processEditorImages(&newEditorData)
+	// Mark images in editor data to pernament
+	movedNewImages, err := u.processEditorImages(c, &newEditorData)
 	if err != nil {
+		// Rollback successfully marked file
+		u.rollBackProcessedImages(c, movedNewImages)
 		return nil, err
 	}
 
 	// rollback moved images if failed
 	defer func() {
 		if !success {
-			u.RollbackMovedImageUrl(movedNewImages)
+			u.rollBackProcessedImages(c, movedNewImages)
 		}
 	}()
 
@@ -279,12 +274,23 @@ func (u *CreateBlogUseCases) EditBlog(
 		return nil, err
 	}
 
+	// Get updated object for handler
 	var updatedBlog *domain.Blog
+
+	// For moved image tracking and compensation
+	// TODO: Move this logic for background worker
+	var proccessedUrls []string
+	defer func() {
+		if !success && len(proccessedUrls) > 0 {
+			u.rollBackProcessedImages(c, proccessedUrls)
+		}
+	}()
 	err = u.txManager.WithVoidTx(c, func(ctx context.Context) error {
 
 		// Edit blog first
 		// repo returns before + after
 		before, after, err := u.repo.UpdateBlog(ctx, &domain.Blog{
+			BlogID:       blogID,
 			AuthorID:     payload.AuthorID,
 			Title:        payload.Title,
 			ContentText:  payload.ContentText,
@@ -292,10 +298,22 @@ func (u *CreateBlogUseCases) EditBlog(
 			Status:       payload.Status,
 			URLSlug:      payload.URLSlug,
 			ThumbnailUrl: newThumbnailURL,
-		}, userID)
+		}, newThumbnailURL != nil, userID)
 		if err != nil {
 			return err
 		}
+		// tags
+		if len(payload.Tags) > 0 {
+			err = u.tagRepo.UpsertTags(
+				ctx,
+				after.BlogID,
+				payload.Tags,
+			)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Thumbnail replacement
 		if newThumbnailURL != nil {
 
@@ -304,12 +322,9 @@ func (u *CreateBlogUseCases) EditBlog(
 			// old thumbnail cleanup
 			if before.ThumbnailUrl != nil &&
 				*before.ThumbnailUrl != *newThumbnailURL {
-
-				tempThumb := utils.SwapTemp(*before.ThumbnailUrl, true)
-
-				err = u.storageService.MoveFile(
+				err = u.storageService.MarkDelete(
+					ctx,
 					*before.ThumbnailUrl,
-					tempThumb,
 				)
 				if err != nil {
 					return err
@@ -326,45 +341,28 @@ func (u *CreateBlogUseCases) EditBlog(
 		newImages := u.extractEditorImageURLs(&newEditorData)
 
 		removedImages := u.difference(oldImages, newImages)
-
 		// move removed images into temp folder
+
 		for _, oldURL := range removedImages {
 
-			// skip temp images
-			if strings.Contains(oldURL, "/uploads/temp/") {
-				continue
-			}
-
-			tempURL := utils.SwapTemp(oldURL, true)
-
-			err := u.storageService.MoveFile(oldURL, tempURL)
+			err := u.storageService.MarkDelete(ctx, oldURL)
 			if err != nil {
+				u.rollBackProcessedImages(c, proccessedUrls)
 				return err
 			}
+			proccessedUrls = append(proccessedUrls, oldURL)
 		}
 
-		// tags
-		if len(payload.Tags) > 0 {
-			err = u.tagRepo.UpsertTags(
-				ctx,
-				after.BlogID,
-				payload.Tags,
-			)
-			if err != nil {
-				return err
-			}
-		}
 		updatedBlog = after
-		updatedBlog.ContentJson = updatedJSON
 		updatedBlog.Tags = payload.Tags
+		updatedBlog.ContentJson = updatedJSON
 
 		return nil
 	})
 
 	if err == nil {
 		success = true
-	}
-	if err != nil {
+	} else {
 		return nil, err
 	}
 
@@ -375,26 +373,21 @@ func (u *CreateBlogUseCases) VerifyAuthorIDByUserID(c context.Context, userID st
 	return u.repo.VerifyAuthorIDByUserID(c, userID)
 }
 
-func (u *CreateBlogUseCases) SaveBlogImageToTempFolder(c context.Context, fileParams storage.FileStorageParams) (string, error) {
+func (u *CreateBlogUseCases) UploadTemporaryFile(c context.Context, fileParams storage.FileStorageParams) (string, error) {
 
-	// Ensure folder on current ymd
-	uploadDir, err := utils.EnsureUploadPath("../uploads/temp")
+	key := storage.GenerateKey("blog_images", fileParams.FileName)
+
+	uploadResult, err := u.storageService.Save(c, key, fileParams.File, fileParams.ContentType, true)
 	if err != nil {
 		return "", err
 	}
 
-	fileParams.FileName = filepath.Join(uploadDir, fileParams.FileName)
-
-	url, err := u.storageService.Upload(fileParams.File, fileParams.FileName, fileParams.ContentType)
-	if err != nil {
-		return "", err
-	}
-
-	return url, nil
+	return uploadResult.URL, nil
 }
 
-func (u *CreateBlogUseCases) processEditorImages(content *EditorData) ([]string, error) {
+func (u *CreateBlogUseCases) processEditorImages(ctx context.Context, content *EditorData) ([]string, error) {
 	var movedURLs []string
+	var err error
 	for i, block := range content.Blocks {
 		if block.Type != "image" {
 			continue
@@ -411,21 +404,15 @@ func (u *CreateBlogUseCases) processEditorImages(content *EditorData) ([]string,
 			continue
 		}
 
-		if strings.Contains(url, "/uploads/temp/") {
+		content.Blocks[i].Data.File.URL = storage.StripURL(url)
 
-			dst := utils.SwapTemp(url, false)
-
-			err := u.storageService.MoveFile(url, dst)
-			if err != nil {
-				return nil, err
-			}
-
-			content.Blocks[i].Data.File.URL = dst
-
-			movedURLs = append(movedURLs, dst)
+		err = u.storageService.MarkPermanent(ctx, url)
+		if err != nil {
+			break
 		}
+		movedURLs = append(movedURLs, url)
 	}
-	return movedURLs, nil
+	return movedURLs, err
 }
 
 func (u *CreateBlogUseCases) extractEditorImageURLs(content *EditorData) []string {
@@ -473,15 +460,11 @@ func (u *CreateBlogUseCases) difference(oldImages, newImages []string) []string 
 	return removed
 }
 
-func (u *CreateBlogUseCases) RollbackMovedImageUrl(movedURLs []string) {
+func (u *CreateBlogUseCases) rollBackProcessedImages(ctx context.Context, movedURLs []string) {
 	for _, url := range movedURLs {
-
-		if !strings.Contains(url, "/uploads/") {
-			continue
+		err := u.storageService.MarkPermanent(ctx, url)
+		if err != nil {
+			log.Println(err)
 		}
-
-		dst := utils.SwapTemp(url, true)
-
-		_ = u.storageService.MoveFile(url, dst)
 	}
 }

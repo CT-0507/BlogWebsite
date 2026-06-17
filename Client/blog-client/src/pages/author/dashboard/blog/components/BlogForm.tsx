@@ -339,7 +339,9 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
 
   const dirtyFieldNames = getDirtyFieldNames(dirtyFields);
 
-  const handleConfirm = () => {};
+  const handleConfirm = () => {
+    navigate(-1);
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onErr = (err: any) => {
     console.log(err);
@@ -475,7 +477,7 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
               width: "45%",
               height: "50px",
             }}
-            disabled={isSubmitting || isPending || !isDirty}
+            disabled={isSubmitting || isPending}
           >
             {isPending ? (
               "Loading"

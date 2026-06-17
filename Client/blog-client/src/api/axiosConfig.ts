@@ -1,6 +1,5 @@
 import axios from "axios";
 import { tokenStore } from "./store/tokenStore";
-import { isLocalMode } from ".";
 
 export const API_VERSION_V1 = "/api/v1";
 
@@ -31,12 +30,6 @@ const processQueue = (error: Error | null, response = null) => {
 
   failedQueue = [];
 };
-// async function refreshToken() {
-//   const { data } = await axiosAuth.post("/refresh", null, {
-//     _retry: true,
-//   });
-//   return data; // { accessToken }
-// }
 export const axiosAuth = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
@@ -59,7 +52,6 @@ axiosAuth.interceptors.request.use(
 axiosAuth.interceptors.response.use(
   (res) => res,
   async (error) => {
-    if (isLocalMode) return;
     const originalRequest = error.config;
 
     if (
@@ -103,25 +95,6 @@ axiosAuth.interceptors.response.use(
           });
       });
     }
-    //   try {
-    //     const { accessToken } = await refreshToken();
-    //     tokenStore.set(accessToken);
-
-    //     queue.forEach((cb) => cb(accessToken));
-    //     queue = [];
-
-    //     originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-    //     return api(originalRequest);
-    //   } catch (err) {
-    //     console.log(err);
-    //     tokenStore.clear();
-    //     queue = [];
-    //     window.location.href = "/account";
-    //     return Promise.reject(error);
-    //   } finally {
-    //     isRefreshing = false;
-    //   }
-    // }
 
     return Promise.reject(error);
   },

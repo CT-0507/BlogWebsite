@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/authors/domain"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/contracts"
@@ -12,7 +11,6 @@ import (
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/saga/flows"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/database"
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/storage"
-	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
 	"github.com/google/uuid"
 )
 
@@ -42,17 +40,12 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *s
 	var err error
 
 	if fileParams != nil {
-		// Ensure folder on current ymd
-		uploadDir, err := utils.EnsureUploadPath("../uploads/temp")
-		if err != nil {
-			return err
-		}
 
 		uploaded := false
 
-		fileParams.FileName = filepath.Join(uploadDir, fileParams.FileName)
+		key := storage.GenerateKey("author/avatar", fileParams.FileName)
 
-		url, err := u.storageService.Upload(fileParams.File, fileParams.FileName, fileParams.ContentType)
+		url, err := u.storageService.Save(ctx, key, fileParams.File, fileParams.ContentType, false)
 		if err != nil {
 			return err
 		}
@@ -61,11 +54,11 @@ func (u *AuthorIdentityUsecases) CreateAuthor(ctx context.Context, fileParams *s
 		// Ensure delete on failure to create user
 		defer func() {
 			if err != nil && uploaded {
-				_ = u.storageService.Delete(fileParams.FileName)
+				_ = u.storageService.Delete(ctx, key)
 			}
 		}()
 
-		author.Avatar = &url
+		author.Avatar = &url.URL
 	}
 
 	err = u.txManager.WithVoidTx(ctx, func(ctx context.Context) error {

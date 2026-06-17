@@ -1855,7 +1855,7 @@ const updateBlog = `-- name: UpdateBlog :one
 WITH old_row AS (
     SELECT blog_id, author_id, url_slug, title, content_json, content_text, thumbnail_url, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, access_count, is_approved, report_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
     FROM blogs.blogs o
-    WHERE o.url_slug = $1
+    WHERE o.blog_id = $1
 ),
 updated AS (
     UPDATE blogs.blogs
@@ -1863,10 +1863,13 @@ updated AS (
         title = $2,
         content_json = $3,
         content_text = $4,
-        thumbnail_url = $5,
+        thumbnail_url = CASE
+            WHEN $7::BOOLEAN THEN $5
+            ELSE thumbnail_url
+        END,
         updated_by = $6,
         updated_at = NOW()
-    WHERE url_slug = $1
+    WHERE blog_id = $1
     RETURNING blog_id, author_id, url_slug, title, content_json, content_text, thumbnail_url, title_vector, content_vector, status, like_count, dislike_count, daily_access_count, weekly_access_count, access_count, is_approved, report_count, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by
 )
 SELECT
@@ -1877,12 +1880,13 @@ CROSS JOIN updated
 `
 
 type UpdateBlogParams struct {
-	UrlSlug      string
-	Title        string
-	ContentJson  []byte
-	ContentText  string
-	ThumbnailUrl pgtype.Text
-	UpdatedBy    string
+	BlogID                int64
+	Title                 string
+	ContentJson           []byte
+	ContentText           string
+	ThumbnailUrl          pgtype.Text
+	UpdatedBy             string
+	ShouldUpdateThumbnail bool
 }
 
 type UpdateBlogRow struct {
@@ -1892,12 +1896,13 @@ type UpdateBlogRow struct {
 
 func (q *Queries) UpdateBlog(ctx context.Context, arg UpdateBlogParams) (UpdateBlogRow, error) {
 	row := q.db.QueryRow(ctx, updateBlog,
-		arg.UrlSlug,
+		arg.BlogID,
 		arg.Title,
 		arg.ContentJson,
 		arg.ContentText,
 		arg.ThumbnailUrl,
 		arg.UpdatedBy,
+		arg.ShouldUpdateThumbnail,
 	)
 	var i UpdateBlogRow
 	err := row.Scan(&i.Before, &i.After)

@@ -2,7 +2,9 @@ package sse
 
 import (
 	"io"
+	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/CT-0507/BlogWebsite/Server/BlogServer/internal/shared/utils"
@@ -10,15 +12,42 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	SUBSCRIBER_LIMIT = 20
+)
+
 type SSEHandler struct {
-	broker *Broker
+	broker  *Broker
+	counter atomic.Int32
 }
 
 func NewSSEHandler(b *Broker) *SSEHandler {
 	return &SSEHandler{broker: b}
 }
 
+func (h *SSEHandler) tryAcquireConnection() bool {
+	for {
+		current := h.counter.Load()
+
+		if current >= SUBSCRIBER_LIMIT {
+			return false
+		}
+
+		if h.counter.CompareAndSwap(current, current+1) {
+			return true
+		}
+	}
+}
+
 func (h *SSEHandler) StreamPublic(c *gin.Context) {
+
+	if !h.tryAcquireConnection() {
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": "SSE connection limit reached",
+		})
+		return
+	}
+	defer h.counter.Add(-1)
 
 	clientID := uuid.NewString()
 	client := h.broker.AddClient(clientID)
@@ -61,6 +90,14 @@ func (h *SSEHandler) StreamPublic(c *gin.Context) {
 }
 
 func (h *SSEHandler) StreamAuth(c *gin.Context) {
+
+	if !h.tryAcquireConnection() {
+		c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+			"error": "SSE connection limit reached",
+		})
+		return
+	}
+	defer h.counter.Add(-1)
 
 	clientID := uuid.NewString()
 	client := h.broker.AddClient(clientID)
