@@ -9,6 +9,8 @@ on:
       - 'Server/BlogServer/**'
       - '.github/workflows/deploy-backend.yml'
 
+  workflow_dispatch:
+
 
 permissions:
   contents: read
