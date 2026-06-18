@@ -116,7 +116,15 @@ CREATE TABLE blogs.comments (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at TIMESTAMPTZ,
 
-    UNIQUE(blog_id, actor_id)
+    CONSTRAINT comments_depth_check
+        CHECK (depth IN (0, 1)),
+
+    CONSTRAINT comments_parent_depth_check
+        CHECK (
+            (depth = 0 AND parent_comment_id IS NULL)
+            OR
+            (depth = 1 AND parent_comment_id IS NOT NULL)
+        )
 );
 
 CREATE TABLE blogs.comment_reactions (
@@ -205,16 +213,6 @@ CREATE TABLE blogs.blog_metrics (
     UNIQUE(blog_id, date)
 
 );
-
--- CREATE TABLE blogs.blog_request_tracking (
-    
---     blog_id BIGINT NOT NULL REFERENCES blogs.blogs(blog_id) ON DELETE CASCADE,
---     request_id TEXT NOT NULL,
---     -- rankings
-
---     UNIQUE(blog_id, request_id)
-
--- );
 
 CREATE TABLE blogs.reports (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

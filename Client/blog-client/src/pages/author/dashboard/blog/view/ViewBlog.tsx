@@ -9,19 +9,6 @@ import { useGetAuthorDashboardBlogMetrics } from "@/hooks/useMetrics";
 import CircularProgress from "@mui/material/CircularProgress";
 import { formatDayShort, formatWeekLabel } from "@/utils/timeUtils";
 
-// const dailyViews = [
-//   { date: "2026/05/29", views: 142 },
-//   { date: "2026/05/30", views: 158 },
-//   { date: "2026/05/31", views: 151 },
-//   { date: "2026/06/01", views: 176 },
-// ];
-
-// const weeklyViews = [
-//   { weekStart: "2026/05/04", views: 920 },
-//   { weekStart: "2026/05/11", views: 1050 },
-//   { weekStart: "2026/05/18", views: 1125 },
-//   { weekStart: "2026/05/25", views: 1280 },
-// ];
 export default function ViewDashboardBlogPage() {
   const [weeks, setWeeks] = useState(4);
   const [dates, setDates] = useState(4);

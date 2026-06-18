@@ -1,31 +1,29 @@
 import type { Author } from "@/types/types";
 import type { CreateAuthorFormValues } from "./../pages/author/create-author/model/schema";
-import { api, axiosAuth } from "./axiosConfig";
-
-const API_VERSION = "/api/v1";
+import { api, axiosAuth, API_VERSION_V1 } from "./axiosConfig";
 
 export async function getAuthorProfileRequest(slug: string) {
-  const { data } = await api.get(`${API_VERSION}/authors/` + slug);
+  const { data } = await api.get(`${API_VERSION_V1}/authors/` + slug);
 
   return data;
 }
 
 export async function getAuthorBlogsRequest(slug: string) {
-  const { data } = await api.get(`${API_VERSION}/blogs/author/slug/` + slug);
+  const { data } = await api.get(`${API_VERSION_V1}/blogs/author/slug/` + slug);
 
   return data;
 }
 
 export async function getFollowedAuthorsRequest() {
   const { data } = await axiosAuth.get(
-    `${API_VERSION}/authors/me/following/authors`,
+    `${API_VERSION_V1}/authors/me/following/authors`,
   );
 
   return data;
 }
 
 export async function getAuthorFollowersRequest(slug: string) {
-  const { data } = await api.get(`${API_VERSION}/authors/${slug}/followers`);
+  const { data } = await api.get(`${API_VERSION_V1}/authors/${slug}/followers`);
 
   return data;
 }
@@ -38,14 +36,14 @@ export async function createAuthorRequest(formData: CreateAuthorFormValues) {
   if (formData.socialLink) formDataV.append("socialLink", formData.socialLink);
   if (formData.email) formDataV.append("email", formData.email);
   if (formData.avatar) formDataV.append("avatar", formData.avatar);
-  const { data } = await axiosAuth.post(`${API_VERSION}/authors`, formDataV);
+  const { data } = await axiosAuth.post(`${API_VERSION_V1}/authors`, formDataV);
 
   return data;
 }
 
 export async function followAuthorRequest(authorID: string) {
   const { data } = await axiosAuth.post(
-    `${API_VERSION}/authors/${authorID}/follow`,
+    `${API_VERSION_V1}/authors/${authorID}/follow`,
   );
 
   return data;
@@ -53,14 +51,14 @@ export async function followAuthorRequest(authorID: string) {
 
 export async function unfollowAuthorRequest(authorID: string) {
   const { data } = await axiosAuth.delete(
-    `${API_VERSION}/authors/${authorID}/follow`,
+    `${API_VERSION_V1}/authors/${authorID}/follow`,
   );
 
   return data;
 }
 
 export async function fetchAuthorMe(): Promise<Author> {
-  const { data } = await axiosAuth.get(`${API_VERSION}/me/authorProfile`);
+  const { data } = await axiosAuth.get(`${API_VERSION_V1}/me/authorProfile`);
   return data || null;
 }
 
@@ -88,6 +86,6 @@ export type AuthorDashboardMetrics = {
 };
 
 export async function getAuthorDashboardMetrics(): Promise<AuthorDashboardMetrics> {
-  const { data } = await axiosAuth.get(`${API_VERSION}/dashboard/author`);
+  const { data } = await axiosAuth.get(`${API_VERSION_V1}/dashboard/author`);
   return data || null;
 }

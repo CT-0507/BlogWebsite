@@ -18,7 +18,7 @@ export function useAuthSSE(
   token: string | null,
   topics: string[],
   globalTopics?: string[],
-  setSnackbar?: (value: boolean) => void
+  setSnackbar?: (value: boolean) => void,
 ) {
   const queryClient = useQueryClient();
 
@@ -30,7 +30,6 @@ export function useAuthSSE(
     worker.port.start();
 
     worker.port.onmessage = (msg) => {
-      console.log(msg);
       if (msg.data.type !== "cache-patch") return;
 
       const { queryKey, op, data } = msg.data.patch;

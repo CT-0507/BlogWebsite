@@ -7,26 +7,24 @@ import PasswordSection from "./PasswordSection";
 
 export default function Profile() {
   return (
-    <>
-      <Box
-        sx={{
-          width: "100%",
-          maxWidth: {
-            md: "80%",
-          },
-          mx: "auto", // center horizontally
-          p: 1,
-        }}
-      >
-        <Typography component="h1">This is profile page</Typography>
-        <Divider />
-        <EmailSection />
-        <Divider />
-        <BasicInfoSection />
-        <Divider />
-        <PasswordSection />
-        <Divider />
-      </Box>
-    </>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: {
+          md: "80%",
+        },
+        mx: "auto", // center horizontally
+        p: 1,
+      }}
+    >
+      <Typography component="h1">This is profile page</Typography>
+      <Divider />
+      <EmailSection />
+      <Divider />
+      <BasicInfoSection />
+      <Divider />
+      <PasswordSection />
+      <Divider />
+    </Box>
   );
 }

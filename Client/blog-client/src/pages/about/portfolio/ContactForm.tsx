@@ -35,12 +35,10 @@ export default function ContactForm({ id }: ContactFormProps) {
   const { mutate, isPending } = useCreateContact();
 
   const onSubmit = async (data: ContactFormValues) => {
-    console.log("Form Data:", data);
     mutate(data, {
-      onSuccess: (data) => {
+      onSuccess: () => {
         reset();
         setOpen(true);
-        console.log(data);
       },
     });
   };

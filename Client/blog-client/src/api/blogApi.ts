@@ -1,5 +1,5 @@
 import type { PublishBlogFormValues } from "@/pages/author/dashboard/blog/publish/model/schema";
-import { api, axiosAuth } from "./axiosConfig";
+import { api, API_VERSION_V1, axiosAuth } from "./axiosConfig";
 import type { PostCommentFormValues } from "@/pages/blog/viewBlog/model/schema";
 import type {
   Blog,
@@ -11,8 +11,6 @@ import type {
 } from "@/types/Blog";
 import { getQueryParam } from "@/utils/mapper";
 import type { BlogReport } from "@/types/types";
-
-export const API_VERSION = "/api/v1";
 
 export async function publishBlogRequest(
   formData: PublishBlogFormValues & {
@@ -38,7 +36,7 @@ export async function publishBlogRequest(
       formDataV.append("tags", item);
     });
   }
-  const { data } = await axiosAuth.post(`${API_VERSION}/blogs`, formDataV, {
+  const { data } = await axiosAuth.post(`${API_VERSION_V1}/blogs`, formDataV, {
     headers: {
       "Idempotency-Key": formData.idempotencyKey,
     },
@@ -74,7 +72,7 @@ export async function updateBlogRequest(
     });
   }
   const { data } = await axiosAuth.patch(
-    `${API_VERSION}/blogs/${formData.blogId}`,
+    `${API_VERSION_V1}/blogs/${formData.blogId}`,
     formDataV,
   );
 
@@ -103,7 +101,9 @@ export async function listBlogs(
 
   params.append("page", page.toString());
 
-  const { data } = await api.get(`${API_VERSION}/blogs?` + params.toString());
+  const { data } = await api.get(
+    `${API_VERSION_V1}/blogs?` + params.toString(),
+  );
 
   return data;
 }
@@ -117,7 +117,7 @@ export async function listMyBlogs(
   params.append("page", page.toString());
 
   const { data } = await axiosAuth.get(
-    `${API_VERSION}/dashboard/author/blogs?` + params.toString(),
+    `${API_VERSION_V1}/dashboard/author/blogs?` + params.toString(),
   );
 
   return data;
@@ -132,7 +132,7 @@ export async function listBlogsAuthor(
   params.append("page", page.toString());
 
   const { data } = await axiosAuth.get(
-    `${API_VERSION}/dashboard/blogs?` + params.toString(),
+    `${API_VERSION_V1}/dashboard/blogs?` + params.toString(),
   );
 
   return data;
@@ -143,12 +143,14 @@ export async function getBlogBySlug(
   isAuthenticated?: boolean,
 ): Promise<Blog> {
   if (isAuthenticated) {
-    const { data } = await axiosAuth.get(`${API_VERSION}/blogs/slug/${slug}`);
+    const { data } = await axiosAuth.get(
+      `${API_VERSION_V1}/blogs/slug/${slug}`,
+    );
 
     return data;
   }
 
-  const { data } = await api.get(`${API_VERSION}/blogs/slug/${slug}`);
+  const { data } = await api.get(`${API_VERSION_V1}/blogs/slug/${slug}`);
 
   return data;
 }
@@ -163,7 +165,7 @@ export async function postComment(
   formData: PostCommentFormValues,
 ): Promise<BlogComment> {
   const { data } = await axiosAuth.post(
-    `${API_VERSION}/blogs/${formData.blogID}/comments`,
+    `${API_VERSION_V1}/blogs/${formData.blogID}/comments`,
     formData,
   );
 
@@ -181,13 +183,13 @@ export async function getRootComments(
 ): Promise<GetRootCommentsResponse> {
   if (isAuthenticated) {
     const { data } = await axiosAuth.get(
-      `${API_VERSION}/blogs/${blogID}/comments`,
+      `${API_VERSION_V1}/blogs/${blogID}/comments`,
     );
 
     return data;
   }
 
-  const { data } = await api.get(`${API_VERSION}/blogs/${blogID}/comments`);
+  const { data } = await api.get(`${API_VERSION_V1}/blogs/${blogID}/comments`);
 
   return data;
 }
@@ -198,14 +200,14 @@ export async function getReplies(
 ): Promise<BlogComment[]> {
   if (isAuthenticated) {
     const { data } = await axiosAuth.get(
-      `${API_VERSION}/comments/${parentID}/children`,
+      `${API_VERSION_V1}/comments/${parentID}/children`,
     );
 
     return data;
   }
 
   const { data } = await api.get(
-    `${API_VERSION}/comments/${parentID}/children`,
+    `${API_VERSION_V1}/comments/${parentID}/children`,
   );
 
   return data;
@@ -221,7 +223,7 @@ export async function createBlogReaction(
   formData: BlogReaction,
 ): Promise<CreateBlogReactionResponse> {
   const { data } = await axiosAuth.post(
-    `${API_VERSION}/blogs/${formData.blogId}/reaction`,
+    `${API_VERSION_V1}/blogs/${formData.blogId}/reaction`,
     {
       type: formData.type,
     },
@@ -238,7 +240,7 @@ export interface CreateCommentReactionResponse {
 
 export async function createCommentReaction(formData: CommentReaction) {
   const { data } = await axiosAuth.post(
-    `${API_VERSION}/comments/${formData.commentId}/reaction`,
+    `${API_VERSION_V1}/comments/${formData.commentId}/reaction`,
     {
       type: formData.type,
     },
@@ -261,7 +263,7 @@ export async function updateCommentContent(
   formData: UpdateBlogCommentContentRequest,
 ): Promise<UpdateCommentContentResponse> {
   const { data } = await axiosAuth.patch(
-    `${API_VERSION}/comments/${formData.commentId}`,
+    `${API_VERSION_V1}/comments/${formData.commentId}`,
     {
       content: formData.content,
     },
@@ -272,7 +274,7 @@ export async function updateCommentContent(
 
 export async function hideComment(commentId: string) {
   const { data } = await axiosAuth.patch(
-    `${API_VERSION}/comments/${commentId}/hidden`,
+    `${API_VERSION_V1}/comments/${commentId}/hidden`,
   );
 
   return data;
@@ -280,7 +282,7 @@ export async function hideComment(commentId: string) {
 
 export async function deleteComment(commentId: string) {
   const { data } = await axiosAuth.delete(
-    `${API_VERSION}/comments/${commentId}/delete`,
+    `${API_VERSION_V1}/comments/${commentId}/delete`,
   );
 
   return data;
@@ -307,7 +309,7 @@ export async function getRankingBlogs(
   params.append("page", page.toString());
 
   const { data } = await api.get(
-    `${API_VERSION}/blogs/ranking?type=${type}&` + params.toString(),
+    `${API_VERSION_V1}/blogs/ranking?type=${type}&` + params.toString(),
   );
 
   return data;
@@ -317,7 +319,7 @@ export async function uploadByFile(file: File) {
   const formData = new FormData();
   formData.append("image", file);
 
-  const res = await axiosAuth.post(`${API_VERSION}/uploads/image`, formData);
+  const res = await axiosAuth.post(`${API_VERSION_V1}/uploads/image`, formData);
 
   return res.data;
 }
@@ -331,7 +333,7 @@ export async function createBlogReport(
   report: CreateBlogReportRequest,
 ): Promise<BlogReport> {
   const res = await axiosAuth.post(
-    `${API_VERSION}/blogs/${report.blogID}/reports`,
+    `${API_VERSION_V1}/blogs/${report.blogID}/reports`,
     {
       reason: report.reason,
     },
@@ -353,7 +355,7 @@ export async function getBlogMetrics({
 }: GetBlogMetricsRequest) {
   const params = getQueryParam({ viewType, resultLength });
   const res = await axiosAuth.get(
-    `${API_VERSION}/dashboard/author/blogs/${blogID}/metrics?` +
+    `${API_VERSION_V1}/dashboard/author/blogs/${blogID}/metrics?` +
       params.toString(),
   );
 

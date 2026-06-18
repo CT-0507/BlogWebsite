@@ -13,7 +13,7 @@ export function initAuthSSE(
   baseURL: string,
   token: string,
   topics: string[],
-  globalTopics?: string[]
+  globalTopics?: string[],
 ) {
   const w = getWorker();
 
@@ -25,15 +25,13 @@ export function initAuthSSE(
     globalTopics,
   });
 
-  console.log(w);
-
   return w;
 }
 
 export function initPublicSSE(
   baseURL: string,
   topics?: string[],
-  globalTopics?: string[]
+  globalTopics?: string[],
 ) {
   const w = getWorker();
 

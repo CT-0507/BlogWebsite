@@ -54,12 +54,12 @@ export default function PasswordSection() {
   const { mutate, isPending } = useMutation({
     mutationFn: changePasswordRequest,
     retry: false,
-    onSuccess: (data) => {
-      console.log(data);
-    },
-    onError: (error) => {
-      console.error(error.message);
-    },
+    // onSuccess: (data) => {
+    //   console.log(data);
+    // },
+    // onError: (error) => {
+    //   console.error(error.message);
+    // },
   });
 
   const handleCancel = () => {
@@ -67,28 +67,28 @@ export default function PasswordSection() {
   };
 
   const handleMouseDownCurrentPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowCurrentPassword(true);
   };
 
   const handleMouseUpCurrentPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowCurrentPassword(false);
   };
 
   const handleMouseDownNewPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowNewPassword(true);
   };
 
   const handleMouseUpNewPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowNewPassword(false);
@@ -99,7 +99,6 @@ export default function PasswordSection() {
     setEditSwitch((prev) => !prev);
   };
   const onSubmit = async (data: ChangePasswordFormValues) => {
-    console.log("Form Data:", data);
     mutate(data);
   };
   return (

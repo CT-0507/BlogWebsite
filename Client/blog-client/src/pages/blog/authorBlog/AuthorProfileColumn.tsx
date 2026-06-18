@@ -27,7 +27,6 @@ export default function AuthorProfileColumn({
     queryFn: () => getAuthorProfileRequest(slug),
   });
 
-  console.log(data);
   const author = data as Author;
 
   return (

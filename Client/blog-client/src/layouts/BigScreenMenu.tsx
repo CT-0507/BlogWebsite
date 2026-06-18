@@ -28,10 +28,6 @@ export default function BigScreenMenu({
       queryClient.setQueryData(["me", "author"], null);
       handleMenuClose();
       localStorage.removeItem("hasSession");
-      // navigate("/account");
-    },
-    onError: (error) => {
-      console.log(error);
     },
   });
 

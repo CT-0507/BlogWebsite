@@ -68,14 +68,9 @@ export default function LoginForm() {
       localStorage.setItem("hasSession", "true");
       navigate(from, { replace: true });
     },
-    onError: (error) => {
-      // console.error(error.response?.data?.message || error.message);
-      console.error(error.message);
-    },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    console.log("Form Data:", data);
     mutate(data);
   };
 

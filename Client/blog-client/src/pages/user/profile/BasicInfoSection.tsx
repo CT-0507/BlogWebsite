@@ -53,9 +53,6 @@ export default function BasicInfoSection() {
         lastName: data?.lastName,
       }));
     },
-    onError: (error) => {
-      console.error(error.message);
-    },
   });
 
   const handleCancel = () => {
@@ -68,7 +65,6 @@ export default function BasicInfoSection() {
   };
 
   const onSubmit = async (data: ChangeBasicInfoFormValues) => {
-    console.log("Form Data:", data);
     mutate(data);
   };
   return (

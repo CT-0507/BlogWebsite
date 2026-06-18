@@ -53,7 +53,7 @@ export default function FollowSection({ author }: FollowSectionProps) {
               ? [...authors, authorId] // ✅ add
               : authors.filter((id) => id !== authorId), // ✅ remove
           };
-        }
+        },
       );
 
       queryClient.setQueryData(["author", author.slug], (old?: Author) => {
@@ -77,7 +77,7 @@ export default function FollowSection({ author }: FollowSectionProps) {
             ...old,
             followerCount: old.followerCount + (variables.follow ? 1 : -1),
           };
-        }
+        },
       );
     },
 
@@ -91,60 +91,6 @@ export default function FollowSection({ author }: FollowSectionProps) {
       queryClient.invalidateQueries({ queryKey: ["followed_authors"] });
     },
   });
-
-  //   const { mutate: fMutate, isPending: fLoading } = useMutation({
-  //     mutationFn: followAuthorRequest,
-  //     retry: false,
-  //     onSuccess: (data) => {
-  //       console.log(data);
-  //       queryClient.setQueryData(["author", author.slug], (old: Author[]) => {
-  //         if (!old) return old;
-  //         return old.map((item) =>
-  //           item.slug === author.slug
-  //             ? {
-  //                 ...item,
-  //                 ["followerCount"]: item["followerCount"] + 1,
-  //               }
-  //             : item
-  //         );
-  //       });
-  //     },
-  //     onError: (error) => {
-  //       console.log(error);
-  //     },
-  //   });
-
-  //   const { mutate: uMutate, isPending: uLoading } = useMutation({
-  //     mutationFn: unfollowAuthorRequest,
-  //     retry: false,
-  //     onSuccess: (data) => {
-  //       console.log(data);
-  //       queryClient.setQueryData(["author", author.slug], (old: Author[]) => {
-  //         if (!old) return old;
-  //         return old.map((item) =>
-  //           item.slug === author.slug
-  //             ? {
-  //                 ...item,
-  //                 ["followerCount"]: item["followerCount"] - 1,
-  //               }
-  //             : item
-  //         );
-  //       });
-  //       queryClient.setQueryData(["followed_authors"])
-  //     },
-  //     onError: (error) => {
-  //       console.log(error);
-  //     },
-  //   });
-  //   console.log(
-  //     queryClient.getQueryData(["followed_authors"]) as FollowedAuthorReponse
-  //   );
-  //   const handleFollow = () => {
-  //     fMutate(author.authorID);
-  //   };
-  //   const handleUnfollw = () => {
-  //     uMutate(author.authorID);
-  //   };
   return (
     <>
       {/* {isFollowed ? (

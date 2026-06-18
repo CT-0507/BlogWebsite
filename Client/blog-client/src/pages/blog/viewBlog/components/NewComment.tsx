@@ -46,7 +46,6 @@ export default function NewComment({ blogID }: NewCommentProps) {
       navigate("/account");
       return;
     }
-    console.log("Form Data:", data);
     mutate(data, {
       onSuccess: () => {
         resetField("content");
