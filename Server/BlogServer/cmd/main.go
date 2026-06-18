@@ -126,9 +126,6 @@ func main() {
 			origins[i] = strings.TrimSpace(origins[i])
 			log.Println("Allowed Origin:", origins[i])
 		}
-	} else {
-		origins = []string{"http://localhost:5173"}
-		log.Println("Allowed Origin: http://localhost:5173")
 	}
 
 	router.Use(cors.New(cors.Config{

@@ -1,52 +1,68 @@
 services:
   nginx:
-    image: nginx:latest
+    image: nginx:alpine
     container_name: nginx
     restart: always
     mem_limit: 64m
     ports:
       - "80:80"
-      # - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - app
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/CT-0507/BlogWebsite:latest
     container_name: go-app
     restart: always
-    mem_limit: 512m
+    mem_limit: 384m
     expose:
       - "8080"
     environment:
       DB_HOST: postgres
-      DB_PORT: 5432
+      DB_PORT: ${POSTGRES_PORT}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379
+      SECRET_KEY: ${SECRET_KEY}
+      SECRET_REFRESH_KEY: ${SECRET_REFRESH_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      REDIS_URL: redis:6379
+      UPLOAD_PATH: ${UPLOAD_PATH}
+      CLOUD_FRONT_DOMAIN: ${CLOUD_FRONT_DOMAIN}
+      BUCKET_NAME: ${BUCKET_NAME}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
     depends_on:
       - postgres
       - redis
   postgres:
-    image: postgres:latest # Use the latest official Postgres image from Docker Hub
+    image: postgres:18-alpine # Use the latest official Postgres image from Docker Hub
     container_name: ${POSTGRES_CONTAINER_NAME}
     restart: always
     mem_limit: 512m
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - max_connections=30
+      - -c
+      - work_mem=4MB
+
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_PORT}:5432"
+
     volumes:
       - pgdata:${POSTGRES_DATA_DIR} # Persistent storage for database data
+
   redis:
-    image: redis:latest
+    image: redis:7-alpine
+    container_name: redis
     restart: always
     mem_limit: 128m
 volumes:
