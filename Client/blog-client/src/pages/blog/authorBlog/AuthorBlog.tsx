@@ -21,7 +21,7 @@ export default function AuthorBlogPage() {
       <Grid container spacing={3}>
         {/* Left Column - Author Info */}
         <AuthorProfileColumn slug={slug} />
-
+        <meta name="description" content="For reading blog" />
         {/* Middle Column - Blogs */}
         <AuthorBlogsColumn slug={slug} />
 

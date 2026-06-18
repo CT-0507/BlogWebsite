@@ -13,6 +13,7 @@ import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Grid from "@mui/material/Grid";
 import { Divider } from "@mui/material";
+import { appName } from "@/config/const";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -96,6 +97,7 @@ export default function Login() {
   if (isAuthenticated) {
     return <Navigate to={from} replace />;
   }
+  const title = `${appName} | ${action === 0 ? "Login" : "Register"}`;
   return (
     <Grid
       container
@@ -104,6 +106,15 @@ export default function Login() {
       spacing={2}
       sx={{}}
     >
+      <title>{title}</title>
+      <meta
+        name="description"
+        content={
+          action === 0
+            ? "Explore our latest blog posts, expert insights, practical guides, and industry updates. Discover valuable content to help you stay informed and inspired."
+            : "Create an account to access exclusive content, personalize your experience, and stay updated with the latest posts and features."
+        }
+      />
       <Grid
         size={{ md: 3 }}
         sx={{
@@ -113,7 +124,7 @@ export default function Login() {
           flexDirection: "column",
         }}
       >
-        <Box>
+        <Box display={action === 0 ? "block" : "none"}>
           Test user:
           <br />
           Username: user1

@@ -13,6 +13,7 @@ import FollowSection from "./FollowSection";
 import { useAuth } from "@/hooks/useAuth";
 import NotLoginFollowButton from "./NotLoginFollowButton";
 import FollowersSection from "./FollowerSection";
+import { appName } from "@/config/const";
 
 interface AuthorProfileColumnProps {
   slug: string;
@@ -28,9 +29,16 @@ export default function AuthorProfileColumn({
   });
 
   const author = data as Author;
-
+  const title = `${appName} |{" "}
+        ${
+          !isLoading
+            ? author.displayName + "| Articles, Featured Content & Followers"
+            : ""
+        }{" "}
+        | Articles, Featured Content & Followers`;
   return (
     <Grid size={{ xs: 12, md: 3 }}>
+      <title>{title}</title>
       <Box sx={{ position: "sticky", top: 24 }}>
         <Card sx={{ borderRadius: 4 }}>
           {!isLoading && (

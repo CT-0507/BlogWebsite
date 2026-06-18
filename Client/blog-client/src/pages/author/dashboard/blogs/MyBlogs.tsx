@@ -36,6 +36,7 @@ import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ViewIcon from "@mui/icons-material/AutoStories";
+import { appName } from "@/config/const";
 
 export default function BlogList() {
   const getInitialForm = (): SearchBlogsFormValues => ({
@@ -97,8 +98,12 @@ export default function BlogList() {
     setShowLocaleDate((prev) => !prev);
   };
 
+  const title = `${appName} | My Blogs`;
+
   return (
     <Box>
+      <title>{title}</title>
+      <meta name="description" content="View all of current user's blogs" />
       {/* Main Layout */}
       <Container sx={{ py: 4 }}>
         {/* Center */}
