@@ -1,0 +1,107 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+    paths:
+      - 'Server/BlogServer/**'
+      - '.github/workflows/deploy-backend.yml'
+
+  workflow_dispatch:
+
+
+permissions:
+  contents: read
+  packages: write
+
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Build and Push ARM64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Server/BlogServer
+          file: ./Server/BlogServer/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+
+
+
+  deploy:
+
+    needs: build
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+            cd /home/ec2-user/app/BlogServer
+            
+            cat > .env <<EOF
+            POSTGRES_CONTAINER_NAME=${{ secrets.POSTGRES_CONTAINER_NAME }}
+            DATABASE_DSN=${{ secrets.DATABASE_DSN }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
+            POSTGRES_DATA_DIR=${{ secrets.POSTGRES_DATA_DIR }}
+
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SECRET_REFRESH_KEY=${{ secrets.SECRET_REFRESH_KEY }}
+            BUCKET_NAME=${{ secrets.BUCKET_NAME }}
+            CLOUD_FRONT_DOMAIN=${{ secrets.CLOUD_FRONT_DOMAIN }}
+
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            EOF
+
+            chmod 600 .env
+            
+            docker login ghcr.io \
+              -u ${{ github.actor }} \
+              -p ${{ secrets.GITHUB_TOKEN }}
+
+            docker compose -f docker-compose.prod.yaml pull
+
+            docker compose -f docker-compose.prod.yaml --env-file .env up -d
+
+            docker image prune -f
