@@ -46,15 +46,15 @@ func main() {
 	}
 
 	// Uploads
-	const RELATIVE_PATH = "../uploads"
-	path := os.Getenv("UPLOAD_PATH")
-	if dsn == "" {
-		path = "." + RELATIVE_PATH
-	}
-	err := os.MkdirAll(path, os.ModePerm)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// const RELATIVE_PATH = "../uploads"
+	// path := os.Getenv("UPLOAD_PATH")
+	// if dsn == "" {
+	// 	path = "." + RELATIVE_PATH
+	// }
+	// err := os.MkdirAll(path, os.ModePerm)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	// Load Redis
 	redisClient := cache.NewRedisClient()
