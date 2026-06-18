@@ -3,10 +3,14 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import { Link } from "react-router-dom";
+import { appName } from "@/config/const";
 
 export default function NotFound() {
+  const title = `${appName}  | NotFound`;
   return (
     <Container maxWidth="sm" sx={{ textAlign: "center", mt: 10 }}>
+      <title>{title}</title>
+      <meta name="description" content="Page not found." />
       <Stack spacing={3} alignItems="center">
         <Typography variant="h2" fontWeight="bold">
           404

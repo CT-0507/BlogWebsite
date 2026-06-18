@@ -5,11 +5,14 @@ import Typography from "@mui/material/Typography";
 import Card from "@mui/material/Card";
 import Stack from "@mui/material/Stack";
 import { useGetAuthorDashboardData } from "@/hooks/useMetrics";
+import { appName } from "@/config/const";
 
 export default function AuthorDashboard() {
   const { data, isLoading } = useGetAuthorDashboardData();
+  const title = `${appName} | Author dashboard`;
   return (
     <Box>
+      <title>{title}</title>
       <Typography>This is author dashboard</Typography>
       <Stack direction="row">
         <Card sx={{ mr: 4, p: 2 }}>

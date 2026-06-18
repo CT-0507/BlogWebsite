@@ -13,14 +13,18 @@ import ProjectCard from "@/components/ProjectCard";
 import { portfolioData } from "./data/portfolioData";
 import { Link } from "react-router-dom";
 import ContactForm from "./ContactForm";
+import { appName } from "@/config/const";
 
 export default function PortfolioPage() {
   const scrollTo = (id: string) => {
     const element = document.querySelector(id);
     element?.scrollIntoView({ behavior: "smooth" });
   };
+  const title = `${appName}  | About creator`;
   return (
     <Container maxWidth="lg" sx={{ overflow: "hidden" }}>
+      <title>{title}</title>
+      <meta name="description" content="Information about the creator." />
       {/* HERO */}
 
       <Box minHeight="100vh" display="flex" alignItems="center">

@@ -2,8 +2,10 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import CreateAuthorForm from "./CreateAuthorForm";
+import { appName } from "@/config/const";
 
 export default function CreateAuthorPage() {
+  const title = `${appName} | Become author`;
   return (
     <Box
       sx={{
@@ -15,6 +17,7 @@ export default function CreateAuthorPage() {
         p: 1,
       }}
     >
+      <title>{title}</title>
       <Typography variant="h3">Become an Author today</Typography>
       <Divider />
       <CreateAuthorForm />

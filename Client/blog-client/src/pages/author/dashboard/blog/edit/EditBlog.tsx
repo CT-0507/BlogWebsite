@@ -4,10 +4,13 @@ import { useBlogBySlug } from "@/hooks/useBlogBySlug";
 import { useAuth } from "@/hooks/useAuth";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import { appName } from "@/config/const";
 
 export default function EditBlog() {
   const { slug } = useParams();
   const { isAuthenticated } = useAuth();
+
+  const title = `${appName} | Edit | {blog?.title}`;
 
   const { data: blog, isLoading } = useBlogBySlug(isAuthenticated, slug);
 
@@ -18,5 +21,10 @@ export default function EditBlog() {
       </Box>
     );
 
-  return <BlogForm blog={blog} mode="edit" />;
+  return (
+    <>
+      <title>{title}</title>
+      <BlogForm blog={blog} mode="edit" />
+    </>
+  );
 }

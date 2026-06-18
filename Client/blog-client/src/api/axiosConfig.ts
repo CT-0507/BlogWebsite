@@ -1,7 +1,7 @@
 import axios from "axios";
 import { tokenStore } from "./store/tokenStore";
 
-export const API_VERSION_V1 = "/api/v1";
+export const API_VERSION_V1 = "/v1";
 
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 

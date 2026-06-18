@@ -8,6 +8,7 @@ import { useBlogBySlug } from "@/hooks/useBlogBySlug";
 import { useGetAuthorDashboardBlogMetrics } from "@/hooks/useMetrics";
 import CircularProgress from "@mui/material/CircularProgress";
 import { formatDayShort, formatWeekLabel } from "@/utils/timeUtils";
+import { appName } from "@/config/const";
 
 export default function ViewDashboardBlogPage() {
   const [weeks, setWeeks] = useState(4);
@@ -33,9 +34,10 @@ export default function ViewDashboardBlogPage() {
   if (isLoading) {
     return <CircularProgress />;
   }
-
+  const title = `${appName} | ${blog?.title ?? ""}`;
   return (
     <Box>
+      <title>{title}</title>
       <ChartSection
         title="Daily Views"
         data={

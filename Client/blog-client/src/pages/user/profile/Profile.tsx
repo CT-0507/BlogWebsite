@@ -4,8 +4,10 @@ import Typography from "@mui/material/Typography";
 import EmailSection from "./EmailSection";
 import BasicInfoSection from "./BasicInfoSection";
 import PasswordSection from "./PasswordSection";
+import { appName } from "@/config/const";
 
 export default function Profile() {
+  const title = `${appName ?? ""} | Update profile`;
   return (
     <Box
       sx={{
@@ -17,6 +19,7 @@ export default function Profile() {
         p: 1,
       }}
     >
+      <title>{title}</title>
       <Typography component="h1">This is profile page</Typography>
       <Divider />
       <EmailSection />
