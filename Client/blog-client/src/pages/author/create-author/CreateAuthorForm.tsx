@@ -67,16 +67,14 @@ export default function CreateAuthorForm() {
   const { mutate, isPending } = useMutation({
     mutationFn: createAuthorRequest,
     retry: false,
-    onSuccess: async (data) => {
-      console.log(data);
+    onSuccess: async () => {
       setSnackbarOpen(true);
       setSnackbarContent("Successfully created profile");
       setSnackbarType(true);
       await queryClient.invalidateQueries({ queryKey: ["me", "author"] });
       navigate("/author/dashboard");
     },
-    onError: (error) => {
-      console.log(error);
+    onError: () => {
       setSnackbarOpen(true);
       setSnackbarContent("Failed created profile");
       setSnackbarType(false);
@@ -136,7 +134,6 @@ export default function CreateAuthorForm() {
   };
 
   const onSubmit = async (data: CreateAuthorFormValues) => {
-    console.log("Form Data:", data);
     mutate(data);
   };
   return (

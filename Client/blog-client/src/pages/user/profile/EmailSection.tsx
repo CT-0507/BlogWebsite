@@ -48,9 +48,7 @@ export default function EmailSection() {
     mutationFn: changeEmailRequest,
     retry: false,
     onSuccess: (data) => {
-      console.log(data);
       // Update me data on login response instead of fetching again
-      console.log();
       queryClient.setQueryData(["me"], (oldData: User) => {
         return {
           ...oldData,
@@ -87,9 +85,6 @@ export default function EmailSection() {
       setValue("confirmCode", data.code);
       startCooldown();
     },
-    onError: (error) => {
-      console.error(error.message);
-    },
   });
 
   const handleCancel = () => {
@@ -108,7 +103,6 @@ export default function EmailSection() {
     sendMutation(getValues("email"));
   };
   const onSubmit = async (data: ChangeEmailFormValues) => {
-    console.log("Form Data:", data);
     mutate(data);
   };
   return (

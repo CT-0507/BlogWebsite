@@ -33,8 +33,5 @@ export function useVoteBlog(slug: string) {
         };
       });
     },
-    onError: (error) => {
-      console.log(error);
-    },
   });
 }

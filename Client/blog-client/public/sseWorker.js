@@ -57,7 +57,6 @@ async function startStream(
     const parts = buffer.split("\n\n");
     buffer = parts.pop() || "";
 
-    console.log(parts)
     if (parts[0].includes("ping")) return;
 
     for (const part of parts) {

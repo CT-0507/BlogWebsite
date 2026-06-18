@@ -18,7 +18,7 @@ export function usePostComment() {
           (old: GetRootCommentsResponse) => ({
             comments: [...old.comments, data],
             total: old.total + 1,
-          })
+          }),
         );
       }
 
@@ -26,7 +26,7 @@ export function usePostComment() {
       if (parentCommentId) {
         queryClient.setQueryData(
           ["replies", parentCommentId],
-          (old: BlogComment[] = []) => [...old, data]
+          (old: BlogComment[] = []) => [...old, data],
         );
 
         // update reply count
@@ -37,14 +37,11 @@ export function usePostComment() {
               ? old.map((c) =>
                   c.commentId === parentCommentId
                     ? { ...c, replyCount: c.replyCount + 1 }
-                    : c
+                    : c,
                 )
-              : old
+              : old,
         );
       }
-    },
-    onError: (error) => {
-      console.log(error);
     },
   });
 }

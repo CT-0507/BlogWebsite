@@ -40,14 +40,14 @@ export default function SignupForm() {
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
   const handleMouseDownPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowPassword(true);
   };
 
   const handleMouseUpPassword = (
-    event: React.MouseEvent<HTMLButtonElement>
+    event: React.MouseEvent<HTMLButtonElement>,
   ) => {
     event.preventDefault();
     setShowPassword(false);
@@ -55,19 +55,12 @@ export default function SignupForm() {
 
   const { mutate, isPending } = useMutation({
     mutationFn: signupRequest,
-    onSuccess: (data) => {
-      console.log("Logged in:", data);
+    onSuccess: () => {
       navigate(`/account`);
-      // save token / redirect
-    },
-    onError: (error) => {
-      // console.error(error.response?.data?.message || error.message);
-      console.error(error.message);
     },
   });
 
   const onSubmit = async (data: SignupFormValues) => {
-    console.log("Form Data:", data);
     mutate(data);
   };
   return (

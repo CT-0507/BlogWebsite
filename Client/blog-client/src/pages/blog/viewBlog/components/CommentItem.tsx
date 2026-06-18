@@ -108,7 +108,6 @@ export default function CommentItem({
       navigate("/account");
       return;
     }
-    console.log("Form Data:", data);
     mutate(data, {
       onSuccess: () => {
         setNewReply((prev) => prev + 1);
@@ -219,7 +218,6 @@ export default function CommentItem({
       navigate("/account");
       return;
     }
-    console.log("Form Data:", data);
     mutateContent(data, {
       onSuccess: () => {
         setEditMode(false);

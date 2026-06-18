@@ -84,8 +84,5 @@ export function useVoteComment(
         },
       );
     },
-    onError: (error) => {
-      console.log(error);
-    },
   });
 }

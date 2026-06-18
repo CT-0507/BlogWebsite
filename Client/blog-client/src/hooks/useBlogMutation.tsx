@@ -9,7 +9,6 @@ export function useBlogMutation(mode: string) {
     mutationFn: mode === "create" ? publishBlogRequest : updateBlogRequest,
     retry: false,
     onSuccess: (data) => {
-      console.log(data);
       queryClient.setQueryData(
         ["author_blogs", data.author.slug],
         (old: Blog[]) => [...old, data],

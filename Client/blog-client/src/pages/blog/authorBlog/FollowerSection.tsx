@@ -8,11 +8,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useQuery } from "@tanstack/react-query";
 
-// type Follower = {
-//   id: number;
-//   avatarUrl: string;
-// };
-
 interface FollowersSectionProps {
   slug: string;
 }

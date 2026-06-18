@@ -18,7 +18,6 @@ export default function PortfolioPage() {
   const scrollTo = (id: string) => {
     const element = document.querySelector(id);
     element?.scrollIntoView({ behavior: "smooth" });
-    console.log("Here");
   };
   return (
     <Container maxWidth="lg" sx={{ overflow: "hidden" }}>

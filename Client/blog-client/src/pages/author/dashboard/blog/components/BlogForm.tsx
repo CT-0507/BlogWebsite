@@ -212,8 +212,7 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
   const { mutate, isPending } = useMutation({
     mutationFn: mode === "create" ? publishBlogRequest : updateBlogRequest,
     retry: false,
-    onSuccess: (data) => {
-      console.log(data);
+    onSuccess: () => {
       reset();
       queryClient.invalidateQueries({ queryKey: ["blogs"] });
       localStorage.removeItem(RECOVERY_KEY);
@@ -258,7 +257,6 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
   const [editorError, setEditorError] = useState("");
 
   const onSubmit = async (data: PublishBlogFormValues) => {
-    console.log("Form Data:", data);
     let saveData: UpdateBlogRequestParams;
     try {
       const editorData = await editorRef.current?.save();
@@ -291,12 +289,11 @@ export default function PublishPage({ blog, mode }: BlogFormProps) {
         idempotencyKey: keyRef.current,
       };
 
-      console.log(saveData);
       mutate(saveData, {
         onError: (error) => {
           keyRef.current = crypto.randomUUID();
           if (error.message.includes("500")) {
-            alert("blog url is already existed");
+            alert("Error occured. Please reload the page or try later");
           }
         },
       });
