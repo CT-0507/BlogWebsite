@@ -310,25 +310,40 @@ func (q *Queries) GetAuthorProfileBySlug(ctx context.Context, arg GetAuthorProfi
 }
 
 const getFollowedAuthors = `-- name: GetFollowedAuthors :many
-SELECT author_id
-FROM authors.author_followers
-WHERE user_id = $1
-ORDER BY created_at
+SELECT a.author_id, a.display_name, a.slug, a.avatar, f.user_id
+FROM authors.author_followers f
+JOIN authors.authors a ON f.author_id = a.author_id
+WHERE f.user_id = $1
+ORDER BY f.created_at
 `
 
-func (q *Queries) GetFollowedAuthors(ctx context.Context, userID string) ([]string, error) {
+type GetFollowedAuthorsRow struct {
+	AuthorID    string
+	DisplayName string
+	Slug        string
+	Avatar      pgtype.Text
+	UserID      string
+}
+
+func (q *Queries) GetFollowedAuthors(ctx context.Context, userID string) ([]GetFollowedAuthorsRow, error) {
 	rows, err := q.db.Query(ctx, getFollowedAuthors, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []GetFollowedAuthorsRow
 	for rows.Next() {
-		var author_id string
-		if err := rows.Scan(&author_id); err != nil {
+		var i GetFollowedAuthorsRow
+		if err := rows.Scan(
+			&i.AuthorID,
+			&i.DisplayName,
+			&i.Slug,
+			&i.Avatar,
+			&i.UserID,
+		); err != nil {
 			return nil, err
 		}
-		items = append(items, author_id)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

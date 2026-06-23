@@ -39,6 +39,14 @@ export default function BigScreenMenu({
     await navigate("/user/profile");
     handleMenuClose();
   };
+  const handleProfileFollowedAuthors = async () => {
+    await navigate("/user/followed-authors");
+    handleMenuClose();
+  };
+  const handleProfileLikeBlogs = async () => {
+    await navigate("/user/like-blogs");
+    handleMenuClose();
+  };
   return (
     <Menu
       anchorEl={anchorEl}
@@ -59,20 +67,38 @@ export default function BigScreenMenu({
         disabled={isPending}
         onClick={handleProfileNavigate}
         sx={{
-          width: "100px",
           display: "flex",
-          placeContent: "center",
+          placeContent: "flex-start",
         }}
       >
         Profile
       </MenuItem>
       <MenuItem
         disabled={isPending}
+        onClick={handleProfileFollowedAuthors}
+        sx={{
+          display: "flex",
+          placeContent: "flex-start",
+        }}
+      >
+        Followed Authors
+      </MenuItem>
+      <MenuItem
+        disabled={isPending}
+        onClick={handleProfileLikeBlogs}
+        sx={{
+          display: "flex",
+          placeContent: "flex-start",
+        }}
+      >
+        Liked Blogs
+      </MenuItem>
+      <MenuItem
+        disabled={isPending}
         onClick={handleLogout}
         sx={{
-          width: "100px",
           display: "flex",
-          placeContent: "center",
+          placeContent: "flex-start",
         }}
       >
         {isPending ? <CircularProgress size="20px" /> : "Logout"}

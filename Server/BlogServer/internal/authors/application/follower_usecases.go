@@ -52,7 +52,7 @@ func (u *FollowerUsecases) GetAuthorFollowers(ctx context.Context, authorID stri
 	return u.repo.GetAuthorFollowers(ctx, authorID, page, limit)
 }
 
-func (u *FollowerUsecases) GetFollowedAuthors(ctx context.Context, userID string, page int64, limit int64) ([]string, error) {
+func (u *FollowerUsecases) GetFollowedAuthors(ctx context.Context, userID string, page int64, limit int64) ([]domain.FollowedAuthor, error) {
 	return u.repo.GetFollowedAuthors(ctx, userID, page, limit)
 }
 

@@ -30,3 +30,13 @@ func MapAuthorsAuthorToAuthorProfile(row *authordb.AuthorsAuthor) *domain.Author
 		},
 	}
 }
+
+func MapFollowedAuthorToAuthorProfile(row *authordb.GetFollowedAuthorsRow) *domain.FollowedAuthor {
+	return &domain.FollowedAuthor{
+		AuthorID:    row.AuthorID,
+		UserID:      row.UserID,
+		DisplayName: row.DisplayName,
+		Avatar:      utils.GetStringPointerFromText(row.Avatar),
+		Slug:        row.Slug,
+	}
+}

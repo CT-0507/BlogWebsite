@@ -14,7 +14,7 @@ interface Author {
 interface FollowedAuthorReponse {
   message: string;
   length: number;
-  authors: string[];
+  authors: Author[];
 }
 
 export const BLOG_SORT_BY_VALUES = [

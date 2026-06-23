@@ -32,7 +32,12 @@ const PortfolioPage = lazy(
   () => import("@/pages/about/portfolio/PortfolioPage"),
 );
 const AboutPage = lazy(() => import("@/pages/about/AboutPage"));
-
+const FollowedAuthorsPage = lazy(
+  () => import("@/pages/user/followedAuthors/FollowedAuthorsPage"),
+);
+const LikedBlogsPage = lazy(
+  () => import("@/pages/user/likedBlogs/LikedBlogsPage"),
+);
 export default function AppRoutes() {
   return (
     <ErrorBoundary>
@@ -85,6 +90,14 @@ export default function AppRoutes() {
           >
             <Route index element={<UserHome />} />
             <Route path="profile" element={<Profile />} />
+            <Route
+              path="followed-authors"
+              element={<SuspenseWrapper child={<FollowedAuthorsPage />} />}
+            />
+            <Route
+              path="like-blogs"
+              element={<SuspenseWrapper child={<LikedBlogsPage />} />}
+            />
           </Route>
           <Route
             path="authors"

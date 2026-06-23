@@ -85,7 +85,7 @@ func (m *MockAuthorProfileRepository) GetAuthorFollowersByID(c context.Context, 
 	return nil, nil
 }
 
-func (m *MockAuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string, page, limit int64) ([]string, error) {
+func (m *MockAuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string, page, limit int64) ([]domain.FollowedAuthor, error) {
 	return nil, nil
 }
 

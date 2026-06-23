@@ -561,3 +561,21 @@ func (r *BlogRepository) GetAuthorDashboardReactionMetrics(c context.Context, au
 		LastWeekDislikes:  row.LastWeekDislikes,
 	}, nil
 }
+
+func (r *BlogRepository) GetUserLikedBlogs(c context.Context, userID string) ([]domain.BlogWithAuthorData, error) {
+	db := utils.GetExecutor(c, r.pool)
+
+	q := blogdb.New(db)
+
+	rows, err := q.GetLikedBlogs(c, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var blogs []domain.BlogWithAuthorData
+	for _, value := range rows {
+		v := value
+		blogs = append(blogs, *r.mapper.ListLikedBlogsRowDTOToBlog(&v))
+	}
+	return blogs, nil
+}

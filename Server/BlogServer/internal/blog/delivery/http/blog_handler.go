@@ -55,6 +55,7 @@ type ListBlogsUseCases interface {
 	GetRankingBlogsByType(ctx context.Context, searchType string, page, limit int32, shouldGetAll bool, sortBy, sortDir string) (int64, []domain.RankingBlogData, error)
 	ListAuthorBlogsByAuthorID(ctx context.Context, authorID string) ([]domain.BlogWithAuthorData, error)
 	ListAuthorBlogsBySlug(ctx context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
+	ListUserLikedBlogs(ctx context.Context, userID string) ([]domain.BlogWithAuthorData, error)
 }
 
 type CommentUsecases interface {
@@ -1423,5 +1424,34 @@ func (h *BlogHandler) getAuthorDashboardMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"viewsMetrics":    viewsMetrics,
 		"reactionMetrics": reactionMetrics,
+	})
+}
+
+func (h *BlogHandler) getUserLikedBlogs(c *gin.Context) {
+
+	ctx, cancel := context.WithTimeout(c, time.Second)
+	defer cancel()
+
+	userID, err := utils.GetUserIDStringFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, &gin.H{
+			"message": "userId not found",
+		})
+		return
+	}
+
+	result, err := h.listBlogsUseCases.ListUserLikedBlogs(ctx, userID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	if len(result) <= 0 {
+		result = []domain.BlogWithAuthorData{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"blogs": result,
+		"total": len(result),
 	})
 }

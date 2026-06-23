@@ -15,6 +15,7 @@ type BlogRepository interface {
 	ListAuthorBlogsBySlug(c context.Context, nickname string) ([]domain.BlogWithAuthorData, error)
 	FindByID(c context.Context, id int64) (*domain.BlogWithAuthorData, error)
 	FindByUrlSlug(c context.Context, slug string, userID *string) (*domain.BlogWithAuthorData, error)
+	GetUserLikedBlogs(c context.Context, userID string) ([]domain.BlogWithAuthorData, error)
 	// Update(user *Blog) error
 	Delete(c context.Context, id int64, userId string) (*int64, error)
 	// Cache table

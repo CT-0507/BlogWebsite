@@ -194,12 +194,24 @@ func (r *AuthorProfileRepository) GetAuthorFollowersByID(c context.Context, auth
 	return q.GetAuthorFollowersByID(c, authorID)
 }
 
-func (r *AuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string, page, limit int64) ([]string, error) {
+func (r *AuthorProfileRepository) GetFollowedAuthors(c context.Context, userID string, page, limit int64) ([]domain.FollowedAuthor, error) {
 	db := utils.GetExecutor(c, r.pool)
 
 	q := authordb.New(db)
 
-	return q.GetFollowedAuthors(c, userID)
+	rows, err := q.GetFollowedAuthors(c, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var authorProfiles []domain.FollowedAuthor
+	for _, value := range rows {
+		v := value
+		authorProfiles = append(authorProfiles, *MapFollowedAuthorToAuthorProfile(&v))
+	}
+
+	return authorProfiles, nil
+
 }
 
 func (r *AuthorProfileRepository) CreateAuthorFeatureBlogs(c context.Context, authorID string, blogIds []string) (int64, error) {
