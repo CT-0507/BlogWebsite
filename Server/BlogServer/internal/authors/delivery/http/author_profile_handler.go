@@ -45,7 +45,7 @@ type AuthorFollowerUsecases interface {
 	FollowAuthor(ctx context.Context, userID string, authorID string) error
 	UnfollowAuthor(ctx context.Context, userID string, authorID string) error
 	GetAuthorFollowers(ctx context.Context, slug string, page int64, limit int64) ([]string, error)
-	GetFollowedAuthors(ctx context.Context, userID string, page int64, limit int64) ([]string, error)
+	GetFollowedAuthors(ctx context.Context, userID string, page int64, limit int64) ([]domain.FollowedAuthor, error)
 }
 
 type AuthorProfileHandler struct {

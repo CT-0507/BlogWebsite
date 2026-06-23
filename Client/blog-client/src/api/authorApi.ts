@@ -14,7 +14,12 @@ export async function getAuthorBlogsRequest(slug: string) {
   return data;
 }
 
-export async function getFollowedAuthorsRequest() {
+interface GetFollowedAuthorsResponse {
+  length: number;
+  authors: Author[];
+}
+
+export async function getFollowedAuthorsRequest(): Promise<GetFollowedAuthorsResponse> {
   const { data } = await axiosAuth.get(
     `${API_VERSION_V1}/authors/me/following/authors`,
   );

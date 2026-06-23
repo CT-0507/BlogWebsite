@@ -20,6 +20,14 @@ type AuthorProfile struct {
 	model.Audit
 }
 
+type FollowedAuthor struct {
+	AuthorID    string  `json:"authorID"`
+	DisplayName string  `json:"displayName"`
+	Slug        string  `json:"slug"`
+	Avatar      *string `json:"avatar"`
+	UserID      string  `json:"userID"`
+}
+
 // Error models
 type ErrFailedToCreateAuthorProfile struct {
 	Message string

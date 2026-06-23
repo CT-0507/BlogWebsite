@@ -125,9 +125,17 @@ export default function Login() {
         }}
       >
         <Box display={action === 0 ? "block" : "none"}>
-          Test user:
+          Test user 1
           <br />
           Username: user1
+          <br />
+          Password: Abc!2345
+        </Box>
+        <Divider sx={{ borderWidth: "1px", width: "80%", my: 2 }} />
+        <Box display={action === 0 ? "block" : "none"}>
+          Test user 2
+          <br />
+          Username: user2
           <br />
           Password: Abc!2345
         </Box>

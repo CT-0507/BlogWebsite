@@ -62,6 +62,25 @@ func (u *ListBlogsUseCases) ListBlogs(ctx context.Context, title, content, autho
 	return total, result, nil
 }
 
+func (u *ListBlogsUseCases) ListUserLikedBlogs(ctx context.Context, userID string) ([]domain.BlogWithAuthorData, error) {
+	result, err := u.repo.GetUserLikedBlogs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, value := range result {
+		if value.ThumbnailUrl != nil {
+			thumbnailWithDomain, err := storage.AddDomain(*value.ThumbnailUrl)
+			if err != nil {
+				return nil, err
+			}
+			result[i].ThumbnailUrl = &thumbnailWithDomain
+		}
+	}
+
+	return result, nil
+}
+
 func (u *ListBlogsUseCases) ListBlogsAuthor(ctx context.Context, title, content, sortBy, sortDir *string, page int32, limit int32, userID string) (int64, []domain.BlogWithAuthorData, error) {
 
 	authorID, err := u.repo.VerifyAuthorIDByUserID(ctx, userID)

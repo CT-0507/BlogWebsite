@@ -229,7 +229,11 @@ func (e *EventHandler) OnUserDeleted(c context.Context, evt *messaging.OutboxEve
 			return err
 		}
 
-		eventContext.FollowedAuthorIDs = followedAuthorIDs
+		eventContext.FollowedAuthorIDs = []string{}
+
+		for _, v := range followedAuthorIDs {
+			eventContext.FollowedAuthorIDs = append(eventContext.FollowedAuthorIDs, v.UserID)
+		}
 
 		payload, err := json.Marshal(eventPayload)
 		if err != nil {

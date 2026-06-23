@@ -18,7 +18,9 @@ export default function FollowSection({ author }: FollowSectionProps) {
     queryFn: getFollowedAuthorsRequest,
   });
 
-  const isFollowed = !!data?.authors?.includes(author?.authorID);
+  const isFollowed = !!data?.authors?.some(
+    (item) => item.authorID === author?.authorID,
+  );
 
   const toggleFollowMutation = useMutation({
     mutationFn: async ({
@@ -51,8 +53,8 @@ export default function FollowSection({ author }: FollowSectionProps) {
             ...old,
             authors: follow
               ? [...authors, authorId] // ✅ add
-              : authors.filter((id) => id !== authorId), // ✅ remove
-          };
+              : authors.filter((author) => author.authorID !== authorId), // ✅ remove
+          } as FollowedAuthorReponse;
         },
       );
 

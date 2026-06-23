@@ -12,7 +12,7 @@ services:
       - app
 
   app:
-    image: ghcr.io/CT-0507/BlogWebsite:latest
+    image: ghcr.io/ct-0507/blogwebsite:latest
     container_name: go-app
     restart: always
     mem_limit: 384m

@@ -60,6 +60,22 @@ func (b *BlogMapperPG) ListBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsRow) *doma
 	}
 }
 
+func (b *BlogMapperPG) ListLikedBlogsRowDTOToBlog(blogDTO *blogdb.GetLikedBlogsRow) *domain.BlogWithAuthorData {
+	return &domain.BlogWithAuthorData{
+		BlogID:       blogDTO.BlogID,
+		Title:        blogDTO.Title,
+		URLSlug:      blogDTO.UrlSlug,
+		ContentJson:  blogDTO.ContentJson,
+		ContentText:  blogDTO.ContentText,
+		ThumbnailUrl: utils.GetStringPointerFromText(blogDTO.ThumbnailUrl),
+		Author: domain.AuthorData{
+			AuthorID:    blogDTO.AuthorID,
+			Slug:        blogDTO.Slug,
+			DisplayName: blogDTO.DisplayName,
+		},
+	}
+}
+
 func (b *BlogMapperPG) ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorRow) *domain.BlogWithAuthorData {
 	return &domain.BlogWithAuthorData{
 		BlogID:       blogDTO.BlogID,

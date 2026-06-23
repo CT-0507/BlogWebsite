@@ -8,6 +8,7 @@ import (
 type BlogRepositoryMapper interface {
 	BlogDTOToBlog(blogDTO *blogdb.BlogsBlog) *domain.Blog
 	ListBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsRow) *domain.BlogWithAuthorData
+	ListLikedBlogsRowDTOToBlog(blogDTO *blogdb.GetLikedBlogsRow) *domain.BlogWithAuthorData
 	ListAuthorBlogsByAuthorIDRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorRow) *domain.BlogWithAuthorData
 	ListAuthorBlogsRowDTOToBlog(blogDTO *blogdb.ListBlogsByAuthorSlugRow) *domain.BlogWithAuthorData
 	GetBlogRowDTOToBlogWithAuthorData(blogDTO *blogdb.GetBlogRow) *domain.BlogWithAuthorData

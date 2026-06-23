@@ -24,6 +24,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Stack from "@mui/material/Stack";
 import Link from "@mui/material/Link";
 import Logo from "@/assets/blog_logo.svg";
+import { Divider } from "@mui/material";
 
 export default function BasicLayout() {
   const queryClient = useQueryClient();
@@ -129,6 +130,40 @@ export default function BasicLayout() {
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Box sx={{ display: { xs: "none", md: "flex" } }}>
+              <Divider
+                orientation="vertical"
+                sx={{ color: "red", borderColor: "#ffffff66", borderWidth: 1 }}
+                variant="fullWidth"
+                flexItem
+              />
+              <Button
+                component={RouterLink}
+                to="/about"
+                color="info"
+                sx={{ opacity: 1, color: "white", fontSize: "1em" }}
+              >
+                About
+              </Button>
+              <Divider
+                orientation="vertical"
+                sx={{ color: "red", borderColor: "#ffffff66", borderWidth: 1 }}
+                variant="fullWidth"
+                flexItem
+              />
+              <Button
+                component={RouterLink}
+                to="/about/creator"
+                color="info"
+                sx={{ opacity: 1, color: "white", fontSize: "1em" }}
+              >
+                Creator
+              </Button>
+              <Divider
+                orientation="vertical"
+                sx={{ color: "red", borderColor: "#ffffff66", borderWidth: 1 }}
+                variant="fullWidth"
+                flexItem
+              />
               {isAuthenticated ? (
                 <>
                   <NotificationMenu />
@@ -201,8 +236,13 @@ export default function BasicLayout() {
                 </>
               ) : (
                 <>
-                  <Button component={RouterLink} to="/account" color="info">
-                    Account
+                  <Button
+                    component={RouterLink}
+                    to="/account"
+                    color="info"
+                    sx={{ opacity: 1, color: "white", fontSize: "1em" }}
+                  >
+                    Login
                   </Button>
                 </>
               )}

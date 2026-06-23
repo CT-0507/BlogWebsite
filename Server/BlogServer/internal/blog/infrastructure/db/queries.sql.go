@@ -977,6 +977,65 @@ func (q *Queries) GetDaysView(ctx context.Context, arg GetDaysViewParams) ([]Get
 	return items, nil
 }
 
+const getLikedBlogs = `-- name: GetLikedBlogs :many
+SELECT 
+    b.blog_id,
+    b.author_id,
+    b.title, 
+    b.url_slug,
+    b.content_json,
+    b.content_text,
+    b.thumbnail_url,
+    a.slug,
+    a.display_name
+FROM blogs.blog_reactions br
+JOIN blogs.blogs b ON br.blog_id = b.blog_id
+JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+WHERE br.user_id = $1 AND br.status = 'active' AND b.status = 'active' AND br.type = 'like'
+`
+
+type GetLikedBlogsRow struct {
+	BlogID       int64
+	AuthorID     string
+	Title        string
+	UrlSlug      string
+	ContentJson  []byte
+	ContentText  string
+	ThumbnailUrl pgtype.Text
+	Slug         string
+	DisplayName  string
+}
+
+func (q *Queries) GetLikedBlogs(ctx context.Context, userID string) ([]GetLikedBlogsRow, error) {
+	rows, err := q.db.Query(ctx, getLikedBlogs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetLikedBlogsRow
+	for rows.Next() {
+		var i GetLikedBlogsRow
+		if err := rows.Scan(
+			&i.BlogID,
+			&i.AuthorID,
+			&i.Title,
+			&i.UrlSlug,
+			&i.ContentJson,
+			&i.ContentText,
+			&i.ThumbnailUrl,
+			&i.Slug,
+			&i.DisplayName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getListBlogsCount = `-- name: GetListBlogsCount :one
 WITH params AS (
     SELECT

@@ -108,6 +108,19 @@ export async function listBlogs(
   return data;
 }
 
+interface ListLikedBlogsResponse {
+  total: number;
+  blogs: Blog[];
+}
+
+export async function listLikedBlogs(): Promise<ListLikedBlogsResponse> {
+  const { data } = await axiosAuth.get(
+    `${API_VERSION_V1}/blogs/me/liked-blogs`,
+  );
+
+  return data;
+}
+
 export async function listMyBlogs(
   queryParams: Omit<QueryBlogsParams, "author">,
   page: number,

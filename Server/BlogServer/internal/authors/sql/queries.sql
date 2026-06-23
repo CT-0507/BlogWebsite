@@ -119,10 +119,11 @@ WHERE a.author_id = $1
 ORDER BY a.created_at;
 
 -- name: GetFollowedAuthors :many
-SELECT author_id
-FROM authors.author_followers
-WHERE user_id = $1
-ORDER BY created_at;
+SELECT a.author_id, a.display_name, a.slug, a.avatar, f.user_id
+FROM authors.author_followers f
+JOIN authors.authors a ON f.author_id = a.author_id
+WHERE f.user_id = $1
+ORDER BY f.created_at;
 
 -- name: CreateAuthorFeatureBlogs :copyfrom
 INSERT INTO authors.author_featured_blogs (

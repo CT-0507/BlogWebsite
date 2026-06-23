@@ -504,6 +504,22 @@ SELECT
     COALESCE((SELECT type FROM existing), 'none')::VARCHAR(20) AS old_type,
     (SELECT new_type FROM upsert)::VARCHAR(20) AS new_type;
 
+-- name: GetLikedBlogs :many
+SELECT 
+    b.blog_id,
+    b.author_id,
+    b.title, 
+    b.url_slug,
+    b.content_json,
+    b.content_text,
+    b.thumbnail_url,
+    a.slug,
+    a.display_name
+FROM blogs.blog_reactions br
+JOIN blogs.blogs b ON br.blog_id = b.blog_id
+JOIN blogs.idx_user_author_profile a ON a.author_id = b.author_id
+WHERE br.user_id = $1 AND br.status = 'active' AND b.status = 'active' AND br.type = 'like';
+
 -- name: UpsertCommentReaction :one
 WITH existing AS (
     SELECT type
