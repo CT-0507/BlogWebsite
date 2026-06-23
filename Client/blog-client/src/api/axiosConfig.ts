@@ -11,7 +11,7 @@ export const api = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true,
-  timeout: 100,
+  timeout: 5000,
 });
 
 let isRefreshing = false;
